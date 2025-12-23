@@ -13,7 +13,8 @@ import (
 )
 
 type Config struct {
-	APIKey string `yaml:"api_key"`
+	APIKey    string `yaml:"api_key"`
+	ModelName string `yaml:"model_name"`
 }
 
 type AIGuide struct {
@@ -28,11 +29,10 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		Config: config,
 	}
 
-	modelName := "gemini-2.0-flash"
 	genaiConfig := &genai.ClientConfig{
 		APIKey: config.APIKey,
 	}
-	model, err := gemini.NewModel(ctx, modelName, genaiConfig)
+	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {
 		slog.Error("gemini.NewModel() error", "err", err)
 		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
