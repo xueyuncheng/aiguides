@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/url"
 
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/cmd/launcher"
@@ -15,6 +17,7 @@ import (
 type Config struct {
 	APIKey    string `yaml:"api_key"`
 	ModelName string `yaml:"model_name"`
+	Proxy     string `yaml:"proxy"`
 }
 
 type AIGuide struct {
@@ -29,8 +32,24 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		Config: config,
 	}
 
+	var httpClient *http.Client
+	if config.Proxy != "" {
+		parsedProxyURL, err := url.Parse(config.Proxy)
+		if err != nil {
+			slog.Error("url.Parse() error", "err", err)
+			return nil, fmt.Errorf("url.Parse() error, err = %w", err)
+		}
+		parsedProxy := http.ProxyURL(parsedProxyURL)
+		httpClient = &http.Client{
+			Transport: &http.Transport{
+				Proxy: parsedProxy,
+			},
+		}
+	}
+
 	genaiConfig := &genai.ClientConfig{
-		APIKey: config.APIKey,
+		APIKey:     config.APIKey,
+		HTTPClient: httpClient,
 	}
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {
