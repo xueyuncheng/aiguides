@@ -172,7 +172,7 @@ export default function ChatPage() {
       const errorMessage: Message = {
         id: `msg-${Date.now()}-error`,
         role: 'assistant',
-        content: '抱歉，发生了错误。请确保后端服务正在运行（默认端口 8080），并稍后重试。\n\n错误详情：' + (error as Error).message,
+        content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error as Error).message,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
