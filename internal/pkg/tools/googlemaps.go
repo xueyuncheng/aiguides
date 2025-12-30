@@ -23,10 +23,10 @@ type GoogleMapsInput struct {
 
 // GoogleMapsOutput 定义 Google Maps 工具的输出
 type GoogleMapsOutput struct {
-	Success  bool   `json:"success"`
-	MapURL   string `json:"map_url,omitempty"`
-	Message  string `json:"message,omitempty"`
-	Error    string `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	MapURL  string `json:"map_url,omitempty"`
+	Message string `json:"message,omitempty"`
+	Error   string `json:"error,omitempty"`
 }
 
 // NewGoogleMapsTool 创建 Google Maps 地图生成工具。
@@ -70,7 +70,7 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 			}
 		}
 		mapURL := fmt.Sprintf("https://www.google.com/maps/search/?api=1&query=%s", url.QueryEscape(queryStr))
-		
+
 		return &GoogleMapsOutput{
 			Success: true,
 			MapURL:  mapURL,
@@ -81,10 +81,10 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	// 多个位置：构建包含所有位置的地图 URL
 	// 使用 Google Maps 的 "Place IDs" 或 "query" 参数
 	// 最佳方式：生成一个包含所有地点标记的 URL
-	
+
 	// 方法1：使用 directions API 创建带多个途径点的路线
 	// 格式: https://www.google.com/maps/dir/?api=1&origin=...&destination=...&waypoints=...
-	
+
 	var queries []string
 	for _, loc := range input.Locations {
 		queryStr := buildLocationQuery(loc)
@@ -100,7 +100,7 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	// 使用第一个位置作为起点，最后一个位置作为终点，中间的作为途径点
 	origin := url.QueryEscape(queries[0])
 	destination := url.QueryEscape(queries[len(queries)-1])
-	
+
 	var mapURL string
 	if len(queries) > 2 {
 		// 有中间途径点
