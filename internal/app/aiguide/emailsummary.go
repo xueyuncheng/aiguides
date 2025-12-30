@@ -11,19 +11,7 @@ import (
 	"google.golang.org/adk/tool"
 )
 
-// NewEmailSummaryAgent 创建邮件总结 Agent
-func NewEmailSummaryAgent(model model.LLM) (agent.Agent, error) {
-	// 创建邮件获取工具
-	mailFetchTool, err := tools.NewMailFetchToolWithJSON()
-	if err != nil {
-		return nil, fmt.Errorf("new mail fetch tool error, err = %w", err)
-	}
-
-	emailSummaryAgentConfig := llmagent.Config{
-		Name:        "EmailSummaryAgent",
-		Model:       model,
-		Description: "专业的邮件分析助手，擅长读取 Apple Mail 邮件并提供重要邮件总结",
-		Instruction: `你是一个专业的邮件分析助手，负责帮助用户分析和总结 Apple Mail 中的重要邮件。
+const emailSummaryAgentInstruction = `你是一个专业的邮件分析助手，负责帮助用户分析和总结 Apple Mail 中的重要邮件。
 
 **核心职责：**
 1. 使用 fetch_apple_mail 工具从 Apple Mail 客户端读取邮件
@@ -73,8 +61,22 @@ func NewEmailSummaryAgent(model model.LLM) (agent.Agent, error) {
 - 本工具仅在 macOS 系统上可用
 - 默认读取收件箱（INBOX），可以通过参数指定其他邮箱
 - 邮件内容会被截断以提高处理效率
-- 重要性判断基于邮件内容分析，可能需要用户确认`,
-		OutputKey: "email_summary_output",
+- 重要性判断基于邮件内容分析，可能需要用户确认`
+
+// NewEmailSummaryAgent 创建邮件总结 Agent
+func NewEmailSummaryAgent(model model.LLM) (agent.Agent, error) {
+	// 创建邮件获取工具
+	mailFetchTool, err := tools.NewMailFetchToolWithJSON()
+	if err != nil {
+		return nil, fmt.Errorf("new mail fetch tool error, err = %w", err)
+	}
+
+	emailSummaryAgentConfig := llmagent.Config{
+		Name:        "EmailSummaryAgent",
+		Model:       model,
+		Description: "专业的邮件分析助手，擅长读取 Apple Mail 邮件并提供重要邮件总结",
+		Instruction: emailSummaryAgentInstruction,
+		OutputKey:   "email_summary_output",
 		Tools: []tool.Tool{
 			mailFetchTool,
 		},

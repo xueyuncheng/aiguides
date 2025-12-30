@@ -12,18 +12,7 @@ import (
 	"google.golang.org/adk/tool/geminitool"
 )
 
-func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
-	// 创建网页获取工具
-	webFetchTool, err := tools.NewWebFetchTool()
-	if err != nil {
-		return nil, fmt.Errorf("new web fetch tool error, err = %w", err)
-	}
-
-	webSummaryAgentConfig := llmagent.Config{
-		Name:        "WebSummaryAgent",
-		Model:       model,
-		Description: "专业的网页内容分析助手，擅长访问网页并提供深度总结",
-		Instruction: `你是一个专业的网页内容分析助手，负责帮助用户分析和总结网页内容。
+const webSummaryAgentInstruction = `你是一个专业的网页内容分析助手，负责帮助用户分析和总结网页内容。
 
 **核心职责：**
 1. 当用户提供网页 URL 时，使用 fetch_webpage 工具获取网页内容
@@ -49,8 +38,21 @@ func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
 - 如果网页无法访问，说明原因
 - 从 HTML 中提取有意义的文本内容，忽略脚本、样式等
 - 保持客观中立，准确转述原文信息
-- 如遇到技术性内容，保留专业术语并做适当解释`,
-		OutputKey: "web_summary_output",
+- 如遇到技术性内容，保留专业术语并做适当解释`
+
+func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
+	// 创建网页获取工具
+	webFetchTool, err := tools.NewWebFetchTool()
+	if err != nil {
+		return nil, fmt.Errorf("new web fetch tool error, err = %w", err)
+	}
+
+	webSummaryAgentConfig := llmagent.Config{
+		Name:        "WebSummaryAgent",
+		Model:       model,
+		Description: "专业的网页内容分析助手，擅长访问网页并提供深度总结",
+		Instruction: webSummaryAgentInstruction,
+		OutputKey:   "web_summary_output",
 		Tools: []tool.Tool{
 			geminitool.GoogleSearch{},
 			webFetchTool,
