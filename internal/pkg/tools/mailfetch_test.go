@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"runtime"
 	"testing"
 )
@@ -26,7 +27,7 @@ func TestFetchAppleMailWithJSON_NotMacOS(t *testing.T) {
 	}
 
 	input := MailFetchInput{MaxCount: 5, Mailbox: "INBOX"}
-	output := fetchAppleMailWithJSON(nil, input)
+	output := fetchAppleMailWithJSON(context.Background(), input)
 
 	if output.Success {
 		t.Error("Expected failure on non-macOS system, got success")
@@ -51,7 +52,7 @@ func TestMailFetchInput_DefaultValues(t *testing.T) {
 	// 注意：这个测试在没有运行 Mail.app 或没有权限时会失败
 	// 这是预期的行为
 	input := MailFetchInput{}
-	output := fetchAppleMailWithJSON(nil, input)
+	output := fetchAppleMailWithJSON(context.Background(), input)
 
 	// 我们只检查是否正确处理了输入，不检查是否成功
 	// 因为可能没有 Mail.app 运行或没有权限
