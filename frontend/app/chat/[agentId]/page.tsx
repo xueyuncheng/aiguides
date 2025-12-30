@@ -160,7 +160,7 @@ export default function ChatPage() {
                     return newMessages;
                   });
                 }
-              } catch (e) {
+              } catch {
                 // Ignore parse errors for incomplete JSON
               }
             }
