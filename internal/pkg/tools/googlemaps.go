@@ -13,7 +13,6 @@ import (
 type Location struct {
 	Name    string `json:"name" jsonschema:"位置名称"`
 	Address string `json:"address" jsonschema:"位置地址或坐标"`
-	Label   string `json:"label,omitempty" jsonschema:"标记标签（可选），用于在地图上标识，如 'A', 'B', '1', '2'"`
 }
 
 // GoogleMapsInput 定义 Google Maps 工具的输入参数
@@ -64,6 +63,12 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	if len(input.Locations) == 1 {
 		location := input.Locations[0]
 		queryStr := buildLocationQuery(location)
+		if queryStr == "" {
+			return &GoogleMapsOutput{
+				Success: false,
+				Error:   "位置信息不完整：名称和地址不能都为空",
+			}
+		}
 		mapURL := fmt.Sprintf("https://www.google.com/maps/search/?api=1&query=%s", url.QueryEscape(queryStr))
 		
 		return &GoogleMapsOutput{
@@ -82,7 +87,14 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	
 	var queries []string
 	for _, loc := range input.Locations {
-		queries = append(queries, buildLocationQuery(loc))
+		queryStr := buildLocationQuery(loc)
+		if queryStr == "" {
+			return &GoogleMapsOutput{
+				Success: false,
+				Error:   fmt.Sprintf("位置信息不完整：'%s' 的名称和地址不能都为空", loc.Name),
+			}
+		}
+		queries = append(queries, queryStr)
 	}
 
 	// 使用第一个位置作为起点，最后一个位置作为终点，中间的作为途径点
@@ -121,5 +133,9 @@ func buildLocationQuery(loc Location) string {
 		return loc.Address
 	}
 	// 只有名称
-	return loc.Name
+	if loc.Name != "" {
+		return loc.Name
+	}
+	// 如果名称和地址都为空，返回空字符串（调用方需要处理）
+	return ""
 }

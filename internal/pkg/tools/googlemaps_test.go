@@ -121,6 +121,11 @@ func TestBuildLocationQuery(t *testing.T) {
 			location: Location{Name: "浅草寺"},
 			expected: "浅草寺",
 		},
+		{
+			name:     "Empty location",
+			location: Location{},
+			expected: "",
+		},
 	}
 
 	for _, tt := range tests {
@@ -131,4 +136,23 @@ func TestBuildLocationQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGenerateGoogleMapsURL_EmptyLocationInfo(t *testing.T) {
+	input := GoogleMapsInput{
+		Locations: []Location{
+			{Name: "", Address: ""},
+		},
+	}
+
+	output := generateGoogleMapsURL(input)
+	if output.Success {
+		t.Fatal("Expected failure for empty location information")
+	}
+
+	if output.Error == "" {
+		t.Fatal("Expected error message for empty location information")
+	}
+
+	t.Logf("Expected error: %s", output.Error)
 }
