@@ -35,51 +35,11 @@ type MailFetchOutput struct {
 	Error   string         `json:"error,omitempty"`
 }
 
-// NewMailFetchToolWithJSON 创建 Apple Mail 邮件获取工具。
-//
-// 该工具通过 AppleScript 从 Apple Mail 客户端读取邮件，
-// 使用 JSON 格式返回邮件列表用于总结分析。
-func NewMailFetchToolWithJSON() (tool.Tool, error) {
-	config := functiontool.Config{
-		Name:        "fetch_apple_mail",
-		Description: "从 Apple Mail 客户端获取邮件。返回邮件列表，包括主题、发件人、日期、内容等信息，适用于邮件分析和总结任务。",
-	}
-
-	handler := func(ctx tool.Context, input MailFetchInput) (*MailFetchOutput, error) {
-		return fetchAppleMailWithJSON(ctx, input), nil
-	}
-
-	return functiontool.New(config, handler)
-}
-
-// fetchAppleMailWithJSON 使用 JSON 输出格式的 AppleScript
-func fetchAppleMailWithJSON(ctx context.Context, input MailFetchInput) *MailFetchOutput {
-	// 检查是否在 macOS 上运行
-	if runtime.GOOS != "darwin" {
-		slog.Error("此工具仅支持 macOS 系统的 Apple Mail")
-		return &MailFetchOutput{
-			Success: false,
-			Error:   "此工具仅支持 macOS 系统的 Apple Mail",
-		}
-	}
-
-	// 设置默认值
-	maxCount := input.MaxCount
-	if maxCount <= 0 {
-		maxCount = 10
-	}
-	if maxCount > 50 {
-		maxCount = 50
-	}
-
-	mailbox := input.Mailbox
-	if mailbox == "" {
-		mailbox = "INBOX"
-	}
-
-	// 构建 AppleScript 脚本，直接生成 JSON 格式输出
-	// 使用 AppleScript 的文本替换功能进行基本的 JSON 转义
-	simpleScript := fmt.Sprintf(`
+// appleScriptTemplate 是 AppleScript 脚本模板，包含四个占位符：
+// %s - mailbox name
+// %d - max count (twice)
+// %s - mailbox name (for output)
+const appleScriptTemplate = `
 tell application "Mail"
 	set output to "["
 	set mailboxName to "%s"
@@ -152,7 +112,52 @@ on replaceText(theText, oldText, newText)
 	set AppleScript's text item delimiters to ""
 	return theText
 end replaceText
-`, mailbox, maxCount, maxCount, mailbox)
+`
+
+// NewMailFetchToolWithJSON 创建 Apple Mail 邮件获取工具。
+//
+// 该工具通过 AppleScript 从 Apple Mail 客户端读取邮件，
+// 使用 JSON 格式返回邮件列表用于总结分析。
+func NewMailFetchToolWithJSON() (tool.Tool, error) {
+	config := functiontool.Config{
+		Name:        "fetch_apple_mail",
+		Description: "从 Apple Mail 客户端获取邮件。返回邮件列表，包括主题、发件人、日期、内容等信息，适用于邮件分析和总结任务。",
+	}
+
+	handler := func(ctx tool.Context, input MailFetchInput) (*MailFetchOutput, error) {
+		return fetchAppleMailWithJSON(ctx, input), nil
+	}
+
+	return functiontool.New(config, handler)
+}
+
+// fetchAppleMailWithJSON 使用 JSON 输出格式的 AppleScript
+func fetchAppleMailWithJSON(ctx context.Context, input MailFetchInput) *MailFetchOutput {
+	// 检查是否在 macOS 上运行
+	if runtime.GOOS != "darwin" {
+		slog.Error("此工具仅支持 macOS 系统的 Apple Mail")
+		return &MailFetchOutput{
+			Success: false,
+			Error:   "此工具仅支持 macOS 系统的 Apple Mail",
+		}
+	}
+
+	// 设置默认值
+	maxCount := input.MaxCount
+	if maxCount <= 0 {
+		maxCount = 10
+	}
+	if maxCount > 50 {
+		maxCount = 50
+	}
+
+	mailbox := input.Mailbox
+	if mailbox == "" {
+		mailbox = "INBOX"
+	}
+
+	// 使用模板生成 AppleScript 脚本
+	simpleScript := fmt.Sprintf(appleScriptTemplate, mailbox, maxCount, maxCount, mailbox)
 
 	// 执行 AppleScript
 	cmd := exec.CommandContext(ctx, "osascript", "-e", simpleScript)
