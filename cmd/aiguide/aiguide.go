@@ -12,6 +12,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+const (
+	// DefaultGinPort 是 Gin 服务器的默认端口
+	DefaultGinPort = 8080
+)
+
 func main() {
 	initLogger()
 
@@ -45,7 +50,7 @@ func run(ctx context.Context, file string) error {
 	if config.UseGin {
 		port := config.GinPort
 		if port == 0 {
-			port = 8080 // 默认端口
+			port = DefaultGinPort
 		}
 		slog.Info("Starting AIGuide with Gin framework", "port", port)
 		ginServer := server.NewServer(guide.GetAgentLoader(), port)

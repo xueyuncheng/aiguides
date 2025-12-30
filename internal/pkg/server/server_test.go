@@ -39,4 +39,3 @@ func TestCORSMiddleware(t *testing.T) {
 	t.Log("  Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS")
 	t.Log("  Access-Control-Allow-Headers: Content-Type, Authorization")
 }
-

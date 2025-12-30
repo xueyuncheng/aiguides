@@ -16,6 +16,17 @@ import (
 	"google.golang.org/genai"
 )
 
+const (
+	// DefaultUserID 是默认的用户 ID
+	DefaultUserID = "default-user"
+
+	// ErrArtifactsNotSupported 表示 artifacts 功能不支持
+	ErrArtifactsNotSupported = "artifacts not supported"
+
+	// ErrMemoryNotSupported 表示 memory 功能不支持
+	ErrMemoryNotSupported = "memory not supported"
+)
+
 // Server 封装 Gin HTTP 服务器
 type Server struct {
 	router         *gin.Engine
@@ -166,7 +177,7 @@ func (s *Server) getOrCreateSession(ctx context.Context, sessionID, agentID stri
 	getReq := &session.GetRequest{
 		SessionID: sessionID,
 		AppName:   agentID,
-		UserID:    "default-user",
+		UserID:    DefaultUserID,
 	}
 
 	getResp, err := s.sessionService.Get(ctx, getReq)
@@ -178,7 +189,7 @@ func (s *Server) getOrCreateSession(ctx context.Context, sessionID, agentID stri
 	createReq := &session.CreateRequest{
 		SessionID: sessionID,
 		AppName:   agentID,
-		UserID:    "default-user",
+		UserID:    DefaultUserID,
 	}
 
 	createResp, err := s.sessionService.Create(ctx, createReq)
@@ -201,12 +212,16 @@ type invocationContext struct {
 
 // newInvocationContext 创建新的调用上下文
 func newInvocationContext(ctx context.Context, ag agent.Agent, sess session.Session, userContent *genai.Content) agent.InvocationContext {
+	// 生成调用 ID，格式为 "inv-{session_id_without_dashes}"
+	// 这样可以保证 ID 的唯一性并与 session 关联
+	invID := fmt.Sprintf("inv-%s", strings.Replace(sess.ID(), "-", "", -1))
+
 	return &invocationContext{
 		Context:      ctx,
 		agent:        ag,
 		session:      sess,
 		userContent:  userContent,
-		invocationID: fmt.Sprintf("inv-%s", strings.Replace(sess.ID(), "-", "", -1)),
+		invocationID: invID,
 		ended:        false,
 	}
 }
@@ -257,30 +272,30 @@ func (ic *invocationContext) Ended() bool {
 type emptyArtifacts struct{}
 
 func (ea *emptyArtifacts) Save(ctx context.Context, name string, data *genai.Part) (*artifact.SaveResponse, error) {
-	return nil, fmt.Errorf("artifacts not supported")
+	return nil, fmt.Errorf(ErrArtifactsNotSupported)
 }
 
 func (ea *emptyArtifacts) Load(ctx context.Context, name string) (*artifact.LoadResponse, error) {
-	return nil, fmt.Errorf("artifacts not supported")
+	return nil, fmt.Errorf(ErrArtifactsNotSupported)
 }
 
 func (ea *emptyArtifacts) LoadVersion(ctx context.Context, name string, version int) (*artifact.LoadResponse, error) {
-	return nil, fmt.Errorf("artifacts not supported")
+	return nil, fmt.Errorf(ErrArtifactsNotSupported)
 }
 
 func (ea *emptyArtifacts) List(ctx context.Context) (*artifact.ListResponse, error) {
-	return nil, fmt.Errorf("artifacts not supported")
+	return nil, fmt.Errorf(ErrArtifactsNotSupported)
 }
 
 // emptyMemory 提供一个空的 Memory 实现
 type emptyMemory struct{}
 
 func (em *emptyMemory) AddSession(ctx context.Context, sess session.Session) error {
-	return fmt.Errorf("memory not supported")
+	return fmt.Errorf(ErrMemoryNotSupported)
 }
 
 func (em *emptyMemory) Search(ctx context.Context, query string) (*memory.SearchResponse, error) {
-	return nil, fmt.Errorf("memory not supported")
+	return nil, fmt.Errorf(ErrMemoryNotSupported)
 }
 
 // Start 启动 HTTP 服务器
