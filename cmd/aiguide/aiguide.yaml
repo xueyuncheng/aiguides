@@ -1,1 +1,4 @@
 api_key: xxxx
+model_name: gemini-2.0-flash-exp
+use_gin: true
+gin_port: 8080

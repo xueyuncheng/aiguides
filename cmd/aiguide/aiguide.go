@@ -2,6 +2,7 @@ package main
 
 import (
 	"aiguide/internal/app/aiguide"
+	"aiguide/internal/pkg/server"
 	"context"
 	"flag"
 	"fmt"
@@ -40,6 +41,18 @@ func run(ctx context.Context, file string) error {
 		return fmt.Errorf("aiguide.New() error, err = %w", err)
 	}
 
+	// 如果配置中启用了 Gin，使用 Gin 服务器
+	if config.UseGin {
+		port := config.GinPort
+		if port == 0 {
+			port = 8080 // 默认端口
+		}
+		slog.Info("Starting AIGuide with Gin framework", "port", port)
+		ginServer := server.NewServer(guide.GetAgentLoader(), port)
+		return ginServer.Start()
+	}
+
+	// 否则使用默认的 ADK launcher
 	if err := guide.Start(ctx); err != nil {
 		return fmt.Errorf("guide.Start() error, err = %w", err)
 	}

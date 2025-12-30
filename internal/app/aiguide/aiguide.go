@@ -18,6 +18,8 @@ type Config struct {
 	APIKey    string `yaml:"api_key"`
 	ModelName string `yaml:"model_name"`
 	Proxy     string `yaml:"proxy"`
+	UseGin    bool   `yaml:"use_gin"`
+	GinPort   int    `yaml:"gin_port"`
 }
 
 type AIGuide struct {
@@ -25,6 +27,7 @@ type AIGuide struct {
 
 	launcher       launcher.Launcher
 	launcherConfig *launcher.Config
+	agentLoader    agent.Loader
 }
 
 func New(ctx context.Context, config *Config) (*AIGuide, error) {
@@ -96,11 +99,17 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		AgentLoader: agentLoader,
 	}
 	guide.launcherConfig = launcherConfig
+	guide.agentLoader = agentLoader
 
 	launcher := full.NewLauncher()
 	guide.launcher = launcher
 
 	return guide, nil
+}
+
+// GetAgentLoader 返回 agent loader，用于外部访问
+func (a *AIGuide) GetAgentLoader() agent.Loader {
+	return a.agentLoader
 }
 
 func (a *AIGuide) Start(ctx context.Context) error {
