@@ -69,8 +69,14 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("NewWebSummaryAgent() error, err = %w", err)
 	}
 
-	// 使用 MultiLoader 注册两个顶层 Agent
-	agentLoader, err := agent.NewMultiLoader(assistant, webSummaryAgent)
+	// 创建邮件总结 Agent
+	emailSummaryAgent, err := NewEmailSummaryAgent(model)
+	if err != nil {
+		return nil, fmt.Errorf("NewEmailSummaryAgent() error, err = %w", err)
+	}
+
+	// 使用 MultiLoader 注册三个顶层 Agent
+	agentLoader, err := agent.NewMultiLoader(assistant, webSummaryAgent, emailSummaryAgent)
 	if err != nil {
 		return nil, fmt.Errorf("agent.NewMultiLoader() error, err = %w", err)
 	}
