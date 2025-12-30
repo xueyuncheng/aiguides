@@ -26,7 +26,7 @@ func NewSequentialAgent(model model.LLM) (agent.Agent, error) {
 	cfg := sequentialagent.Config{
 		AgentConfig: agent.Config{
 			Name:        "AI assistant",
-			Description: "一个 AI 助手，会一次调用多个子 Agent 来完成任务",
+			Description: "一个 AI 助手，专门用于信息检索和事实核查",
 			SubAgents:   []agent.Agent{searchAgent, factCheckAgent},
 		},
 	}

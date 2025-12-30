@@ -57,12 +57,23 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
 	}
 
-	sequentialAgent, err := NewSequentialAgent(model)
+	// 创建信息检索和事实核查的 Agent
+	assistant, err := NewSequentialAgent(model)
 	if err != nil {
 		return nil, fmt.Errorf("NewSequentialAgent() error, err = %w", err)
 	}
 
-	agentLoader := agent.NewSingleLoader(sequentialAgent)
+	// 创建网页总结 Agent
+	webSummaryAgent, err := NewWebSummaryAgent(model)
+	if err != nil {
+		return nil, fmt.Errorf("NewWebSummaryAgent() error, err = %w", err)
+	}
+
+	// 使用 MultiLoader 注册两个顶层 Agent
+	agentLoader, err := agent.NewMultiLoader(assistant, webSummaryAgent)
+	if err != nil {
+		return nil, fmt.Errorf("agent.NewMultiLoader() error, err = %w", err)
+	}
 
 	launcherConfig := &launcher.Config{
 		AgentLoader: agentLoader,
