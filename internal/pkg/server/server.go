@@ -192,11 +192,11 @@ func (s *Server) getOrCreateSession(ctx context.Context, sessionID, agentID stri
 // invocationContext 实现 agent.InvocationContext 接口
 type invocationContext struct {
 	context.Context
-	agent       agent.Agent
-	session     session.Session
-	userContent *genai.Content
+	agent        agent.Agent
+	session      session.Session
+	userContent  *genai.Content
 	invocationID string
-	ended       bool
+	ended        bool
 }
 
 // newInvocationContext 创建新的调用上下文
