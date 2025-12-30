@@ -12,18 +12,7 @@ import (
 	"google.golang.org/adk/tool/geminitool"
 )
 
-func NewTravelAgent(model model.LLM) (agent.Agent, error) {
-	// 创建 Google Maps 工具
-	googleMapsTool, err := tools.NewGoogleMapsTool()
-	if err != nil {
-		return nil, fmt.Errorf("new google maps tool error, err = %w", err)
-	}
-
-	travelAgentConfig := llmagent.Config{
-		Name:        "TravelAgent",
-		Model:       model,
-		Description: "专业的旅游规划助手，根据用户的旅游时间和目的地提供详细的旅游行程规划，并在地图上显示重点地点",
-		Instruction: `你是一个专业的旅游规划助手，负责为用户制定详细的旅游行程计划。
+const travelAgentInstruction = `你是一个专业的旅游规划助手，负责为用户制定详细的旅游行程计划。
 
 **核心职责：**
 1. 根据用户提供的旅游时间（天数）和目的地（国家或城市）制定旅游计划
@@ -96,8 +85,21 @@ func NewTravelAgent(model model.LLM) (agent.Agent, error) {
 - 考虑季节性因素（淡旺季、节假日等）
 - 行程安排要合理，避免过于紧凑或松散
 - 提供多样化的选择，兼顾热门景点和小众体验
-- 标注信息来源，提供可靠的参考链接`,
-		OutputKey: "travel_agent_output",
+- 标注信息来源，提供可靠的参考链接`
+
+func NewTravelAgent(model model.LLM) (agent.Agent, error) {
+	// 创建 Google Maps 工具
+	googleMapsTool, err := tools.NewGoogleMapsTool()
+	if err != nil {
+		return nil, fmt.Errorf("new google maps tool error, err = %w", err)
+	}
+
+	travelAgentConfig := llmagent.Config{
+		Name:        "TravelAgent",
+		Model:       model,
+		Description: "专业的旅游规划助手，根据用户的旅游时间和目的地提供详细的旅游行程规划，并在地图上显示重点地点",
+		Instruction: travelAgentInstruction,
+		OutputKey:   "travel_agent_output",
 		Tools: []tool.Tool{
 			geminitool.GoogleSearch{},
 			googleMapsTool,

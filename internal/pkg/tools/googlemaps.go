@@ -2,6 +2,7 @@ package tools
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"strings"
 
@@ -49,6 +50,7 @@ func NewGoogleMapsTool() (tool.Tool, error) {
 // generateGoogleMapsURL 生成 Google Maps URL
 func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	if len(input.Locations) == 0 {
+		slog.Error("位置列表不能为空")
 		return &GoogleMapsOutput{
 			Success: false,
 			Error:   "位置列表不能为空",
@@ -64,6 +66,7 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 		location := input.Locations[0]
 		queryStr := buildLocationQuery(location)
 		if queryStr == "" {
+			slog.Error("位置信息不完整：名称和地址不能都为空")
 			return &GoogleMapsOutput{
 				Success: false,
 				Error:   "位置信息不完整：名称和地址不能都为空",
@@ -74,7 +77,7 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 		return &GoogleMapsOutput{
 			Success: true,
 			MapURL:  mapURL,
-			Message: fmt.Sprintf("成功生成包含 1 个地点的地图链接"),
+			Message: "成功生成包含 1 个地点的地图链接",
 		}
 	}
 
@@ -89,6 +92,7 @@ func generateGoogleMapsURL(input GoogleMapsInput) *GoogleMapsOutput {
 	for _, loc := range input.Locations {
 		queryStr := buildLocationQuery(loc)
 		if queryStr == "" {
+			slog.Error("位置信息不完整：名称和地址不能都为空", "location name", loc.Name)
 			return &GoogleMapsOutput{
 				Success: false,
 				Error:   fmt.Sprintf("位置信息不完整：'%s' 的名称和地址不能都为空", loc.Name),
