@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os/exec"
 	"runtime"
 
@@ -55,6 +56,7 @@ func NewMailFetchToolWithJSON() (tool.Tool, error) {
 func fetchAppleMailWithJSON(ctx context.Context, input MailFetchInput) *MailFetchOutput {
 	// 检查是否在 macOS 上运行
 	if runtime.GOOS != "darwin" {
+		slog.Error("此工具仅支持 macOS 系统的 Apple Mail")
 		return &MailFetchOutput{
 			Success: false,
 			Error:   "此工具仅支持 macOS 系统的 Apple Mail",
@@ -80,7 +82,15 @@ func fetchAppleMailWithJSON(ctx context.Context, input MailFetchInput) *MailFetc
 	simpleScript := fmt.Sprintf(`
 tell application "Mail"
 	set output to "["
-	set targetMailbox to mailbox "%s"
+	set mailboxName to "%s"
+	set targetMailbox to inbox
+	if mailboxName is not "" and mailboxName is not "INBOX" and mailboxName is not "Inbox" then
+		try
+			set targetMailbox to mailbox mailboxName
+		on error
+			-- 如果找不到指定邮箱，继续使用默认收件箱
+		end try
+	end if
 	set messageList to messages of targetMailbox
 	
 	set messageCount to count of messageList
@@ -146,9 +156,10 @@ end replaceText
 
 	// 执行 AppleScript
 	cmd := exec.CommandContext(ctx, "osascript", "-e", simpleScript)
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// 如果执行失败，可能是因为权限或 Mail 应用未运行
+		slog.Error("cmd.CombinedOutput() error", "err", err, "output", string(output))
 		return &MailFetchOutput{
 			Success: false,
 			Error:   fmt.Sprintf("执行 AppleScript 失败: %v，请确保 Mail 应用正在运行且已授予权限", err),
@@ -158,6 +169,7 @@ end replaceText
 	// 解析 JSON 输出
 	var emails []EmailMessage
 	if err := json.Unmarshal(output, &emails); err != nil {
+		slog.Error("json.Unmarshal() error", "err", err)
 		return &MailFetchOutput{
 			Success: false,
 			Error:   fmt.Sprintf("解析邮件 JSON 失败: %v，输出: %s", err, string(output)),
