@@ -110,8 +110,8 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Call the backend API
-      const response = await fetch(`http://localhost:8080/api/v1/agents/${agentId}/sessions/${sessionId}`, {
+      // Call the backend API via Next.js proxy
+      const response = await fetch(`/api/v1/agents/${agentId}/sessions/${sessionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
