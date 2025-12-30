@@ -33,13 +33,14 @@
 - Apple Mail 应用正在运行
 - 已授予脚本访问权限
 
-### 4. TravelAgent（旅游规划助手）
+### 4. TravelAgent（旅游规划助手）⭐ 新增地图功能
 专业的旅游规划助手，根据用户的旅游时间和目的地提供详细的旅游行程规划：
 - 根据旅游天数和目的地制定详细行程
 - 搜索热门景点、美食、文化、交通等信息
 - 提供每日详细行程安排（上午、下午、晚上）
 - 推荐住宿、交通、美食等实用信息
 - 估算旅游预算
+- **自动生成 Google Maps 地图链接，在地图上显示所有重点地点** 🗺️
 
 ## 快速开始
 
@@ -104,6 +105,13 @@ AI 助手会为您提供：
 - 住宿区域推荐
 - 预算估算
 - 实用旅游建议
+- **Google Maps 地图链接，可视化展示所有重点地点**
+
+**地图功能特点：**
+- 自动识别行程中的关键位置（景点、餐厅、酒店等）
+- 生成可点击的 Google Maps 链接
+- 支持单个地点或多个地点的路线规划
+- 可以在浏览器中直接打开地图查看位置
 
 ### 邮件总结
 
@@ -145,7 +153,8 @@ aiguides/
 │   └── pkg/
 │       └── tools/
 │           ├── webfetch.go     # 网页获取工具
-│           └── mailfetch.go    # Apple Mail 邮件获取工具
+│           ├── mailfetch.go    # Apple Mail 邮件获取工具
+│           └── googlemaps.go   # Google Maps 地图生成工具
 ├── go.mod
 └── README.md
 ```
@@ -178,6 +187,11 @@ go fmt ./...
 3. 使用 `functiontool.New()` 创建工具
 4. 在相应的代理配置中添加工具
 
+**已有工具示例：**
+- `webfetch.go` - 网页内容获取工具
+- `mailfetch.go` - Apple Mail 邮件读取工具
+- `googlemaps.go` - Google Maps 地图链接生成工具
+
 ## 常见问题
 
 ### EmailSummaryAgent 无法访问邮件？
@@ -197,12 +211,22 @@ go fmt ./...
 
 默认使用 INBOX（收件箱）。
 
+### Google Maps 地图如何使用？
+
+TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
+1. 识别行程中的关键地点（景点、餐厅、酒店等）
+2. 自动生成包含这些地点的 Google Maps 链接
+3. 用户可以直接点击链接在浏览器中查看地图
+4. 支持单个地点查看或多地点路线规划
+
+无需任何配置，只需正常使用 TravelAgent 即可。
+
 ## 技术栈
 
 - **框架**：Google ADK (Agent Development Kit)
 - **模型**：Google Gemini
 - **语言**：Go 1.25.5
-- **工具**：GoogleSearch, 自定义工具（WebFetch、MailFetch）
+- **工具**：GoogleSearch, 自定义工具（WebFetch、MailFetch、GoogleMaps）
 
 ## 许可证
 
