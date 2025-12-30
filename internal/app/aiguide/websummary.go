@@ -9,6 +9,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
+	"google.golang.org/adk/tool/geminitool"
 )
 
 func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
@@ -51,6 +52,7 @@ func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
 - 如遇到技术性内容，保留专业术语并做适当解释`,
 		OutputKey: "web_summary_output",
 		Tools: []tool.Tool{
+			geminitool.GoogleSearch{},
 			webFetchTool,
 		},
 	}

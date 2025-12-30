@@ -58,9 +58,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 
 	// 创建信息检索和事实核查的 Agent
-	assistant, err := NewSequentialAgent(model)
+	assistant, err := NewAssistantAgent(model)
 	if err != nil {
-		return nil, fmt.Errorf("NewSequentialAgent() error, err = %w", err)
+		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}
 
 	// 创建网页总结 Agent
@@ -82,7 +82,12 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 
 	// 使用 MultiLoader 注册四个顶层 Agent
-	agentLoader, err := agent.NewMultiLoader(assistant, webSummaryAgent, emailSummaryAgent, travelAgent)
+	agentLoader, err := agent.NewMultiLoader(
+		assistant,
+		webSummaryAgent,
+		emailSummaryAgent,
+		travelAgent,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("agent.NewMultiLoader() error, err = %w", err)
 	}

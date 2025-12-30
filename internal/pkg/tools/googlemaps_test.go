@@ -21,10 +21,9 @@ func TestNewGoogleMapsTool(t *testing.T) {
 
 func TestGenerateGoogleMapsURL_SingleLocation(t *testing.T) {
 	input := GoogleMapsInput{
-		Locations: []Location{
-			{Name: "东京塔", Address: "东京都港区"},
+		Locations: []string{
+			"东京塔, 东京都港区",
 		},
-		MapTitle: "东京景点",
 	}
 
 	output := generateGoogleMapsURL(input)
@@ -42,12 +41,11 @@ func TestGenerateGoogleMapsURL_SingleLocation(t *testing.T) {
 
 func TestGenerateGoogleMapsURL_MultipleLocations(t *testing.T) {
 	input := GoogleMapsInput{
-		Locations: []Location{
-			{Name: "东京塔", Address: "东京都港区"},
-			{Name: "浅草寺", Address: "东京都台东区"},
-			{Name: "新宿御苑", Address: "东京都新宿区"},
+		Locations: []string{
+			"东京塔, 东京都港区",
+			"浅草寺, 东京都台东区",
+			"新宿御苑, 东京都新宿区",
 		},
-		MapTitle: "东京一日游",
 	}
 
 	output := generateGoogleMapsURL(input)
@@ -65,7 +63,7 @@ func TestGenerateGoogleMapsURL_MultipleLocations(t *testing.T) {
 
 func TestGenerateGoogleMapsURL_EmptyLocations(t *testing.T) {
 	input := GoogleMapsInput{
-		Locations: []Location{},
+		Locations: []string{},
 	}
 
 	output := generateGoogleMapsURL(input)
@@ -82,9 +80,9 @@ func TestGenerateGoogleMapsURL_EmptyLocations(t *testing.T) {
 
 func TestGenerateGoogleMapsURL_TwoLocations(t *testing.T) {
 	input := GoogleMapsInput{
-		Locations: []Location{
-			{Name: "成田国际机场", Address: "千叶县成田市"},
-			{Name: "东京站", Address: "东京都千代田区"},
+		Locations: []string{
+			"成田国际机场, 千叶县成田市",
+			"东京站, 东京都千代田区",
 		},
 	}
 
@@ -100,48 +98,10 @@ func TestGenerateGoogleMapsURL_TwoLocations(t *testing.T) {
 	t.Logf("Generated map URL: %s", output.MapURL)
 }
 
-func TestBuildLocationQuery(t *testing.T) {
-	tests := []struct {
-		name     string
-		location Location
-		expected string
-	}{
-		{
-			name:     "Name and Address",
-			location: Location{Name: "东京塔", Address: "东京都港区"},
-			expected: "东京塔, 东京都港区",
-		},
-		{
-			name:     "Address only",
-			location: Location{Address: "东京都新宿区"},
-			expected: "东京都新宿区",
-		},
-		{
-			name:     "Name only",
-			location: Location{Name: "浅草寺"},
-			expected: "浅草寺",
-		},
-		{
-			name:     "Empty location",
-			location: Location{},
-			expected: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := buildLocationQuery(tt.location)
-			if result != tt.expected {
-				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
-			}
-		})
-	}
-}
-
 func TestGenerateGoogleMapsURL_EmptyLocationInfo(t *testing.T) {
 	input := GoogleMapsInput{
-		Locations: []Location{
-			{Name: "", Address: ""},
+		Locations: []string{
+			"",
 		},
 	}
 

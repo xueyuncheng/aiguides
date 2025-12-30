@@ -12,7 +12,7 @@ import (
 	"google.golang.org/adk/tool/geminitool"
 )
 
-func NewSequentialAgent(model model.LLM) (agent.Agent, error) {
+func NewAssistantAgent(model model.LLM) (agent.Agent, error) {
 	searchAgent, err := NewSearchAgent(model)
 	if err != nil {
 		return nil, fmt.Errorf("NewSearchAgent() error, err = %w", err)
