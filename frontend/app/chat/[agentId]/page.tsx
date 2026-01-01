@@ -91,27 +91,32 @@ const AIAvatar = ({ icon }: { icon: string }) => {
 const AIMessageContent = ({ content }: { content: string }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
+      setCopyError(false);
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
+      setCopyError(true);
+      setTimeout(() => setCopyError(false), 2000);
     }
   };
 
   return (
     <div className="relative group">
-      {/* Toggle and Copy buttons */}
-      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      {/* Toggle and Copy buttons - improved accessibility with focus-within */}
+      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
         <Button
           size="sm"
           variant="ghost"
           onClick={() => setShowRaw(!showRaw)}
           className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
           title={showRaw ? "显示渲染效果" : "显示原始内容"}
+          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
         >
           {showRaw ? (
             <>
@@ -130,9 +135,15 @@ const AIMessageContent = ({ content }: { content: string }) => {
           variant="ghost"
           onClick={handleCopy}
           className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
-          title="复制原始内容"
+          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
         >
-          {copied ? (
+          {copyError ? (
+            <>
+              <span className="h-3 w-3 mr-1 text-red-500">✗</span>
+              失败
+            </>
+          ) : copied ? (
             <>
               <Check className="h-3 w-3 mr-1" />
               已复制
