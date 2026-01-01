@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 
 export interface Session {
   session_id: string;
@@ -34,12 +40,7 @@ export default function SessionSidebar({
 }: SessionSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const handleDelete = (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (confirm('确定要删除这个会话吗？')) {
-      onDeleteSession(sessionId);
-    }
-  };
+
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -64,94 +65,103 @@ export default function SessionSidebar({
 
   if (isCollapsed) {
     return (
-      <div className="fixed left-0 top-0 h-full bg-card border-r shadow-lg z-50">
+      <div className="fixed left-0 top-0 h-full bg-[#171717] border-r border-[#2c2c2c] z-50 flex flex-col items-center py-4">
         <Button
           onClick={() => setIsCollapsed(false)}
           variant="ghost"
           size="icon"
-          className="m-4"
+          className="text-[#ececec] hover:bg-[#2c2c2c]"
           aria-label="展开侧边栏"
         >
-          <ChevronRight className="h-6 w-6" />
+          <ChevronRight className="h-5 w-5" />
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="fixed left-0 top-0 h-full w-80 bg-card border-r shadow-lg flex flex-col z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-lg font-semibold">会话历史</h2>
-        <Button
-          onClick={() => setIsCollapsed(true)}
-          variant="ghost"
-          size="icon"
-          aria-label="收起侧边栏"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </Button>
-      </div>
-
-      {/* New Session Button */}
-      <div className="p-4">
+    <div className="fixed left-0 top-0 h-full w-[260px] bg-[#171717] flex flex-col z-50 transition-all duration-300">
+      {/* Header & New Chat */}
+      <div className="p-3">
+        <div className="flex justify-between items-center mb-2">
+          <Button
+            onClick={() => setIsCollapsed(true)}
+            variant="ghost"
+            size="icon"
+            className="text-[#ececec] hover:bg-[#2c2c2c] ml-auto h-8 w-8"
+            aria-label="收起侧边栏"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        </div>
         <Button
           onClick={onNewSession}
-          className="w-full gap-2"
-          size="lg"
+          className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
         >
-          <Plus className="h-5 w-5" />
-          新建对话
+          <Plus className="h-4 w-4" />
+          <span className="text-sm">新建对话</span>
         </Button>
       </div>
 
       {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto px-3">
         {isLoading ? (
-          <div className="p-4 text-center text-muted-foreground">
+          <div className="p-4 text-center text-[#8e8e8e] text-sm">
             加载中...
           </div>
         ) : sessions.length === 0 ? (
-          <div className="p-4 text-center text-muted-foreground">
+          <div className="p-4 text-center text-[#8e8e8e] text-sm">
             暂无会话历史
           </div>
         ) : (
-          <div className="space-y-1 p-2">
+          <div className="space-y-1">
+            <h3 className="px-3 py-2 text-xs font-semibold text-[#8e8e8e]">最近</h3>
             {sessions.map((session) => (
               <div
                 key={session.session_id}
                 onClick={() => onSessionSelect(session.session_id)}
-                className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
-                  session.session_id === currentSessionId
-                    ? 'bg-accent border border-border'
-                    : 'hover:bg-accent/50'
-                }`}
+                className={`group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm ${session.session_id === currentSessionId
+                  ? 'bg-[#2c2c2c] text-[#ececec]'
+                  : 'text-[#ececec] hover:bg-[#212121]'
+                  }`}
               >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">
-                      {session.title || session.first_message || '新对话'}
-                    </div>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-muted-foreground">
-                        {formatTime(session.last_update_time)}
-                      </span>
-                      {session.message_count > 0 && (
-                        <span className="text-xs text-muted-foreground">
-                          · {session.message_count} 条消息
-                        </span>
-                      )}
-                    </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate flex-1">
+                    {session.title || session.first_message || '新对话'}
+                  </span>
+
+                  {/* Delete button only visible on hover */}
+                  <div className={`flex items-center opacity-0 group-hover:opacity-100 ${session.session_id === currentSessionId ? 'opacity-100' : ''}`}>
+                    {/* Shadow gradient to cover text */}
+                    <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#171717] to-transparent pointer-events-none group-hover:from-[#212121] group-hover:via-[#212121]"></div>
+                    {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#2c2c2c] to-transparent pointer-events-none"></div>}
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="relative z-10 h-6 w-6 text-[#8e8e8e] hover:text-white"
+                          aria-label="删除选项"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
+                        <DropdownMenuItem
+                          className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onDeleteSession(session.session_id);
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          <span>确认删除</span>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <Button
-                    onClick={(e) => handleDelete(session.session_id, e)}
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    aria-label="删除会话"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             ))}
