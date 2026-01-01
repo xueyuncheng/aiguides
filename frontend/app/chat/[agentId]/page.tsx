@@ -11,6 +11,7 @@ import { Input } from '../../components/ui/input';
 import { Card, CardContent } from '../../components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 import { ArrowLeft } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface Message {
   id: string;
@@ -80,6 +81,15 @@ const agentInfoMap: Record<string, AgentInfo> = {
     ],
   },
 };
+
+// Helper component for AI Avatar
+const AIAvatar = ({ icon, color }: { icon: string; color: string }) => (
+  <Avatar className="h-8 w-8 flex-shrink-0">
+    <AvatarFallback className={cn(color, "bg-opacity-20 text-lg")}>
+      {icon}
+    </AvatarFallback>
+  </Avatar>
+);
 
 export default function ChatPage() {
   const params = useParams();
@@ -419,11 +429,7 @@ export default function ChatPage() {
                     className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     {message.role === 'assistant' && (
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className={`${agentInfo.color} bg-opacity-20 text-lg`}>
-                          {agentInfo.icon}
-                        </AvatarFallback>
-                      </Avatar>
+                      <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
                     )}
                     <Card
                       className={`max-w-[80%] ${message.role === 'user'
@@ -512,11 +518,7 @@ export default function ChatPage() {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start gap-3">
-                    <Avatar className="h-8 w-8 flex-shrink-0">
-                      <AvatarFallback className={`${agentInfo.color} bg-opacity-20 text-lg`}>
-                        {agentInfo.icon}
-                      </AvatarFallback>
-                    </Avatar>
+                    <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
                     <Card className="max-w-[80%]">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
