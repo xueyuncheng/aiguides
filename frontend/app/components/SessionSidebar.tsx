@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, Home } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,13 +94,23 @@ export default function SessionSidebar({
             <ChevronLeft className="h-5 w-5" />
           </Button>
         </div>
-        <Button
-          onClick={onNewSession}
-          className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
-        >
-          <Plus className="h-4 w-4" />
-          <span className="text-sm">新建对话</span>
-        </Button>
+        <div className="space-y-2">
+          <Link href="/" className="block">
+            <Button
+              className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
+            >
+              <Home className="h-4 w-4" />
+              <span className="text-sm">返回首页</span>
+            </Button>
+          </Link>
+          <Button
+            onClick={onNewSession}
+            className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
+          >
+            <Plus className="h-4 w-4" />
+            <span className="text-sm">新建对话</span>
+          </Button>
+        </div>
       </div>
 
       {/* Sessions List */}
