@@ -116,6 +116,19 @@ func (a *AgentManager) setupSSEResponse(ctx *gin.Context) {
 	ctx.Writer.Flush()
 }
 
+// hasTextContent checks if an event contains any text content
+func hasTextContent(event *session.Event) bool {
+	if event == nil || event.LLMResponse.Content == nil || len(event.LLMResponse.Content.Parts) == 0 {
+		return false
+	}
+	for _, part := range event.LLMResponse.Content.Parts {
+		if part.Text != "" {
+			return true
+		}
+	}
+	return false
+}
+
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
 // 只发送最后一个 agent 的输出结果给前端
 //
@@ -157,28 +170,18 @@ func (a *AgentManager) streamAgentEvents(
 		}
 
 		// 只收集包含文本内容的事件
-		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
-			hasText := false
-			for _, part := range event.LLMResponse.Content.Parts {
-				if part.Text != "" {
-					hasText = true
-					break
-				}
+		if hasTextContent(event) {
+			author := event.Author
+			if author == "" {
+				author = "unnamed-agent"
 			}
 
-			if hasText {
-				author := event.Author
-				if author == "" {
-					author = "unknown"
-				}
-
-				// 如果这是一个新的 author，记录其顺序
-				if _, exists := eventsByAuthor[author]; !exists {
-					authorOrder = append(authorOrder, author)
-				}
-
-				eventsByAuthor[author] = append(eventsByAuthor[author], event)
+			// 如果这是一个新的 author，记录其顺序
+			if _, exists := eventsByAuthor[author]; !exists {
+				authorOrder = append(authorOrder, author)
 			}
+
+			eventsByAuthor[author] = append(eventsByAuthor[author], event)
 		}
 	}
 
@@ -198,6 +201,9 @@ func (a *AgentManager) streamAgentEvents(
 				}
 			}
 		}
+	} else {
+		// 如果没有收集到任何内容，记录警告
+		slog.Warn("No content collected from any agent", "userID", userID, "sessionID", sessionID)
 	}
 
 	// 循环结束后，发送结束标记
