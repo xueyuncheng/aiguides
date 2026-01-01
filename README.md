@@ -4,6 +4,15 @@
 
 ## 功能特性
 
+### 🗂️ 会话管理系统 ⭐ 新功能
+完整的用户会话管理功能：
+- **自动保存会话**：所有对话会话自动保存到 SQLite 数据库
+- **历史记录**：可以查看和恢复之前的对话历史
+- **会话切换**：在侧边栏快速切换不同的会话
+- **独立管理**：每个 AI 助手的会话独立存储和管理
+- **会话删除**：支持删除不需要的会话
+- **实时更新**：会话列表显示最新消息和时间戳
+
 本项目包含以下 AI 助手：
 
 ### 1. AI Assistant（信息检索和事实核查）
@@ -146,6 +155,12 @@ npm run dev
 - 💬 实时流式对话交互
 - 📱 响应式设计，完美支持移动端
 - ⚡ 快速、流畅的用户体验
+- 🗂️ **会话管理** - 保存和切换多个对话会话
+  - 自动保存每个会话的对话历史
+  - 侧边栏显示所有会话，支持快速切换
+  - 显示会话创建时间和消息预览
+  - 支持创建新会话和删除旧会话
+  - 每个 AI 助手的会话独立管理
 
 详细的前端使用说明请查看 [frontend/README.md](frontend/README.md)。
 
@@ -322,6 +337,7 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 - **后端框架**：
   - Google ADK (Agent Development Kit) - AI Agent 框架
   - Gin - HTTP Web 框架（用于提供 REST API）
+  - SQLite - 会话数据持久化存储
 - **AI 模型**：Google Gemini
 - **语言**：Go 1.25.5
 - **前端**：Next.js 16, React 19, TypeScript, Tailwind CSS
@@ -331,7 +347,9 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 
 当使用 Gin 模式（`use_gin: true`）时，后端提供以下 REST API：
 
-### POST /api/v1/agents/:agentId/sessions/:sessionId
+### 聊天接口
+
+#### POST /api/:agentId/chats/:sessionId
 
 与指定 Agent 进行对话。
 
@@ -343,9 +361,9 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 
 **请求示例：**
 ```bash
-curl -X POST http://localhost:8080/api/v1/agents/assistant/sessions/session-123 \
+curl -X POST http://localhost:8080/api/assistant/chats/session-123 \
   -H "Content-Type: application/json" \
-  -d '{"message": "什么是量子计算？"}'
+  -d '{"user_id": "user-123", "session_id": "session-123", "message": "什么是量子计算？"}'
 ```
 
 **响应格式：**
@@ -353,17 +371,108 @@ Server-Sent Events (SSE) 流式响应：
 ```
 data: {"content":"量子计算是..."}
 data: {"content":"基于量子力学..."}
-done: {"status":"completed"}
+event: stop
+data: {"status":"done"}
 ```
 
-### GET /health
+### 会话管理接口
 
-健康检查接口。
+#### GET /api/:agentId/sessions
+
+获取指定用户在该 Agent 下的所有会话列表。
+
+**请求参数：**
+- `user_id` (query, required): 用户 ID
+
+**请求示例：**
+```bash
+curl http://localhost:8080/api/assistant/sessions?user_id=user-123
+```
+
+**响应示例：**
+```json
+[
+  {
+    "session_id": "session-20260101-120000-abc123",
+    "app_name": "assistant",
+    "user_id": "user-123",
+    "last_update_time": "2026-01-01T12:30:00Z",
+    "message_count": 5,
+    "first_message": "什么是量子计算？"
+  }
+]
+```
+
+#### GET /api/:agentId/sessions/:sessionId/history
+
+获取指定会话的完整对话历史。
+
+**请求参数：**
+- `user_id` (query, required): 用户 ID
+
+**请求示例：**
+```bash
+curl http://localhost:8080/api/assistant/sessions/session-123/history?user_id=user-123
+```
 
 **响应示例：**
 ```json
 {
-  "status": "ok"
+  "session_id": "session-123",
+  "app_name": "assistant",
+  "user_id": "user-123",
+  "messages": [
+    {
+      "id": "msg-1",
+      "timestamp": "2026-01-01T12:00:00Z",
+      "role": "user",
+      "content": "什么是量子计算？"
+    },
+    {
+      "id": "msg-2",
+      "timestamp": "2026-01-01T12:00:05Z",
+      "role": "assistant",
+      "content": "量子计算是一种利用量子力学原理进行信息处理的计算方式..."
+    }
+  ]
+}
+```
+
+#### POST /api/:agentId/sessions
+
+创建一个新的会话。
+
+**请求体：**
+```json
+{
+  "user_id": "user-123"
+}
+```
+
+**响应示例：**
+```json
+{
+  "session_id": "session-20260101-120000-abc123",
+  "created_at": "2026-01-01T12:00:00Z"
+}
+```
+
+#### DELETE /api/:agentId/sessions/:sessionId
+
+删除指定的会话及其所有历史记录。
+
+**请求参数：**
+- `user_id` (query, required): 用户 ID
+
+**请求示例：**
+```bash
+curl -X DELETE http://localhost:8080/api/assistant/sessions/session-123?user_id=user-123
+```
+
+**响应示例：**
+```json
+{
+  "message": "session deleted successfully"
 }
 ```
 
