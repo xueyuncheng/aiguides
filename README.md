@@ -61,7 +61,18 @@ cd aiguides
 编辑 `cmd/aiguide/aiguide.yaml` 文件，设置你的 Google Gemini API Key：
 ```yaml
 api_key: your_api_key_here
+model_name: gemini-2.0-flash-exp
+use_gin: true        # 使用 Gin 框架提供 REST API
+gin_port: 8080       # API 服务端口
 ```
+
+**配置说明：**
+- `api_key`: Google Gemini API Key（必需）
+- `model_name`: 使用的模型名称（可选，默认为 gemini-2.0-flash-exp）
+- `use_gin`: 是否使用 Gin 框架（可选，默认为 false）
+  - `true`: 使用 Gin 框架提供 REST API，适合与前端配合使用
+  - `false`: 使用 ADK 内置的 Web UI 和 API
+- `gin_port`: Gin 服务器端口（可选，默认为 8080）
 
 3. 使用启动脚本同时启动后端和前端：
 ```bash
@@ -95,7 +106,16 @@ go build -o aiguide ./cmd/aiguide/
 go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml
 ```
 
-后端服务将启动在 `http://localhost:8080`，提供 Web API 和内置的 Web UI。
+后端服务将启动在 `http://localhost:8080`。
+
+**运行模式：**
+- **Gin 模式**（推荐）：当配置文件中 `use_gin: true` 时，后端使用 Gin 框架提供 REST API，提供以下端点：
+  - `POST /api/v1/agents/:agentId/sessions/:sessionId` - Agent 会话接口（支持流式响应）
+  - `GET /health` - 健康检查接口
+  - 自动支持 CORS 跨域请求
+  - 适合与前端 Next.js 应用配合使用
+
+- **ADK 模式**：当配置文件中 `use_gin: false` 或未设置时，使用 ADK 内置的 Web UI 和 API。
 
 #### 前端安装与运行 ⭐ 新增 Next.js 界面
 
@@ -299,10 +319,53 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 
 ## 技术栈
 
-- **框架**：Google ADK (Agent Development Kit)
-- **模型**：Google Gemini
+- **后端框架**：
+  - Google ADK (Agent Development Kit) - AI Agent 框架
+  - Gin - HTTP Web 框架（用于提供 REST API）
+- **AI 模型**：Google Gemini
 - **语言**：Go 1.25.5
+- **前端**：Next.js 16, React 19, TypeScript, Tailwind CSS
 - **工具**：GoogleSearch, 自定义工具（WebFetch、MailFetch、GoogleMaps）
+
+## API 接口
+
+当使用 Gin 模式（`use_gin: true`）时，后端提供以下 REST API：
+
+### POST /api/v1/agents/:agentId/sessions/:sessionId
+
+与指定 Agent 进行对话。
+
+**可用的 Agent ID：**
+- `assistant` - AI Assistant（信息检索和事实核查）
+- `websummary` - WebSummary Agent（网页内容分析）
+- `emailsummary` - EmailSummary Agent（邮件智能总结）
+- `travel` - Travel Agent（旅游规划助手）
+
+**请求示例：**
+```bash
+curl -X POST http://localhost:8080/api/v1/agents/assistant/sessions/session-123 \
+  -H "Content-Type: application/json" \
+  -d '{"message": "什么是量子计算？"}'
+```
+
+**响应格式：**
+Server-Sent Events (SSE) 流式响应：
+```
+data: {"content":"量子计算是..."}
+data: {"content":"基于量子力学..."}
+done: {"status":"completed"}
+```
+
+### GET /health
+
+健康检查接口。
+
+**响应示例：**
+```json
+{
+  "status": "ok"
+}
+```
 
 ## 许可证
 

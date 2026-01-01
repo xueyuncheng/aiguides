@@ -1,4 +1,4 @@
-package aiguide
+package travelagent
 
 import (
 	"aiguide/internal/pkg/tools"
@@ -103,7 +103,7 @@ func NewTravelAgent(model model.LLM) (agent.Agent, error) {
 	searchTool := agenttool.New(searchAgent, nil)
 
 	travelAgentConfig := llmagent.Config{
-		Name:        "TravelAgent",
+		Name:        "travel_agent",
 		Model:       model,
 		Description: "专业的旅游规划助手，根据用户的旅游时间和目的地提供详细的旅游行程规划",
 		Instruction: travelAgentInstruction,

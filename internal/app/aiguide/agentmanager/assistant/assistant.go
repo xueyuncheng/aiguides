@@ -1,4 +1,4 @@
-package aiguide
+package assistant
 
 import (
 	"fmt"

@@ -32,8 +32,8 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '核查一下这个新闻是否准确...',
     ],
   },
-  websummary: {
-    id: 'websummary',
+  web_summary: {
+    id: 'web_summary',
     name: 'WebSummary Agent',
     description: '网页内容分析',
     icon: '🌐',
@@ -44,8 +44,8 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '提取网页的关键信息',
     ],
   },
-  emailsummary: {
-    id: 'emailsummary',
+  email_summary: {
+    id: 'email_summary',
     name: 'EmailSummary Agent',
     description: '邮件智能总结',
     icon: '📧',
@@ -110,13 +110,14 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // Call the backend API via Next.js proxy
-      const response = await fetch(`/api/v1/agents/${agentId}/sessions/${sessionId}`, {
+      const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          user_id: 'user-123',
+          session_id: sessionId,
           message: content.trim(),
         }),
       });
@@ -130,6 +131,7 @@ export default function ChatPage() {
       let assistantContent = '';
 
       if (reader) {
+        // 1. 初始化 AI 的空消息占位
         const assistantMessage: Message = {
           id: `msg-${Date.now()}-assistant`,
           role: 'assistant',
@@ -138,30 +140,55 @@ export default function ChatPage() {
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
+        // 2. 核心修复：定义缓冲区，用于处理 TCP 分包导致的数据截断
+        let buffer = '';
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split('\n');
+          // 3. 解码数据块 (stream: true 保持流式解码状态)
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+
+          // 4. 按换行符分割数据
+          const lines = buffer.split('\n');
+
+          // 5. 将最后一行（可能不完整）留到下一次循环处理
+          // pop() 会移除数组最后一个元素并返回它
+          buffer = lines.pop() || '';
 
           for (const line of lines) {
-            if (line.startsWith('data: ')) {
+            const trimmedLine = line.trim();
+            // 6. 解析 SSE 格式：只处理以 "data:" 开头的行
+            if (trimmedLine.startsWith('data:')) {
               try {
-                const data = JSON.parse(line.substring(6));
+                // 去掉 "data:" 前缀并解析 JSON
+                const jsonStr = trimmedLine.substring(5).trim();
+                if (!jsonStr) continue;
+
+                const data = JSON.parse(jsonStr);
+
+                // 7. 更新 UI 状态
                 if (data.content) {
                   assistantContent += data.content;
+
+                  // 使用函数式更新，确保总是获取到最新的 messages 数组
                   setMessages((prev) => {
                     const newMessages = [...prev];
-                    const lastMessage = newMessages[newMessages.length - 1];
-                    if (lastMessage.role === 'assistant') {
-                      lastMessage.content = assistantContent;
+                    // 找到最后一条消息（即当前正在生成的 AI 消息）并更新它
+                    const lastIndex = newMessages.length - 1;
+                    if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
+                      newMessages[lastIndex] = {
+                        ...newMessages[lastIndex],
+                        content: assistantContent,
+                      };
                     }
                     return newMessages;
                   });
                 }
-              } catch {
-                // Ignore parse errors for incomplete JSON
+              } catch (e) {
+                console.warn('JSON parse error, skipping line:', trimmedLine, e);
               }
             }
           }
@@ -172,7 +199,7 @@ export default function ChatPage() {
       const errorMessage: Message = {
         id: `msg-${Date.now()}-error`,
         role: 'assistant',
-        content: '抱歉，发生了错误。请确保后端服务正在运行（默认端口 8080），并稍后重试。\n\n错误详情：' + (error as Error).message,
+        content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -255,17 +282,15 @@ export default function ChatPage() {
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-3 ${
-                      message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
-                    }`}
+                    className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === 'user'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
+                      }`}
                   >
                     <div className="whitespace-pre-wrap break-words">{message.content}</div>
                     <div
-                      className={`text-xs mt-2 ${
-                        message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
-                      }`}
+                      className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                        }`}
                     >
                       {message.timestamp.toLocaleTimeString('zh-CN', {
                         hour: '2-digit',

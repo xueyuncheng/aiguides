@@ -1,4 +1,4 @@
-package aiguide
+package websummary
 
 import (
 	"aiguide/internal/pkg/tools"
@@ -9,6 +9,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
+	"google.golang.org/adk/tool/agenttool"
 	"google.golang.org/adk/tool/geminitool"
 )
 
@@ -47,6 +48,20 @@ func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
 		return nil, fmt.Errorf("new web fetch tool error, err = %w", err)
 	}
 
+	searchAgent, err := llmagent.New(llmagent.Config{
+		Name:        "SearchExpert",
+		Model:       model,
+		Description: "负责从互联网搜索最新的旅游、景点和美食信息",
+		Instruction: "你是一个搜索专家，请根据用户需求在互联网上寻找最准确的信息。",
+		Tools: []tool.Tool{
+			geminitool.GoogleSearch{}, // 这里单独使用内置搜索工具
+		},
+	})
+	if err != nil {
+		slog.Error("llmagent.New() error", "err", err)
+		return nil, fmt.Errorf("llmagent.New() error, err = %w", err)
+	}
+
 	webSummaryAgentConfig := llmagent.Config{
 		Name:        "WebSummaryAgent",
 		Model:       model,
@@ -54,7 +69,7 @@ func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
 		Instruction: webSummaryAgentInstruction,
 		OutputKey:   "web_summary_output",
 		Tools: []tool.Tool{
-			geminitool.GoogleSearch{},
+			agenttool.New(searchAgent, nil),
 			webFetchTool,
 		},
 	}

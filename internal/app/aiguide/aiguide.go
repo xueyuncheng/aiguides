@@ -1,15 +1,14 @@
 package aiguide
 
 import (
+	"aiguide/internal/app/aiguide/agentmanager"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/cmd/launcher"
-	"google.golang.org/adk/cmd/launcher/full"
+	"github.com/glebarez/sqlite"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 )
@@ -18,33 +17,20 @@ type Config struct {
 	APIKey    string `yaml:"api_key"`
 	ModelName string `yaml:"model_name"`
 	Proxy     string `yaml:"proxy"`
+	UseGin    bool   `yaml:"use_gin"`
+	GinPort   int    `yaml:"gin_port"`
 }
 
 type AIGuide struct {
 	Config *Config
 
-	launcher       launcher.Launcher
-	launcherConfig *launcher.Config
+	agentManager *agentmanager.AgentManager
 }
 
 func New(ctx context.Context, config *Config) (*AIGuide, error) {
-	guide := &AIGuide{
-		Config: config,
-	}
-
-	var httpClient *http.Client
-	if config.Proxy != "" {
-		parsedProxyURL, err := url.Parse(config.Proxy)
-		if err != nil {
-			slog.Error("url.Parse() error", "err", err)
-			return nil, fmt.Errorf("url.Parse() error, err = %w", err)
-		}
-		parsedProxy := http.ProxyURL(parsedProxyURL)
-		httpClient = &http.Client{
-			Transport: &http.Transport{
-				Proxy: parsedProxy,
-			},
-		}
+	httpClient, err := getHTTPClient(config.Proxy)
+	if err != nil {
+		return nil, fmt.Errorf("getHTTPClient() error, err = %w", err)
 	}
 
 	genaiConfig := &genai.ClientConfig{
@@ -57,57 +43,44 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
 	}
 
-	// 创建信息检索和事实核查的 Agent
-	assistant, err := NewAssistantAgent(model)
+	dialector := sqlite.Open("file:aiguide_sessions.db")
+
+	agentManager, err := agentmanager.New(model, dialector)
 	if err != nil {
-		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
+		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
 	}
 
-	// 创建网页总结 Agent
-	webSummaryAgent, err := NewWebSummaryAgent(model)
-	if err != nil {
-		return nil, fmt.Errorf("NewWebSummaryAgent() error, err = %w", err)
+	guide := &AIGuide{
+		Config:       config,
+		agentManager: agentManager,
 	}
-
-	// 创建邮件总结 Agent
-	emailSummaryAgent, err := NewEmailSummaryAgent(model)
-	if err != nil {
-		return nil, fmt.Errorf("NewEmailSummaryAgent() error, err = %w", err)
-	}
-
-	// 创建旅游推荐 Agent
-	travelAgent, err := NewTravelAgent(model)
-	if err != nil {
-		return nil, fmt.Errorf("NewTravelAgent() error, err = %w", err)
-	}
-
-	// 使用 MultiLoader 注册四个顶层 Agent
-	agentLoader, err := agent.NewMultiLoader(
-		assistant,
-		webSummaryAgent,
-		emailSummaryAgent,
-		travelAgent,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("agent.NewMultiLoader() error, err = %w", err)
-	}
-
-	launcherConfig := &launcher.Config{
-		AgentLoader: agentLoader,
-	}
-	guide.launcherConfig = launcherConfig
-
-	launcher := full.NewLauncher()
-	guide.launcher = launcher
 
 	return guide, nil
 }
 
-func (a *AIGuide) Start(ctx context.Context) error {
-	args := []string{"web", "api", "webui"}
-	if err := a.launcher.Execute(ctx, a.launcherConfig, args); err != nil {
-		slog.Error("a.launcher.Execute() error", "err", err)
-		return fmt.Errorf("a.launcher.Execute() error, err = %w", err)
+func getHTTPClient(proxy string) (*http.Client, error) {
+	if proxy == "" {
+		return http.DefaultClient, nil
+	}
+
+	parsedProxyURL, err := url.Parse(proxy)
+	if err != nil {
+		slog.Error("url.Parse() error", "err", err)
+		return nil, fmt.Errorf("url.Parse() error, err = %w", err)
+	}
+	parsedProxy := http.ProxyURL(parsedProxyURL)
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			Proxy: parsedProxy,
+		},
+	}
+	return httpClient, nil
+}
+
+func (a *AIGuide) Run(ctx context.Context) error {
+	// 这是一个阻塞操作
+	if err := a.agentManager.Run(ctx); err != nil {
+		return fmt.Errorf("a.agentManager.Run() error, err = %w", err)
 	}
 
 	return nil
