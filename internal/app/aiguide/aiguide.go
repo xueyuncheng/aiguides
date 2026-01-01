@@ -2,6 +2,7 @@ package aiguide
 
 import (
 	"aiguide/internal/app/aiguide/agentmanager"
+	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
 	"context"
 	"fmt"
@@ -13,9 +14,11 @@ import (
 	"github.com/glebarez/sqlite"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
+	"gorm.io/gorm"
 )
 
 type Config struct {
+	DBFile             string `yaml:"db_file"`
 	APIKey             string `yaml:"api_key"`
 	ModelName          string `yaml:"model_name"`
 	Proxy              string `yaml:"proxy"`
@@ -31,6 +34,8 @@ type Config struct {
 type AIGuide struct {
 	config *Config
 
+	migrator     *migration.Migrator
+	db           *gorm.DB
 	agentManager *agentmanager.AgentManager
 	authService  *auth.AuthService
 }
@@ -53,6 +58,17 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	dialector := sqlite.Open("file:aiguide_sessions.db")
 
+	db, err := gorm.Open(dialector)
+	if err != nil {
+		slog.Error("gorm.Open() error", "err", err)
+		return nil, fmt.Errorf("gorm.Open() error, err = %w", err)
+	}
+
+	migrator, err := migration.New(dialector)
+	if err != nil {
+		return nil, fmt.Errorf("migration.New() error, err = %w", err)
+	}
+
 	agentManager, err := agentmanager.New(model, dialector)
 	if err != nil {
 		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
@@ -68,6 +84,8 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	guide := &AIGuide{
 		config:       config,
+		db:           db,
+		migrator:     migrator,
 		agentManager: agentManager,
 		authService:  authService,
 	}
@@ -95,6 +113,10 @@ func getHTTPClient(proxy string) (*http.Client, error) {
 }
 
 func (a *AIGuide) Run(ctx context.Context) error {
+	if err := a.migrator.Run(); err != nil {
+		return fmt.Errorf("a.migrator.Run() error, err = %w", err)
+	}
+
 	if err := a.agentManager.Run(ctx); err != nil {
 		return fmt.Errorf("a.agentManager.Run() error, err = %w", err)
 	}

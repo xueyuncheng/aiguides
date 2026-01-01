@@ -63,7 +63,7 @@ export default function Home() {
         if (response.ok) {
           const config = await response.json();
           setAuthRequired(config.authentication_enabled);
-          
+
           // If auth is required and user is not logged in, redirect to login
           if (config.authentication_enabled && !loading && !user) {
             router.push('/login');
@@ -111,7 +111,7 @@ export default function Home() {
               基于 Google ADK 构建的智能助手服务
             </p>
           </div>
-          
+
           {/* User Menu */}
           {authRequired && user && (
             <div className="relative">
@@ -119,8 +119,12 @@ export default function Home() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
                 className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-semibold">
-                  {user.name.charAt(0).toUpperCase()}
+                <div className="w-8 h-8 rounded-full bg-blue-500 overflow-hidden flex items-center justify-center text-white font-semibold">
+                  {user.picture ? (
+                    <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    user.name.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div className="text-left hidden sm:block">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">

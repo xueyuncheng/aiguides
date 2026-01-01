@@ -1,34 +1,18 @@
 package aiguide
 
 import (
+	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/auth"
+	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func (a *AIGuide) initRouter(engine *gin.Engine) error {
-	// // CORS middleware - restrict to localhost in development
-	// // TODO: Configure allowed origins based on environment
-	// engine.Use(func(c *gin.Context) {
-	// 	origin := c.Request.Header.Get("Origin")
-	// 	// Allow localhost for development
-	// 	if origin == "http://localhost:3000" || origin == "http://localhost:18080" {
-	// 		c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
-	// 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
-	// 	}
-	// 	c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
-	// 	c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
-
-	// 	if c.Request.Method == "OPTIONS" {
-	// 		c.AbortWithStatus(204)
-	// 		return
-	// 	}
-
-	// 	c.Next()
-	// })
-
 	// 健康检查
 	engine.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
@@ -45,11 +29,6 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		authGroup.POST("/logout", a.logoutHandler)
 		authGroup.GET("/user", auth.AuthMiddleware(a.authService), a.getUserHandler)
 	}
-
-	// // 如果启用了认证，应用认证中间件
-	// if a.config.EnableAuthentication && a.authService != nil {
-	// 	api.Use(auth.AuthMiddleware(a.authService))
-	// }
 
 	api.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
 	api.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
@@ -120,6 +99,12 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 		return
 	}
 
+	// 保存用户信息到数据库
+	if err := saveUser(a.db, user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user info"})
+		return
+	}
+
 	// 生成 JWT
 	jwtToken, err := a.authService.GenerateJWT(user)
 	if err != nil {
@@ -137,4 +122,37 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 		frontendURL = "http://localhost:3000"
 	}
 	c.Redirect(http.StatusFound, frontendURL)
+}
+
+func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
+	var u table.User
+	if err := db.Where("google_user_id = ?", user.ID).First(&u).Error; err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			slog.Error("db.First() error", "err", err)
+			return fmt.Errorf("db.First() error, err = %w", err)
+		}
+
+		u = table.User{
+			GoogleUserID: user.ID,
+			GoogleEmail:  user.Email,
+			GoogleName:   user.Name,
+			Picture:      user.Picture,
+		}
+
+		if err := db.Create(&u).Error; err != nil {
+			slog.Error("db.Create() error", "err", err)
+			return fmt.Errorf("db.Create() error, err = %w", err)
+		}
+	} else {
+		// Update existing user info
+		u.GoogleEmail = user.Email
+		u.GoogleName = user.Name
+		u.Picture = user.Picture
+		if err := db.Save(&u).Error; err != nil {
+			slog.Error("db.Save() error", "err", err)
+			return fmt.Errorf("db.Save() error, err = %w", err)
+		}
+	}
+
+	return nil
 }
