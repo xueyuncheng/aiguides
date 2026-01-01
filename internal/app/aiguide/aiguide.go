@@ -14,16 +14,16 @@ import (
 )
 
 type Config struct {
-	APIKey              string `yaml:"api_key"`
-	ModelName           string `yaml:"model_name"`
-	Proxy               string `yaml:"proxy"`
-	UseGin              bool   `yaml:"use_gin"`
-	GinPort             int    `yaml:"gin_port"`
-	GoogleClientID      string `yaml:"google_client_id"`
-	GoogleClientSecret  string `yaml:"google_client_secret"`
-	GoogleRedirectURL   string `yaml:"google_redirect_url"`
-	JWTSecret           string `yaml:"jwt_secret"`
-	EnableAuthentication bool  `yaml:"enable_authentication"`
+	APIKey               string `yaml:"api_key"`
+	ModelName            string `yaml:"model_name"`
+	Proxy                string `yaml:"proxy"`
+	UseGin               bool   `yaml:"use_gin"`
+	GinPort              int    `yaml:"gin_port"`
+	GoogleClientID       string `yaml:"google_client_id"`
+	GoogleClientSecret   string `yaml:"google_client_secret"`
+	GoogleRedirectURL    string `yaml:"google_redirect_url"`
+	JWTSecret            string `yaml:"jwt_secret"`
+	EnableAuthentication bool   `yaml:"enable_authentication"`
 	FrontendURL          string `yaml:"frontend_url"`
 }
 
