@@ -90,6 +90,23 @@ export default function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const handleSessionSelect = (newSessionId: string) => {
+    setSessionId(newSessionId);
+    setMessages([]); // Clear messages when switching session
+  };
+
+  const handleNewSession = () => {
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    setSessionId(newSessionId);
+    setMessages([]);
+  };
+
+  const handleDeleteSession = async (sessionIdToDelete: string) => {
+    if (sessionIdToDelete === sessionId) {
+      handleNewSession();
+    }
+  };
+
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
