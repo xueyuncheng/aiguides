@@ -295,10 +295,61 @@ export default function ChatPage() {
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
                             components={{
-                              // Customize link rendering to open in new tab
-                              a: ({ ...props }) => (
-                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" />
-                              ),
+                              // Customize link rendering to open in new tab and embed Google Maps
+                              a: ({ href, children, ...props }) => {
+                                // Check if this is a Google Maps link
+                                const isGoogleMapsLink = href && (
+                                  href.includes('google.com/maps') || 
+                                  href.includes('maps.google.com')
+                                );
+                                
+                                if (isGoogleMapsLink) {
+                                  // Convert the Google Maps URL to an embeddable format
+                                  let embedUrl = href;
+                                  
+                                  // For direction URLs, convert to embed format
+                                  if (href.includes('/dir/') || href.includes('/search/')) {
+                                    // Extract the URL and create embed URL
+                                    // Google Maps Embed API format: https://www.google.com/maps/embed/v1/directions
+                                    // For simplicity, we'll use iframe with the original URL
+                                    // which Google Maps will render appropriately
+                                    embedUrl = href;
+                                  }
+                                  
+                                  return (
+                                    <div className="my-4">
+                                      <div className="mb-2">
+                                        <a 
+                                          href={href} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer" 
+                                          className="text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                                        >
+                                          <span>🗺️</span>
+                                          <span>{children || '在 Google Maps 中查看'}</span>
+                                        </a>
+                                      </div>
+                                      <iframe
+                                        src={embedUrl}
+                                        width="100%"
+                                        height="450"
+                                        style={{ border: 0 }}
+                                        allowFullScreen
+                                        loading="lazy"
+                                        referrerPolicy="no-referrer-when-downgrade"
+                                        className="rounded-lg shadow-md"
+                                      />
+                                    </div>
+                                  );
+                                }
+                                
+                                // Regular links
+                                return (
+                                  <a {...props} href={href} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline">
+                                    {children}
+                                  </a>
+                                );
+                              },
                               // Customize code blocks
                               code: (props) => {
                                 const { children, className, ...rest } = props;
