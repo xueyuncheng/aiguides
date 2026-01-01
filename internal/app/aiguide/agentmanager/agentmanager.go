@@ -5,12 +5,12 @@ import (
 	"aiguide/internal/app/aiguide/agentmanager/emailsummary"
 	"aiguide/internal/app/aiguide/agentmanager/travelagent"
 	"aiguide/internal/app/aiguide/agentmanager/websummary"
+	"aiguide/internal/pkg/auth"
 	"aiguide/internal/pkg/constant"
 	"context"
 	"fmt"
 	"log/slog"
 
-	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
@@ -18,11 +18,18 @@ import (
 	"gorm.io/gorm"
 )
 
+type Config struct {
+	GoogleClientID     string
+	GoogleClientSecret string
+}
+
 type AgentManager struct {
 	model   model.LLM
 	session session.Service
+	config  *Config
 
-	runnerMap map[constant.AppName]*runner.Runner
+	runnerMap   map[constant.AppName]*runner.Runner
+	authService *auth.AuthService
 }
 
 func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
@@ -63,16 +70,6 @@ func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
 }
 
 func (a *AgentManager) Run(ctx context.Context) error {
-	engine := gin.Default()
-	if err := a.initRouter(engine); err != nil {
-		return fmt.Errorf("a.initRouter() error, err = %w", err)
-	}
-
-	slog.Info("http listen", "port", "18080")
-	if err := engine.Run(":18080"); err != nil {
-		slog.Error("engine.Run() error", "err", err)
-	}
-
 	return nil
 }
 
