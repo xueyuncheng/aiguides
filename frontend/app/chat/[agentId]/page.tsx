@@ -9,7 +9,9 @@ import SessionSidebar, { Session } from '../../components/SessionSidebar';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent } from '../../components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 import { ArrowLeft } from 'lucide-react';
+import { cn } from '../../lib/utils';
 
 interface Message {
   id: string;
@@ -78,6 +80,21 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '帮我规划一个巴黎7日游，我对艺术和美食特别感兴趣',
     ],
   },
+};
+
+// Helper component for AI Avatar - moved outside to prevent recreation on every render
+const AIAvatar = ({ icon, color }: { icon: string; color: string }) => {
+  // Convert Tailwind color classes like 'bg-blue-500' to 'bg-blue-500/20' for 20% opacity
+  // Assumes color follows the pattern 'bg-{color}-{shade}' as defined in agentInfoMap
+  const colorWithOpacity = color.includes('-') ? color + '/20' : color;
+  
+  return (
+    <Avatar className="h-8 w-8 flex-shrink-0">
+      <AvatarFallback className={cn(colorWithOpacity, "text-lg")}>
+        {icon}
+      </AvatarFallback>
+    </Avatar>
+  );
 };
 
 export default function ChatPage() {
@@ -415,8 +432,11 @@ export default function ChatPage() {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
+                    {message.role === 'assistant' && (
+                      <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
+                    )}
                     <Card
                       className={`max-w-[80%] ${message.role === 'user'
                         ? 'bg-blue-500 text-white border-blue-500'
@@ -492,10 +512,19 @@ export default function ChatPage() {
                       </div>
                     </CardContent>
                     </Card>
+                    {message.role === 'user' && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
+                        <AvatarFallback className="bg-blue-500 text-white">
+                          {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start">
+                  <div className="flex justify-start gap-3">
+                    <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
                     <Card className="max-w-[80%]">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
