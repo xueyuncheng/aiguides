@@ -212,14 +212,16 @@ func (a *AgentManager) streamAgentEvents(
 
 	// 发送所有 agent 的输出
 	if len(authorOrder) > 0 {
-		// 如果有多个 agent，前面的作为 thinking 发送，最后一个作为 data 发送
+		// 区分单 agent 和多 agent 场景：
+		// - 单 agent：直接作为 data 发送（正常回答）
+		// - 多 agent：前面的作为 thinking 发送（思考过程），最后一个作为 data 发送（最终答案）
 		for i, author := range authorOrder {
 			if i < len(authorOrder)-1 {
 				// 中间的 agent 输出作为 thinking 事件
 				slog.Info("Streaming thinking from intermediate agent", "author", author, "position", i+1, "total_agents", len(authorOrder))
 				streamEventsToClient(ctx, eventsByAuthor[author], "thinking")
 			} else {
-				// 最后一个 agent 输出作为 data 事件
+				// 最后一个 agent 输出作为 data 事件（单 agent 时也会走这个分支）
 				slog.Info("Streaming final response from agent", "author", author, "total_agents", len(authorOrder))
 				streamEventsToClient(ctx, eventsByAuthor[author], "data")
 			}
