@@ -144,36 +144,14 @@ export default function ChatPage() {
   };
 
   const handleNewSession = async () => {
-    try {
-      const response = await fetch(`/api/${agentId}/sessions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: user?.user_id,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSessionId(data.session_id);
-        setMessages([]);
-        loadSessions(); // Reload sessions list
-      }
-    } catch (error) {
-      console.error('Error creating session:', error);
-      // Fallback to local generation if API fails
-      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      setSessionId(newSessionId);
-      setMessages([]);
-    }
+    // Generate a temporary session ID locally
+    // The actual session will be created on the backend when the first message is sent
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    setSessionId(newSessionId);
+    setMessages([]);
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
-    if (!confirm('确定要删除这个会话吗？')) {
-      return;
-    }
 
     try {
       const response = await fetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {

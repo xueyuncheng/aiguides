@@ -1,6 +1,7 @@
 package agentmanager
 
 import (
+	"aiguide/internal/app/aiguide/table"
 	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
@@ -18,7 +19,8 @@ type SessionInfo struct {
 	UserID         string    `json:"user_id"`
 	LastUpdateTime time.Time `json:"last_update_time"`
 	MessageCount   int       `json:"message_count"`
-	FirstMessage   string    `json:"first_message,omitempty"`
+	FirstMessage   string    `json:"first_message"`
+	Title          string    `json:"title"`
 }
 
 // SessionHistoryResponse 定义会话历史的响应结构
@@ -97,6 +99,13 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 			}
 		}
 
+		// 从数据库中获取标题
+		var meta table.SessionMeta
+		title := ""
+		if err := a.db.Where("session_id = ?", sess.ID()).First(&meta).Error; err == nil {
+			title = meta.Title
+		}
+
 		sessions = append(sessions, SessionInfo{
 			SessionID:      sess.ID(),
 			AppName:        sess.AppName(),
@@ -104,6 +113,7 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
 			FirstMessage:   firstMessage,
+			Title:          title,
 		})
 	}
 

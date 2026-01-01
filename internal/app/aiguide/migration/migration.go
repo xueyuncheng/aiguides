@@ -29,6 +29,7 @@ func New(dialector gorm.Dialector) (*Migrator, error) {
 func (m *Migrator) Run() error {
 	if err := m.db.AutoMigrate(
 		table.User{},
+		table.SessionMeta{},
 	); err != nil {
 		slog.Error("m.db.AutoMigrate() error", "err", err)
 		return fmt.Errorf("m.db.AutoMigrate() error, err = %w", err)

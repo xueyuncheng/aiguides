@@ -10,3 +10,10 @@ type User struct {
 	GoogleName   string
 	Picture      string
 }
+
+type SessionMeta struct {
+	gorm.Model
+
+	SessionID string
+	Title     string
+}

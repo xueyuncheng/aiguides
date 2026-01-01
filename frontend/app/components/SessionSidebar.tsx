@@ -9,6 +9,7 @@ export interface Session {
   last_update_time: string;
   message_count: number;
   first_message?: string;
+  title?: string;
 }
 
 interface SessionSidebarProps {
@@ -120,14 +121,14 @@ export default function SessionSidebar({
                 key={session.session_id}
                 onClick={() => onSessionSelect(session.session_id)}
                 className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${session.session_id === currentSessionId
-                    ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
                   }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                      {session.first_message || '新对话'}
+                      {session.title || session.first_message || '新对话'}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-gray-500 dark:text-gray-400">
