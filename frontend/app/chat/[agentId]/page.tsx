@@ -8,6 +8,7 @@ import remarkGfm from 'remark-gfm';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
@@ -84,6 +85,20 @@ const AIAvatar = ({ icon }: { icon: string }) => {
     <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background">
       <span className="text-base">{icon}</span>
     </div>
+  );
+};
+
+// Helper component for User Avatar
+const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null }) => {
+  if (!user) return null;
+  
+  return (
+    <Avatar className="h-8 w-8 flex-shrink-0">
+      <AvatarImage src={user.picture} alt={user.name} />
+      <AvatarFallback className="bg-blue-500 text-white text-sm">
+        {user.name.charAt(0).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
   );
 };
 
@@ -541,7 +556,9 @@ export default function ChatPage() {
                       )}>
                         {message.role === 'assistant' ? (
                           <AIAvatar icon={agentInfo.icon} />
-                        ) : null}
+                        ) : (
+                          <UserAvatar user={user} />
+                        )}
 
                         <div className={cn(
                           "relative text-base",
