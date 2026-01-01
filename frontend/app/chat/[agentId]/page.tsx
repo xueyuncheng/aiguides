@@ -302,15 +302,18 @@ export default function ChatPage() {
                               // Customize code blocks
                               code: (props) => {
                                 const { children, className, ...rest } = props;
-                                const isInline = !className;
+                                // Code blocks have language classes like 'language-javascript'
+                                const isInline = !className || !className.startsWith('language-');
                                 return isInline ? (
                                   <code {...rest} className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">
                                     {children}
                                   </code>
                                 ) : (
-                                  <code {...rest} className={`block bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto ${className || ''}`}>
-                                    {children}
-                                  </code>
+                                  <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
+                                    <code {...rest} className={className}>
+                                      {children}
+                                    </code>
+                                  </pre>
                                 );
                               },
                               // Customize list styling
