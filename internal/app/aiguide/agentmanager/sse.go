@@ -117,6 +117,7 @@ func (a *AgentManager) setupSSEResponse(ctx *gin.Context) {
 }
 
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
+// 只发送最后一个 agent 的输出结果给前端
 func (a *AgentManager) streamAgentEvents(
 	ctx *gin.Context,
 	runner *runner.Runner,
@@ -124,6 +125,10 @@ func (a *AgentManager) streamAgentEvents(
 	message *genai.Content,
 	runConfig agent.RunConfig,
 ) {
+	// 收集所有事件，按照 Author 分组
+	eventsByAuthor := make(map[string][]*session.Event)
+	var authorOrder []string // 记录 author 出现的顺序
+
 	for event, err := range runner.Run(ctx, userID, sessionID, message, runConfig) {
 		// 检查客户端是否断开连接
 		select {
@@ -144,13 +149,45 @@ func (a *AgentManager) streamAgentEvents(
 			continue
 		}
 
-		// 提取事件中的文本内容
+		// 只收集包含文本内容的事件
 		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
+			hasText := false
 			for _, part := range event.LLMResponse.Content.Parts {
 				if part.Text != "" {
-					// 发送数据事件
-					ctx.SSEvent("data", gin.H{"content": part.Text})
-					ctx.Writer.Flush()
+					hasText = true
+					break
+				}
+			}
+
+			if hasText {
+				author := event.Author
+				if author == "" {
+					author = "unknown"
+				}
+
+				// 如果这是一个新的 author，记录其顺序
+				if _, exists := eventsByAuthor[author]; !exists {
+					authorOrder = append(authorOrder, author)
+				}
+
+				eventsByAuthor[author] = append(eventsByAuthor[author], event)
+			}
+		}
+	}
+
+	// 只发送最后一个 author 的事件（这是最终的 agent 输出）
+	if len(authorOrder) > 0 {
+		lastAuthor := authorOrder[len(authorOrder)-1]
+		slog.Info("Streaming events from final agent", "author", lastAuthor, "total_agents", len(authorOrder))
+
+		for _, event := range eventsByAuthor[lastAuthor] {
+			if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
+				for _, part := range event.LLMResponse.Content.Parts {
+					if part.Text != "" {
+						// 发送数据事件
+						ctx.SSEvent("data", gin.H{"content": part.Text})
+						ctx.Writer.Flush()
+					}
 				}
 			}
 		}
