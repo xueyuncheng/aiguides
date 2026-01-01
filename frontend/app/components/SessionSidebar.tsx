@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Button } from './ui/button';
-import { Separator } from './ui/separator';
+import { Button } from '@/app/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+} from '@/app/components/ui/dropdown-menu';
 
 export interface Session {
   session_id: string;
