@@ -1,6 +1,8 @@
 package agentmanager
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"log/slog"
 	"net/http"
 	"time"
@@ -241,13 +243,13 @@ func generateSessionID() string {
 	return "session-" + time.Now().Format("20060102-150405") + "-" + randomString(8)
 }
 
-// randomString 生成指定长度的随机字符串
+// randomString 生成指定长度的随机字符串（使用加密安全的随机数生成器）
 func randomString(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, length)
-	for i := range b {
-		b[i] = charset[time.Now().UnixNano()%int64(len(charset))]
-		time.Sleep(time.Nanosecond)
+	bytes := make([]byte, length/2+1) // hex encoding doubles the length
+	if _, err := rand.Read(bytes); err != nil {
+		// 降级到基于时间的方法（不应该发生）
+		slog.Error("crypto/rand.Read() failed", "err", err)
+		return time.Now().Format("150405999999")[:length]
 	}
-	return string(b)
+	return hex.EncodeToString(bytes)[:length]
 }
