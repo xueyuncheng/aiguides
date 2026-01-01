@@ -135,7 +135,8 @@ func hasTextContent(event *session.Event) bool {
 }
 
 // streamEventsToClient streams the given events to the client via SSE
-func streamEventsToClient(ctx *gin.Context, events []*session.Event) {
+// eventType: "data" for final responses, "thinking" for intermediate agent outputs
+func streamEventsToClient(ctx *gin.Context, events []*session.Event, eventType string) {
 	for _, event := range events {
 		if !hasTextContent(event) {
 			continue
@@ -143,7 +144,7 @@ func streamEventsToClient(ctx *gin.Context, events []*session.Event) {
 		// Stream all text parts from the event
 		for _, part := range event.LLMResponse.Content.Parts {
 			if part.Text != "" {
-				ctx.SSEvent("data", gin.H{"content": part.Text})
+				ctx.SSEvent(eventType, gin.H{"content": part.Text})
 				ctx.Writer.Flush()
 			}
 		}
@@ -151,14 +152,17 @@ func streamEventsToClient(ctx *gin.Context, events []*session.Event) {
 }
 
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
-// 只发送最后一个 agent 的输出结果给前端
+// 在多 agent 场景下，中间 agent 的输出作为 "thinking" 事件发送，最后一个 agent 的输出作为 "data" 事件发送
 //
 // 在多 agent 场景下（如 AssistantAgent 包含 SearchAgent 和 FactCheckAgent），
-// 该函数会收集所有 agent 的输出，然后只将最后一个 agent 的结果发送给前端。
-// 这样可以避免中间 agent 的输出干扰用户，只展示最终结果。
+// 该函数会收集所有 agent 的输出，然后：
+// - 中间 agent（如 SearchAgent）的输出作为 "thinking" 事件发送，前端可以展示为思考过程
+// - 最后一个 agent（如 FactCheckAgent）的输出作为 "data" 事件发送，作为最终答案
+//
+// 这样既能让用户看到 AI 的思考过程，又能清晰地区分中间步骤和最终结果。
 //
 // 注意：这种实现方式会等待所有 agent 完成后才开始发送数据，
-// 因此会牺牲一些实时性，但可以确保用户只看到最终的、最完整的答案。
+// 因此会牺牲一些实时性，但可以确保输出结构清晰、易于理解。
 func (a *AgentManager) streamAgentEvents(
 	ctx *gin.Context,
 	runner *runner.Runner,
@@ -206,11 +210,20 @@ func (a *AgentManager) streamAgentEvents(
 		}
 	}
 
-	// 只发送最后一个 author 的事件（这是最终的 agent 输出）
+	// 发送所有 agent 的输出
 	if len(authorOrder) > 0 {
-		lastAuthor := authorOrder[len(authorOrder)-1]
-		slog.Info("Streaming events from final agent", "author", lastAuthor, "total_agents", len(authorOrder))
-		streamEventsToClient(ctx, eventsByAuthor[lastAuthor])
+		// 如果有多个 agent，前面的作为 thinking 发送，最后一个作为 data 发送
+		for i, author := range authorOrder {
+			if i < len(authorOrder)-1 {
+				// 中间的 agent 输出作为 thinking 事件
+				slog.Info("Streaming thinking from intermediate agent", "author", author, "position", i+1, "total_agents", len(authorOrder))
+				streamEventsToClient(ctx, eventsByAuthor[author], "thinking")
+			} else {
+				// 最后一个 agent 输出作为 data 事件
+				slog.Info("Streaming final response from agent", "author", author, "total_agents", len(authorOrder))
+				streamEventsToClient(ctx, eventsByAuthor[author], "data")
+			}
+		}
 	} else {
 		// 如果没有收集到任何内容，记录警告
 		slog.Warn("No content collected from any agent", "userID", userID, "sessionID", sessionID)
