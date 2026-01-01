@@ -17,6 +17,11 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	// unnamedAgentAuthor is the default author name used when an event has no author
+	unnamedAgentAuthor = "unnamed-agent"
+)
+
 // ChatRequest 定义通用的聊天请求结构
 type ChatRequest struct {
 	UserID    string `json:"user_id"`
@@ -129,6 +134,20 @@ func hasTextContent(event *session.Event) bool {
 	return false
 }
 
+// streamEventsToClient streams the given events to the client via SSE
+func streamEventsToClient(ctx *gin.Context, events []*session.Event) {
+	for _, event := range events {
+		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
+			for _, part := range event.LLMResponse.Content.Parts {
+				if part.Text != "" {
+					ctx.SSEvent("data", gin.H{"content": part.Text})
+					ctx.Writer.Flush()
+				}
+			}
+		}
+	}
+}
+
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
 // 只发送最后一个 agent 的输出结果给前端
 //
@@ -173,7 +192,7 @@ func (a *AgentManager) streamAgentEvents(
 		if hasTextContent(event) {
 			author := event.Author
 			if author == "" {
-				author = "unnamed-agent"
+				author = unnamedAgentAuthor
 			}
 
 			// 如果这是一个新的 author，记录其顺序
@@ -189,18 +208,7 @@ func (a *AgentManager) streamAgentEvents(
 	if len(authorOrder) > 0 {
 		lastAuthor := authorOrder[len(authorOrder)-1]
 		slog.Info("Streaming events from final agent", "author", lastAuthor, "total_agents", len(authorOrder))
-
-		for _, event := range eventsByAuthor[lastAuthor] {
-			if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
-				for _, part := range event.LLMResponse.Content.Parts {
-					if part.Text != "" {
-						// 发送数据事件
-						ctx.SSEvent("data", gin.H{"content": part.Text})
-						ctx.Writer.Flush()
-					}
-				}
-			}
-		}
+		streamEventsToClient(ctx, eventsByAuthor[lastAuthor])
 	} else {
 		// 如果没有收集到任何内容，记录警告
 		slog.Warn("No content collected from any agent", "userID", userID, "sessionID", sessionID)
