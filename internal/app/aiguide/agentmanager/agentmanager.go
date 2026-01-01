@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
@@ -20,12 +19,8 @@ import (
 )
 
 type Config struct {
-	GoogleClientID       string
-	GoogleClientSecret   string
-	GoogleRedirectURL    string
-	JWTSecret            string
-	EnableAuthentication bool
-	FrontendURL          string
+	GoogleClientID     string
+	GoogleClientSecret string
 }
 
 type AgentManager struct {
@@ -37,7 +32,7 @@ type AgentManager struct {
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*AgentManager, error) {
+func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
 	session, err := database.NewSessionService(dialector)
 	if err != nil {
 		slog.Error("database.NewSessionService() error", "err", err)
@@ -49,48 +44,10 @@ func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*Age
 		return nil, fmt.Errorf("database.AutoMigrate() error, err = %w", err)
 	}
 
-	// 转换配置
-	var config *Config
-	if cfg, ok := appConfig.(interface {
-		GetGoogleClientID() string
-		GetGoogleClientSecret() string
-		GetGoogleRedirectURL() string
-		GetJWTSecret() string
-		GetEnableAuthentication() bool
-		GetFrontendURL() string
-	}); ok {
-		config = &Config{
-			GoogleClientID:       cfg.GetGoogleClientID(),
-			GoogleClientSecret:   cfg.GetGoogleClientSecret(),
-			GoogleRedirectURL:    cfg.GetGoogleRedirectURL(),
-			JWTSecret:            cfg.GetJWTSecret(),
-			EnableAuthentication: cfg.GetEnableAuthentication(),
-			FrontendURL:          cfg.GetFrontendURL(),
-		}
-	} else {
-		// 默认配置（不启用认证）
-		config = &Config{
-			EnableAuthentication: false,
-			FrontendURL:          "http://localhost:3000",
-		}
-	}
-
 	agentManager := &AgentManager{
 		model:     model,
 		session:   session,
-		config:    config,
 		runnerMap: make(map[constant.AppName]*runner.Runner, 16),
-	}
-
-	// 如果启用了认证，初始化认证服务
-	if config.EnableAuthentication && config.GoogleClientID != "" {
-		authConfig := &auth.Config{
-			ClientID:     config.GoogleClientID,
-			ClientSecret: config.GoogleClientSecret,
-			RedirectURL:  config.GoogleRedirectURL,
-			JWTSecret:    config.JWTSecret,
-		}
-		agentManager.authService = auth.NewAuthService(authConfig)
 	}
 
 	if err := agentManager.addTravelAgentRunner(); err != nil {
@@ -113,16 +70,6 @@ func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*Age
 }
 
 func (a *AgentManager) Run(ctx context.Context) error {
-	engine := gin.Default()
-	if err := a.initRouter(engine); err != nil {
-		return fmt.Errorf("a.initRouter() error, err = %w", err)
-	}
-
-	slog.Info("http listen", "port", "18080")
-	if err := engine.Run(":18080"); err != nil {
-		slog.Error("engine.Run() error", "err", err)
-	}
-
 	return nil
 }
 

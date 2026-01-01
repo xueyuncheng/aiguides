@@ -2,68 +2,37 @@ package aiguide
 
 import (
 	"aiguide/internal/app/aiguide/agentmanager"
+	"aiguide/internal/pkg/auth"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 
+	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 )
 
 type Config struct {
-	APIKey               string `yaml:"api_key"`
-	ModelName            string `yaml:"model_name"`
-	Proxy                string `yaml:"proxy"`
-	UseGin               bool   `yaml:"use_gin"`
-	GinPort              int    `yaml:"gin_port"`
-	GoogleClientID       string `yaml:"google_client_id"`
-	GoogleClientSecret   string `yaml:"google_client_secret"`
-	GoogleRedirectURL    string `yaml:"google_redirect_url"`
-	JWTSecret            string `yaml:"jwt_secret"`
-	EnableAuthentication bool   `yaml:"enable_authentication"`
-	FrontendURL          string `yaml:"frontend_url"`
-}
-
-// GetGoogleClientID returns the Google Client ID
-func (c *Config) GetGoogleClientID() string {
-	return c.GoogleClientID
-}
-
-// GetGoogleClientSecret returns the Google Client Secret
-func (c *Config) GetGoogleClientSecret() string {
-	return c.GoogleClientSecret
-}
-
-// GetGoogleRedirectURL returns the Google Redirect URL
-func (c *Config) GetGoogleRedirectURL() string {
-	return c.GoogleRedirectURL
-}
-
-// GetJWTSecret returns the JWT Secret
-func (c *Config) GetJWTSecret() string {
-	return c.JWTSecret
-}
-
-// GetEnableAuthentication returns whether authentication is enabled
-func (c *Config) GetEnableAuthentication() bool {
-	return c.EnableAuthentication
-}
-
-// GetFrontendURL returns the frontend URL
-func (c *Config) GetFrontendURL() string {
-	if c.FrontendURL == "" {
-		return "http://localhost:3000"
-	}
-	return c.FrontendURL
+	APIKey             string `yaml:"api_key"`
+	ModelName          string `yaml:"model_name"`
+	Proxy              string `yaml:"proxy"`
+	UseGin             bool   `yaml:"use_gin"`
+	GinPort            int    `yaml:"gin_port"`
+	GoogleClientID     string `yaml:"google_client_id"`
+	GoogleClientSecret string `yaml:"google_client_secret"`
+	GoogleRedirectURL  string `yaml:"google_redirect_url"`
+	JWTSecret          string `yaml:"jwt_secret"`
+	FrontendURL        string `yaml:"frontend_url"`
 }
 
 type AIGuide struct {
-	Config *Config
+	config *Config
 
 	agentManager *agentmanager.AgentManager
+	authService  *auth.AuthService
 }
 
 func New(ctx context.Context, config *Config) (*AIGuide, error) {
@@ -84,14 +53,23 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	dialector := sqlite.Open("file:aiguide_sessions.db")
 
-	agentManager, err := agentmanager.New(model, dialector, config)
+	agentManager, err := agentmanager.New(model, dialector)
 	if err != nil {
 		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
 	}
 
+	authConfig := &auth.Config{
+		ClientID:     config.GoogleClientID,
+		ClientSecret: config.GoogleClientSecret,
+		RedirectURL:  config.GoogleRedirectURL,
+		JWTSecret:    config.JWTSecret,
+	}
+	authService := auth.NewAuthService(authConfig)
+
 	guide := &AIGuide{
-		Config:       config,
+		config:       config,
 		agentManager: agentManager,
+		authService:  authService,
 	}
 
 	return guide, nil
@@ -117,9 +95,18 @@ func getHTTPClient(proxy string) (*http.Client, error) {
 }
 
 func (a *AIGuide) Run(ctx context.Context) error {
-	// 这是一个阻塞操作
 	if err := a.agentManager.Run(ctx); err != nil {
 		return fmt.Errorf("a.agentManager.Run() error, err = %w", err)
+	}
+
+	engine := gin.Default()
+	if err := a.initRouter(engine); err != nil {
+		return fmt.Errorf("a.initRouter() error, err = %w", err)
+	}
+
+	slog.Info("http listen", "port", "18080")
+	if err := engine.Run(":18080"); err != nil {
+		slog.Error("engine.Run() error", "err", err)
 	}
 
 	return nil
