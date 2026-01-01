@@ -137,12 +137,14 @@ func hasTextContent(event *session.Event) bool {
 // streamEventsToClient streams the given events to the client via SSE
 func streamEventsToClient(ctx *gin.Context, events []*session.Event) {
 	for _, event := range events {
-		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
-			for _, part := range event.LLMResponse.Content.Parts {
-				if part.Text != "" {
-					ctx.SSEvent("data", gin.H{"content": part.Text})
-					ctx.Writer.Flush()
-				}
+		if !hasTextContent(event) {
+			continue
+		}
+		// Stream all text parts from the event
+		for _, part := range event.LLMResponse.Content.Parts {
+			if part.Text != "" {
+				ctx.SSEvent("data", gin.H{"content": part.Text})
+				ctx.Writer.Flush()
 			}
 		}
 	}
