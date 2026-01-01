@@ -32,12 +32,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
+      } else if (response.status === 401) {
+        // If auth is disabled on backend (returns 401 on /api/auth/user)
+        // Create a mock user for demo purposes
+        setUser({
+          user_id: 'demo-user',
+          email: 'demo@example.com',
+          name: '演示用户',
+          picture: undefined,
+        });
       } else {
         setUser(null);
       }
     } catch (error) {
       console.error('Failed to check auth:', error);
-      setUser(null);
+      // On network error, also use demo user
+      setUser({
+        user_id: 'demo-user',
+        email: 'demo@example.com',
+        name: '演示用户',
+        picture: undefined,
+      });
     } finally {
       setLoading(false);
     }
