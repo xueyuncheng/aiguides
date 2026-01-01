@@ -85,7 +85,8 @@ const agentInfoMap: Record<string, AgentInfo> = {
 // Helper component for AI Avatar - moved outside to prevent recreation on every render
 const AIAvatar = ({ icon, color }: { icon: string; color: string }) => {
   // Convert color like 'bg-blue-500' to 'bg-blue-500/20' for proper opacity
-  const colorWithOpacity = color.replace('bg-', 'bg-').replace('-500', '-500/20');
+  // This handles any color variant (e.g., bg-blue-500, bg-green-600, etc.)
+  const colorWithOpacity = color.includes('-') ? color + '/20' : color;
   
   return (
     <Avatar className="h-8 w-8 flex-shrink-0">
