@@ -17,3 +17,11 @@ type SessionMeta struct {
 	SessionID string
 	Title     string
 }
+
+// GetAllModels 获取所有已注册的数据库模型
+func GetAllModels() []any {
+	return []any{
+		&User{},
+		&SessionMeta{},
+	}
+}
