@@ -20,14 +20,14 @@ const agents: Agent[] = [
     color: 'bg-blue-500',
   },
   {
-    id: 'websummary',
+    id: 'web_summary',
     name: 'WebSummary Agent',
     description: '专业的网页内容分析助手，快速提取和总结网页关键信息',
     icon: '🌐',
     color: 'bg-green-500',
   },
   {
-    id: 'emailsummary',
+    id: 'email_summary',
     name: 'EmailSummary Agent',
     description: '智能邮件总结助手，自动分析和归类重要邮件（仅限 macOS）',
     icon: '📧',

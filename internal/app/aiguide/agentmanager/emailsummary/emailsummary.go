@@ -1,4 +1,4 @@
-package aiguide
+package emailsummary
 
 import (
 	"aiguide/internal/pkg/tools"
