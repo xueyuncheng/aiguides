@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import SessionSidebar from '../../components/SessionSidebar';
 
 interface Message {
   id: string;
@@ -11,6 +12,8 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+const USER_ID = 'user-123'; // Default user ID
 
 interface AgentInfo {
   id: string;
@@ -82,6 +85,7 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -89,9 +93,76 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    // Generate a simple session ID
-    setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+    // Create a new session on first load
+    createNewSession();
   }, [agentId, agentInfo, router]);
+
+  const createNewSession = async () => {
+    try {
+      const response = await fetch(`/api/${agentId}/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: USER_ID,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSessionId(data.session_id);
+        setMessages([]);
+      } else {
+        // Fallback to client-side generated session ID
+        setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+      }
+    } catch (error) {
+      console.error('Error creating session:', error);
+      // Fallback to client-side generated session ID
+      setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
+    }
+  };
+
+  const loadSessionHistory = async (selectedSessionId: string) => {
+    try {
+      setIsLoadingHistory(true);
+      const response = await fetch(`/api/${agentId}/sessions/${selectedSessionId}/history?user_id=${USER_ID}`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(loadedMessages);
+        setSessionId(selectedSessionId);
+      }
+    } catch (error) {
+      console.error('Error loading session history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleNewSession = () => {
+    createNewSession();
+  };
+
+  const handleSessionSelect = (selectedSessionId: string) => {
+    if (selectedSessionId !== sessionId) {
+      loadSessionHistory(selectedSessionId);
+    }
+  };
+
+  const handleDeleteSession = (deletedSessionId: string) => {
+    if (deletedSessionId === sessionId) {
+      // If current session is deleted, create a new one
+      createNewSession();
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -118,7 +189,7 @@ export default function ChatPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          user_id: 'user-123',
+          user_id: USER_ID,
           session_id: sessionId,
           message: content.trim(),
         }),
@@ -224,19 +295,31 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="border-b bg-white dark:bg-gray-800 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/')}
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              ← 返回
-            </button>
-            <div className="flex items-center gap-3">
-              <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Session Sidebar */}
+      <SessionSidebar
+        agentId={agentId}
+        userId={USER_ID}
+        currentSessionId={sessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewSession={handleNewSession}
+        onDeleteSession={handleDeleteSession}
+      />
+
+      {/* Main Content */}
+      <div className="flex flex-col flex-1 ml-80">
+        {/* Header */}
+        <header className="border-b bg-white dark:bg-gray-800 shadow-sm">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/')}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                ← 返回
+              </button>
+              <div className="flex items-center gap-3">
+                <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
                 {agentInfo.icon}
               </div>
               <div>
@@ -251,6 +334,18 @@ export default function ChatPage() {
           </div>
         </div>
       </header>
+
+      {/* Loading History Overlay */}
+      {isLoadingHistory && (
+        <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-40">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              <span className="text-gray-900 dark:text-white">加载会话历史...</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto">
@@ -396,6 +491,7 @@ export default function ChatPage() {
             </button>
           </form>
         </div>
+      </div>
       </div>
     </div>
   );
