@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from './ui/button';
+import { Separator } from './ui/separator';
+import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 
 export interface Session {
   session_id: string;
@@ -61,57 +64,55 @@ export default function SessionSidebar({
 
   if (isCollapsed) {
     return (
-      <div className="fixed left-0 top-0 h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg z-50">
-        <button
+      <div className="fixed left-0 top-0 h-full bg-card border-r shadow-lg z-50">
+        <Button
           onClick={() => setIsCollapsed(false)}
-          className="p-4 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          variant="ghost"
+          size="icon"
+          className="m-4"
           aria-label="展开侧边栏"
         >
-          <svg className="w-6 h-6 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
+          <ChevronRight className="h-6 w-6" />
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="fixed left-0 top-0 h-full w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 shadow-lg flex flex-col z-50">
+    <div className="fixed left-0 top-0 h-full w-80 bg-card border-r shadow-lg flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">会话历史</h2>
-        <button
+      <div className="flex items-center justify-between p-4 border-b">
+        <h2 className="text-lg font-semibold">会话历史</h2>
+        <Button
           onClick={() => setIsCollapsed(true)}
-          className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+          variant="ghost"
+          size="icon"
           aria-label="收起侧边栏"
         >
-          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
+          <ChevronLeft className="h-5 w-5" />
+        </Button>
       </div>
 
       {/* New Session Button */}
       <div className="p-4">
-        <button
+        <Button
           onClick={onNewSession}
-          className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 font-medium"
+          className="w-full gap-2"
+          size="lg"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
+          <Plus className="h-5 w-5" />
           新建对话
-        </button>
+        </Button>
       </div>
 
       {/* Sessions List */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="p-4 text-center text-muted-foreground">
             加载中...
           </div>
         ) : sessions.length === 0 ? (
-          <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+          <div className="p-4 text-center text-muted-foreground">
             暂无会话历史
           </div>
         ) : (
@@ -120,36 +121,37 @@ export default function SessionSidebar({
               <div
                 key={session.session_id}
                 onClick={() => onSessionSelect(session.session_id)}
-                className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${session.session_id === currentSessionId
-                  ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
+                className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
+                  session.session_id === currentSessionId
+                    ? 'bg-accent border border-border'
+                    : 'hover:bg-accent/50'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    <div className="text-sm font-medium truncate">
                       {session.title || session.first_message || '新对话'}
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-xs text-muted-foreground">
                         {formatTime(session.last_update_time)}
                       </span>
                       {session.message_count > 0 && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="text-xs text-muted-foreground">
                           · {session.message_count} 条消息
                         </span>
                       )}
                     </div>
                   </div>
-                  <button
+                  <Button
                     onClick={(e) => handleDelete(session.session_id, e)}
-                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red900/20 rounded transition-all"
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                     aria-label="删除会话"
                   >
-                    <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
             ))}

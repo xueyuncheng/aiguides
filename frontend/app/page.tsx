@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from './contexts/AuthContext';
+import { Button } from './components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from './components/ui/avatar';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './components/ui/dropdown-menu';
+import { ChevronDown } from 'lucide-react';
 
 interface Agent {
   id: string;
@@ -48,7 +53,6 @@ export default function Home() {
   const router = useRouter();
   const { user, loading, logout } = useAuth();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -66,7 +70,7 @@ export default function Home() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">加载中...</p>
+          <p className="text-muted-foreground">加载中...</p>
         </div>
       </div>
     );
@@ -75,56 +79,45 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 dark:border-gray-700">
+      <header className="border-b bg-white/80 backdrop-blur-sm dark:bg-gray-800/80">
         <div className="container mx-auto px-4 py-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold text-foreground">
               🤖 AIGuide - AI 助手平台
             </h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-300">
+            <p className="mt-2 text-muted-foreground">
               基于 Google ADK 构建的智能助手服务
             </p>
           </div>
 
           {/* User Menu */}
           {user && (
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-500 overflow-hidden flex items-center justify-center text-white font-semibold">
-                  {user.picture ? (
-                    <img src={user.picture} alt={user.name} className="w-full h-full object-cover" />
-                  ) : (
-                    user.name.charAt(0).toUpperCase()
-                  )}
-                </div>
-                <div className="text-left hidden sm:block">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.email}
-                  </p>
-                </div>
-                <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-
-              {/* Dropdown Menu */}
-              {showUserMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-2 z-10">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  >
-                    退出登录
-                  </button>
-                </div>
-              )}
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-3">
+                  <Avatar className="w-8 h-8">
+                    <AvatarImage src={user.picture} alt={user.name} />
+                    <AvatarFallback className="bg-blue-500 text-white">
+                      {user.name.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="text-left hidden sm:block">
+                    <p className="text-sm font-medium">
+                      {user.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleLogout}>
+                  退出登录
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </div>
       </header>
@@ -132,10 +125,10 @@ export default function Home() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
         <div className="mb-8">
-          <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-4">
+          <h2 className="text-2xl font-semibold mb-4">
             选择您的 AI 助手
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-muted-foreground">
             点击下方卡片与不同的 AI 助手交互
           </p>
         </div>
@@ -144,43 +137,47 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-12">
           {agents.map((agent) => (
             <Link key={agent.id} href={`/chat/${agent.id}`}>
-              <div
+              <Card
                 className={`
-                  p-6 rounded-xl border-2 bg-white dark:bg-gray-800 
-                  transition-all duration-300 cursor-pointer
-                  hover:shadow-xl hover:scale-105 hover:border-gray-400
-                  ${selectedAgent === agent.id ? 'border-gray-400 shadow-lg' : 'border-gray-200 dark:border-gray-700'}
+                  transition-all duration-300 cursor-pointer hover:shadow-xl hover:scale-105
+                  ${selectedAgent === agent.id ? 'shadow-lg border-2' : ''}
                 `}
                 onMouseEnter={() => setSelectedAgent(agent.id)}
                 onMouseLeave={() => setSelectedAgent(null)}
               >
-                <div className="flex items-start gap-4">
-                  <div className={`text-4xl p-3 rounded-lg ${agent.color} bg-opacity-10`}>
-                    {agent.icon}
+                <CardHeader>
+                  <div className="flex items-start gap-4">
+                    <div className={`text-4xl p-3 rounded-lg ${agent.color} bg-opacity-10`}>
+                      {agent.icon}
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-xl mb-2">
+                        {agent.name}
+                      </CardTitle>
+                      <CardDescription className="text-sm leading-relaxed">
+                        {agent.description}
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-                      {agent.name}
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                      {agent.description}
-                    </p>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-end text-sm font-medium text-muted-foreground">
+                    开始对话 →
                   </div>
-                </div>
-                <div className="mt-4 flex items-center justify-end text-sm font-medium text-gray-500 dark:text-gray-400">
-                  开始对话 →
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             </Link>
           ))}
         </div>
 
         {/* Quick Start Guide */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            🚀 快速开始
-          </h3>
-          <div className="space-y-3 text-gray-600 dark:text-gray-400">
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-xl">
+              🚀 快速开始
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-muted-foreground">
             <p>
               <strong>1.</strong> 选择上方的 AI 助手卡片进入对话界面
             </p>
@@ -190,38 +187,50 @@ export default function Home() {
             <p>
               <strong>3.</strong> AI 助手将实时为您提供专业的回答和建议
             </p>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Features */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
-            <div className="text-2xl mb-2">⚡</div>
-            <h4 className="font-semibold text-gray-900 dark:text-white mb-1">实时响应</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              基于 Google Gemini 的强大模型，快速准确的回复
-            </p>
-          </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
-            <div className="text-2xl mb-2">🎯</div>
-            <h4 className="font-semibold text-gray-900 dark:text-white mb-1">专业分工</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              每个助手都针对特定场景优化，提供专业服务
-            </p>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4">
-            <div className="text-2xl mb-2">🔧</div>
-            <h4 className="font-semibold text-gray-900 dark:text-white mb-1">工具集成</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              集成 Google Search、网页抓取、地图等实用工具
-            </p>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+            <CardHeader>
+              <div className="text-2xl mb-2">⚡</div>
+              <CardTitle className="text-base">实时响应</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                基于 Google Gemini 的强大模型，快速准确的回复
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+            <CardHeader>
+              <div className="text-2xl mb-2">🎯</div>
+              <CardTitle className="text-base">专业分工</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                每个助手都针对特定场景优化，提供专业服务
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800">
+            <CardHeader>
+              <div className="text-2xl mb-2">🔧</div>
+              <CardTitle className="text-base">工具集成</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                集成 Google Search、网页抓取、地图等实用工具
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 dark:border-gray-700 mt-12">
-        <div className="container mx-auto px-4 py-6 text-center text-gray-600 dark:text-gray-400">
+      <footer className="border-t bg-white/80 backdrop-blur-sm dark:bg-gray-800/80 mt-12">
+        <div className="container mx-auto px-4 py-6 text-center text-muted-foreground">
           <p>基于 Google ADK (Agent Development Kit) 构建 | Powered by Google Gemini</p>
         </div>
       </footer>
