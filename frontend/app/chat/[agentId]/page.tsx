@@ -8,7 +8,7 @@ import remarkGfm from 'remark-gfm';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { ArrowUp, Code2, Eye, Copy, Check } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -92,17 +92,39 @@ const AIMessageContent = ({ content }: { content: string }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      if (errorTimeoutRef.current) {
+        clearTimeout(errorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async () => {
+    // Clear any existing timeouts
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+    if (errorTimeoutRef.current) {
+      clearTimeout(errorTimeoutRef.current);
+    }
+
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
       setCopyError(false);
-      setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy:', err);
       setCopyError(true);
-      setTimeout(() => setCopyError(false), 2000);
+      errorTimeoutRef.current = setTimeout(() => setCopyError(false), 2000);
     }
   };
 
@@ -140,7 +162,7 @@ const AIMessageContent = ({ content }: { content: string }) => {
         >
           {copyError ? (
             <>
-              <span className="h-3 w-3 mr-1 text-red-500">✗</span>
+              <X className="h-3 w-3 mr-1 text-red-500" aria-hidden="true" />
               失败
             </>
           ) : copied ? (
