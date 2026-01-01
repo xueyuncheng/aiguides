@@ -6,6 +6,10 @@ import { useAuth } from '../../contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SessionSidebar, { Session } from '../../components/SessionSidebar';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Card, CardContent } from '../../components/ui/card';
+import { ArrowLeft } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -321,14 +325,14 @@ export default function ChatPage() {
 
   if (loading || !agentInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-background">
       {/* Session Sidebar */}
       <SessionSidebar
         sessions={sessions}
@@ -342,24 +346,27 @@ export default function ChatPage() {
       {/* Main Content */}
       <div className="flex flex-col flex-1 ml-80">
         {/* Header */}
-        <header className="border-b bg-white dark:bg-gray-800 shadow-sm">
+        <header className="border-b bg-card shadow-sm">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <button
+              <Button
                 onClick={() => router.push('/')}
-                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                variant="ghost"
+                size="sm"
+                className="gap-2"
               >
-                ← 返回
-              </button>
+                <ArrowLeft className="h-4 w-4" />
+                返回
+              </Button>
               <div className="flex items-center gap-3">
                 <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
                   {agentInfo.icon}
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  <h1 className="text-xl font-bold">
                     {agentInfo.name}
                   </h1>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     {agentInfo.description}
                   </p>
                 </div>
@@ -371,11 +378,13 @@ export default function ChatPage() {
         {/* Messages Area */}
         <div className="flex-1 overflow-y-auto relative">
           {isLoadingHistory && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 z-10">
-              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-3 rounded-full shadow-lg border border-gray-100 dark:border-gray-700">
-                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">加载会话...</span>
-              </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
+              <Card className="px-6 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span className="text-sm font-medium">加载会话...</span>
+                </div>
+              </Card>
             </div>
           )}
 
@@ -383,21 +392,21 @@ export default function ChatPage() {
             {messages.length === 0 && !isLoadingHistory ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">{agentInfo.icon}</div>
-                <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                <h2 className="text-2xl font-semibold mb-2">
                   开始与 {agentInfo.name} 对话
                 </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                <p className="text-muted-foreground mb-8">
                   尝试以下示例问题，或输入您自己的问题
                 </p>
                 <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
                   {agentInfo.examples.map((example, index) => (
-                    <button
+                    <Card
                       key={index}
                       onClick={() => handleExampleClick(example)}
-                      className="p-4 text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                      className="p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
                     >
-                      <p className="text-gray-700 dark:text-gray-300">{example}</p>
-                    </button>
+                      <p>{example}</p>
+                    </Card>
                   ))}
                 </div>
               </div>
@@ -408,17 +417,18 @@ export default function ChatPage() {
                     key={message.id}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div
-                      className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
+                    <Card
+                      className={`max-w-[80%] ${message.role === 'user'
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : ''
                         }`}
                     >
-                      <div className="break-words">
-                        {message.role === 'assistant' ? (
-                          <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
+                      <CardContent className="p-4">
+                        <div className="break-words">
+                          {message.role === 'assistant' ? (
+                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
                               components={{
                                 // Customize link rendering to open in new tab
                                 a: ({ ...props }) => (
@@ -472,7 +482,7 @@ export default function ChatPage() {
                         )}
                       </div>
                       <div
-                        className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                        className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-muted-foreground'
                           }`}
                       >
                         {message.timestamp.toLocaleTimeString('zh-CN', {
@@ -480,18 +490,21 @@ export default function ChatPage() {
                           minute: '2-digit',
                         })}
                       </div>
-                    </div>
+                    </CardContent>
+                    </Card>
                   </div>
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      </div>
-                    </div>
+                    <Card className="max-w-[80%]">
+                      <CardContent className="p-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -501,24 +514,24 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="border-t bg-white dark:bg-gray-800 shadow-lg">
+        <div className="border-t bg-card shadow-lg">
           <div className="container mx-auto px-4 py-4 max-w-4xl">
             <form onSubmit={handleSubmit} className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="输入您的消息..."
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                className="flex-1 h-11"
                 disabled={isLoading}
               />
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading || !inputValue.trim()}
-                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
+                size="lg"
               >
                 {isLoading ? '发送中...' : '发送'}
-              </button>
+              </Button>
             </form>
           </div>
         </div>
