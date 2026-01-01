@@ -6,9 +6,15 @@ gin_port: 8080
 # Google OAuth 配置（可选）
 # 如果要启用 Google 登录，请设置以下参数：
 # 1. 在 Google Cloud Console 创建 OAuth 2.0 凭据
+#    - 访问：https://console.cloud.google.com/
+#    - 启用 Google+ API
+#    - 创建 OAuth 客户端 ID（Web 应用）
+#    - 添加回调 URL: http://localhost:8080/auth/google/callback
 # 2. 填写 Client ID 和 Client Secret
 # 3. 设置 enable_authentication 为 true
-# 4. 设置 jwt_secret 为一个安全的随机字符串
+# 4. 生成安全的 JWT Secret（建议使用以下命令生成）:
+#    openssl rand -base64 32
+#    或: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
 enable_authentication: false
 # google_client_id: your_google_client_id_here
