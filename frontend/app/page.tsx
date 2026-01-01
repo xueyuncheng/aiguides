@@ -50,36 +50,10 @@ export default function Home() {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  // Check if authentication is required by checking if backend has auth enabled
-  const [authRequired, setAuthRequired] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
-
   useEffect(() => {
-    // Check if backend requires authentication
-    const checkAuthRequirement = async () => {
-      try {
-        // Use dedicated config endpoint
-        const response = await fetch('/config');
-        if (response.ok) {
-          const config = await response.json();
-          setAuthRequired(config.authentication_enabled);
-
-          // If auth is required and user is not logged in, redirect to login
-          if (config.authentication_enabled && !loading && !user) {
-            router.push('/login');
-          }
-        } else {
-          setAuthRequired(false);
-        }
-      } catch (error) {
-        console.error('Failed to check auth requirement:', error);
-        setAuthRequired(false);
-      } finally {
-        setCheckingAuth(false);
-      }
-    };
-
-    checkAuthRequirement();
+    if (!loading && !user) {
+      router.push('/login');
+    }
   }, [user, loading, router]);
 
   const handleLogout = async () => {
@@ -87,7 +61,7 @@ export default function Home() {
     router.push('/login');
   };
 
-  if (checkingAuth || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <div className="text-center">
@@ -113,7 +87,7 @@ export default function Home() {
           </div>
 
           {/* User Menu */}
-          {authRequired && user && (
+          {user && (
             <div className="relative">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}

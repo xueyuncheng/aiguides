@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useAuth } from '../../contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -75,6 +76,7 @@ const agentInfoMap: Record<string, AgentInfo> = {
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
+  const { user, loading } = useAuth();
   const agentId = params.agentId as string;
   const agentInfo = agentInfoMap[agentId];
 
@@ -85,13 +87,20 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+      return;
+    }
+
     if (!agentInfo) {
       router.push('/');
       return;
     }
     // Generate a simple session ID
-    setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
-  }, [agentId, agentInfo, router]);
+    if (user) {
+      setSessionId(`session-${user.user_id}-${Date.now()}`);
+    }
+  }, [agentId, agentInfo, router, user, loading]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -220,8 +229,12 @@ export default function ChatPage() {
     setInputValue(example);
   };
 
-  if (!agentInfo) {
-    return null;
+  if (loading || !agentInfo) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   return (
