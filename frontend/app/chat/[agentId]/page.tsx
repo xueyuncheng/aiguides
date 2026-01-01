@@ -105,11 +105,11 @@ export default function ChatPage() {
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadSessions = async () => {
+  const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
     try {
-      setIsSessionsLoading(true);
+      if (!silent) setIsSessionsLoading(true);
       const response = await fetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
       if (response.ok) {
         const data = await response.json();
@@ -117,11 +117,12 @@ export default function ChatPage() {
           new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
         );
         setSessions(sortedSessions);
+        return sortedSessions;
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
     } finally {
-      setIsSessionsLoading(false);
+      if (!silent) setIsSessionsLoading(false);
     }
   };
 
@@ -278,8 +279,23 @@ export default function ChatPage() {
             }
           }
         }
-        // Wait a bit for backend to generate title before reloading sessions
-        setTimeout(() => loadSessions(), 1000);
+        // Poll for session updates to capture title generation
+        let pollCount = 0;
+        const maxPolls = 5;
+        const pollInterval = setInterval(async () => {
+          const fetchedSessions = await loadSessions(true);
+          const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
+
+          if (currentSession?.title) {
+            clearInterval(pollInterval);
+            return;
+          }
+
+          pollCount++;
+          if (pollCount >= maxPolls) {
+            clearInterval(pollInterval);
+          }
+        }, 2000); // Poll every 2 seconds
       }
     } catch (error) {
       console.error('Error sending message:', error);
