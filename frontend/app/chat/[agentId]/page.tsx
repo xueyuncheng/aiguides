@@ -9,6 +9,7 @@ import SessionSidebar, { Session } from '../../components/SessionSidebar';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Card, CardContent } from '../../components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
 import { ArrowLeft } from 'lucide-react';
 
 interface Message {
@@ -415,8 +416,15 @@ export default function ChatPage() {
                 {messages.map((message) => (
                   <div
                     key={message.id}
-                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
+                    {message.role === 'assistant' && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarFallback className={`${agentInfo.color} bg-opacity-20 text-lg`}>
+                          {agentInfo.icon}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <Card
                       className={`max-w-[80%] ${message.role === 'user'
                         ? 'bg-blue-500 text-white border-blue-500'
@@ -492,10 +500,23 @@ export default function ChatPage() {
                       </div>
                     </CardContent>
                     </Card>
+                    {message.role === 'user' && (
+                      <Avatar className="h-8 w-8 flex-shrink-0">
+                        <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
+                        <AvatarFallback className="bg-blue-500 text-white">
+                          {user?.name?.charAt(0).toUpperCase() || 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
                 ))}
                 {isLoading && (
-                  <div className="flex justify-start">
+                  <div className="flex justify-start gap-3">
+                    <Avatar className="h-8 w-8 flex-shrink-0">
+                      <AvatarFallback className={`${agentInfo.color} bg-opacity-20 text-lg`}>
+                        {agentInfo.icon}
+                      </AvatarFallback>
+                    </Avatar>
                     <Card className="max-w-[80%]">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
