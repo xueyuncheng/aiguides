@@ -140,9 +140,9 @@ const AIMessageContent = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="relative group mt-2">
-      {/* Toggle and Copy buttons - improved accessibility with focus-within */}
-      <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+    <div className="relative group mt-6">
+      {/* Toggle and Copy buttons - moved outside content area */}
+      <div className="absolute -top-6 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           variant="ghost"
@@ -485,7 +485,7 @@ export default function ChatPage() {
           )}
 
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-3xl px-6 py-10 space-y-8">
+            <div className="w-full max-w-5xl px-6 py-10 space-y-8">
               {messages.length === 0 && !isLoadingHistory ? (
                 <div className="text-center py-20">
                   <div className="flex justify-center mb-6">
@@ -564,7 +564,7 @@ export default function ChatPage() {
 
         {/* Input Area */}
         <div className="absolute bottom-0 left-0 w-full pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6">
-          <div className="max-w-3xl mx-auto px-6">
+          <div className="max-w-5xl mx-auto px-6">
             <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
               <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
                 <Input
