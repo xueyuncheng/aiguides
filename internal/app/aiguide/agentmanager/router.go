@@ -10,10 +10,15 @@ import (
 )
 
 func (a *AgentManager) initRouter(engine *gin.Engine) error {
-	// CORS middleware
+	// CORS middleware - restrict to localhost in development
+	// TODO: Configure allowed origins based on environment
 	engine.Use(func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
-		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		origin := c.Request.Header.Get("Origin")
+		// Allow localhost for development
+		if origin == "http://localhost:3000" || origin == "http://localhost:18080" {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+			c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		}
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS, GET, PUT, DELETE")
 
@@ -28,6 +33,13 @@ func (a *AgentManager) initRouter(engine *gin.Engine) error {
 	// 健康检查
 	engine.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
+
+	// 配置信息（公开）
+	engine.GET("/config", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"authentication_enabled": a.config.EnableAuthentication,
+		})
 	})
 
 	// 认证路由
@@ -130,7 +142,11 @@ func (a *AgentManager) googleCallbackHandler(c *gin.Context) {
 	c.SetCookie("auth_token", jwtToken, 86400, "/", "", false, true)
 
 	// 重定向到前端
-	c.Redirect(http.StatusFound, "http://localhost:3000")
+	frontendURL := a.config.FrontendURL
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	c.Redirect(http.StatusFound, frontendURL)
 }
 
 // logoutHandler 处理登出

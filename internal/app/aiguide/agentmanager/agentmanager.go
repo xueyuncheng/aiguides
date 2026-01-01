@@ -25,6 +25,7 @@ type Config struct {
 	GoogleRedirectURL    string
 	JWTSecret            string
 	EnableAuthentication bool
+	FrontendURL          string
 }
 
 type AgentManager struct {
@@ -56,6 +57,7 @@ func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*Age
 		GetGoogleRedirectURL() string
 		GetJWTSecret() string
 		GetEnableAuthentication() bool
+		GetFrontendURL() string
 	}); ok {
 		config = &Config{
 			GoogleClientID:       cfg.GetGoogleClientID(),
@@ -63,11 +65,13 @@ func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*Age
 			GoogleRedirectURL:    cfg.GetGoogleRedirectURL(),
 			JWTSecret:            cfg.GetJWTSecret(),
 			EnableAuthentication: cfg.GetEnableAuthentication(),
+			FrontendURL:          cfg.GetFrontendURL(),
 		}
 	} else {
 		// 默认配置（不启用认证）
 		config = &Config{
 			EnableAuthentication: false,
+			FrontendURL:          "http://localhost:3000",
 		}
 	}
 

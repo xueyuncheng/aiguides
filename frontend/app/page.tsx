@@ -58,15 +58,14 @@ export default function Home() {
     // Check if backend requires authentication
     const checkAuthRequirement = async () => {
       try {
-        const response = await fetch('/health');
-        // If we can access health endpoint, check if auth endpoints exist
-        const authResponse = await fetch('/auth/user', {
-          credentials: 'include',
-        });
-        // If auth endpoint exists and returns 401, auth is required
-        if (authResponse.status === 401) {
-          setAuthRequired(true);
-          if (!loading && !user) {
+        // Use dedicated config endpoint
+        const response = await fetch('/config');
+        if (response.ok) {
+          const config = await response.json();
+          setAuthRequired(config.authentication_enabled);
+          
+          // If auth is required and user is not logged in, redirect to login
+          if (config.authentication_enabled && !loading && !user) {
             router.push('/login');
           }
         } else {

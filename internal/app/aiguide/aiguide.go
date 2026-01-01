@@ -24,6 +24,7 @@ type Config struct {
 	GoogleRedirectURL   string `yaml:"google_redirect_url"`
 	JWTSecret           string `yaml:"jwt_secret"`
 	EnableAuthentication bool  `yaml:"enable_authentication"`
+	FrontendURL          string `yaml:"frontend_url"`
 }
 
 // GetGoogleClientID returns the Google Client ID
@@ -49,6 +50,14 @@ func (c *Config) GetJWTSecret() string {
 // GetEnableAuthentication returns whether authentication is enabled
 func (c *Config) GetEnableAuthentication() bool {
 	return c.EnableAuthentication
+}
+
+// GetFrontendURL returns the frontend URL
+func (c *Config) GetFrontendURL() string {
+	if c.FrontendURL == "" {
+		return "http://localhost:3000"
+	}
+	return c.FrontendURL
 }
 
 type AIGuide struct {

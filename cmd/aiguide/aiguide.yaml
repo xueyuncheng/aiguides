@@ -3,6 +3,9 @@ model_name: gemini-2.0-flash-exp
 use_gin: true
 gin_port: 8080
 
+# Frontend URL (用于 OAuth 回调后的重定向)
+# frontend_url: http://localhost:3000
+
 # Google OAuth 配置（可选）
 # 如果要启用 Google 登录，请设置以下参数：
 # 1. 在 Google Cloud Console 创建 OAuth 2.0 凭据

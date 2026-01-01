@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -88,8 +87,9 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("failed to get user info: status=%d, body=%s", resp.StatusCode, string(body))
+		// Return a generic error to the caller to avoid leaking sensitive info
+		// The response body is intentionally not included in the error
+		return nil, fmt.Errorf("failed to get user info from Google API: status=%d", resp.StatusCode)
 	}
 
 	var user GoogleUser
