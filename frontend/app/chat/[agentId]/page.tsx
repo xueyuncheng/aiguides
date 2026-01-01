@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface Message {
   id: string;
@@ -287,7 +289,63 @@ export default function ChatPage() {
                       : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
                       }`}
                   >
-                    <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                    <div className="break-words">
+                      {message.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              // Customize link rendering to open in new tab
+                              a: ({ ...props }) => (
+                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" />
+                              ),
+                              // Customize code blocks
+                              code: (props) => {
+                                const { children, className, ...rest } = props;
+                                // Code blocks have language classes like 'language-javascript'
+                                const isInline = !className || !className.startsWith('language-');
+                                return isInline ? (
+                                  <code {...rest} className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">
+                                    {children}
+                                  </code>
+                                ) : (
+                                  <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
+                                    <code {...rest} className={className}>
+                                      {children}
+                                    </code>
+                                  </pre>
+                                );
+                              },
+                              // Customize list styling
+                              ul: ({ ...props }) => (
+                                <ul {...props} className="list-disc list-inside space-y-1" />
+                              ),
+                              ol: ({ ...props }) => (
+                                <ol {...props} className="list-decimal list-inside space-y-1" />
+                              ),
+                              // Customize heading styles
+                              h1: ({ ...props }) => (
+                                <h1 {...props} className="text-2xl font-bold mt-4 mb-2" />
+                              ),
+                              h2: ({ ...props }) => (
+                                <h2 {...props} className="text-xl font-bold mt-3 mb-2" />
+                              ),
+                              h3: ({ ...props }) => (
+                                <h3 {...props} className="text-lg font-bold mt-2 mb-1" />
+                              ),
+                              // Customize paragraph spacing
+                              p: ({ ...props }) => (
+                                <p {...props} className="mb-2" />
+                              ),
+                            }}
+                          >
+                            {message.content}
+                          </ReactMarkdown>
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap">{message.content}</div>
+                      )}
+                    </div>
                     <div
                       className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
                         }`}
