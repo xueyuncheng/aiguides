@@ -35,6 +35,15 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	api.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
 	api.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
 
+	// 会话管理路由
+	agentGroup := api.Group("/:agentId/sessions")
+	{
+		agentGroup.GET("", a.agentManager.ListSessionsHandler)
+		agentGroup.POST("", a.agentManager.CreateSessionHandler)
+		agentGroup.GET("/:sessionId/history", a.agentManager.GetSessionHistoryHandler)
+		agentGroup.DELETE("/:sessionId", a.agentManager.DeleteSessionHandler)
+	}
+
 	return nil
 }
 

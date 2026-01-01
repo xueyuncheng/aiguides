@@ -27,13 +27,14 @@ type AgentManager struct {
 	model   model.LLM
 	session session.Service
 	config  *Config
+	db      *gorm.DB
 
 	runnerMap   map[constant.AppName]*runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
-	session, err := database.NewSessionService(dialector)
+func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
+	session, err := database.NewSessionService(db.Dialector)
 	if err != nil {
 		slog.Error("database.NewSessionService() error", "err", err)
 		return nil, fmt.Errorf("database.NewSessionService() error, err = %w", err)
@@ -47,6 +48,7 @@ func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
 	agentManager := &AgentManager{
 		model:     model,
 		session:   session,
+		db:        db,
 		runnerMap: make(map[constant.AppName]*runner.Runner, 16),
 	}
 

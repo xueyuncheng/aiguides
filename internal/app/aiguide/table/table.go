@@ -10,3 +10,18 @@ type User struct {
 	GoogleName   string
 	Picture      string
 }
+
+type SessionMeta struct {
+	gorm.Model
+
+	SessionID string
+	Title     string
+}
+
+// GetAllModels 获取所有已注册的数据库模型
+func GetAllModels() []any {
+	return []any{
+		&User{},
+		&SessionMeta{},
+	}
+}

@@ -1,12 +1,16 @@
 package agentmanager
 
 import (
+	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
+	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/genai"
@@ -44,7 +48,6 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 
 	// 检查或创建 session
 	if err := a.ensureSession(ctx, appName.String(), userID, sessionID); err != nil {
-		slog.Error("ensureSession() error", "err", err)
 		ctx.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -59,6 +62,15 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 
 	// 处理流式事件
 	a.streamAgentEvents(ctx, runner, userID, sessionID, message, runConfig)
+
+	// 异步生成标题
+	go func() {
+		// 创建一个新的 context，因为 request context 会被取消
+		bgCtx := context.Background()
+		if err := a.generateTitle(bgCtx, appName.String(), userID, sessionID, req.Message); err != nil {
+			slog.Error("generateTitle failed", "err", err)
+		}
+	}()
 }
 
 // ensureSession 确保 session 存在，不存在则创建
@@ -71,7 +83,8 @@ func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionI
 
 	if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			return err
+			slog.Error("session.Get() error", "err", err)
+			return fmt.Errorf("session.Get() error, err = %w", err)
 		}
 
 		// Session 不存在，创建新的 session
@@ -83,7 +96,8 @@ func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionI
 		}
 
 		if _, err := a.session.Create(ctx, sessionCreateReq); err != nil {
-			return err
+			slog.Error("session.Create() error", "err", err)
+			return fmt.Errorf("session.Create() error, err = %w", err)
 		}
 	}
 
@@ -145,4 +159,61 @@ func (a *AgentManager) streamAgentEvents(
 	// 循环结束后，发送结束标记
 	ctx.SSEvent("stop", gin.H{"status": "done"})
 	ctx.Writer.Flush()
+}
+
+// generateTitle 生成会话标题
+func (a *AgentManager) generateTitle(ctx context.Context, appName, userID, sessionID, firstMessage string) error {
+	// 1. 检查数据库中是否已有标题
+	var meta table.SessionMeta
+	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {
+		return nil
+	}
+
+	// 2. 调用 LLM 生成标题
+	prompt := "Please generate a short title (3-5 words) for this conversation based on the user's message: " + firstMessage
+	content := genai.NewContentFromText(prompt, genai.RoleUser)
+
+	req := &model.LLMRequest{
+		Contents: []*genai.Content{content},
+	}
+
+	for resp, err := range a.model.GenerateContent(ctx, req, false) {
+		if err != nil {
+			slog.Error("a.model.GenerateContent() error", "err", err)
+			return fmt.Errorf("a.model.GenerateContent() error, err = %w", err)
+		}
+
+		// Check response content
+		if resp == nil || resp.Content == nil || len(resp.Content.Parts) == 0 {
+			continue
+		}
+
+		generatedTitle := ""
+		for _, part := range resp.Content.Parts {
+			if part.Text != "" {
+				generatedTitle = part.Text
+				break
+			}
+		}
+
+		if generatedTitle == "" {
+			continue
+		}
+
+		// 3. 保存到数据库
+		meta = table.SessionMeta{
+			SessionID: sessionID,
+			Title:     generatedTitle,
+		}
+
+		if err := a.db.Save(&meta).Error; err != nil {
+			slog.Error("db.Save() error", "err", err)
+			return fmt.Errorf("db.Save() error, err = %w", err)
+		}
+
+		// 只要有一个结果就返回（非流式）
+		return nil
+	}
+
+	return errors.New("no content generated")
 }

@@ -69,7 +69,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("migration.New() error, err = %w", err)
 	}
 
-	agentManager, err := agentmanager.New(model, dialector)
+	agentManager, err := agentmanager.New(model, db)
 	if err != nil {
 		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
 	}

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import SessionSidebar, { Session } from '../../components/SessionSidebar';
 
 interface Message {
   id: string;
@@ -12,6 +13,8 @@ interface Message {
   content: string;
   timestamp: Date;
 }
+
+
 
 interface AgentInfo {
   id: string;
@@ -84,7 +87,87 @@ export default function ChatPage() {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadSessions = async () => {
+    if (!user?.user_id) return;
+
+    try {
+      setIsSessionsLoading(true);
+      const response = await fetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Sort by last update time, most recent first
+        const sortedSessions = (data || []).sort((a: Session, b: Session) =>
+          new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
+        );
+        setSessions(sortedSessions);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setIsSessionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.user_id) {
+      loadSessions();
+    }
+  }, [agentId, user?.user_id]);
+
+  const handleSessionSelect = async (newSessionId: string) => {
+    setSessionId(newSessionId);
+    setMessages([]);
+    setIsLoadingHistory(true);
+
+    try {
+      const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        const historyMessages = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(historyMessages);
+      }
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleNewSession = async () => {
+    // Generate a temporary session ID locally
+    // The actual session will be created on the backend when the first message is sent
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    setSessionId(newSessionId);
+    setMessages([]);
+  };
+
+  const handleDeleteSession = async (sessionIdToDelete: string) => {
+
+    try {
+      const response = await fetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setSessions(prev => prev.filter(s => s.session_id !== sessionIdToDelete));
+        if (sessionIdToDelete === sessionId) {
+          handleNewSession();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -96,11 +179,11 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    // Generate a simple session ID
-    if (user) {
-      setSessionId(`session-${user.user_id}-${Date.now()}`);
+    // If no session ID, create a new one
+    if (!sessionId) {
+      handleNewSession();
     }
-  }, [agentId, agentInfo, router, user, loading]);
+  }, [agentId, agentInfo, router, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -128,7 +211,7 @@ export default function ChatPage() {
         },
         credentials: 'include', // Include cookies for authentication
         body: JSON.stringify({
-          user_id: 'user-123',
+          user_id: user?.user_id,
           session_id: sessionId,
           message: content.trim(),
         }),
@@ -199,12 +282,19 @@ export default function ChatPage() {
                     return newMessages;
                   });
                 }
+
+                // Refresh sessions list to update preview and time
+                if (data.done) { // Assuming 'done' flag or check if stream ended? 
+                  // The stream loop breaks on 'done'.
+                }
               } catch (e) {
                 console.warn('JSON parse error, skipping line:', trimmedLine, e);
               }
             }
           }
         }
+        // Reload sessions after full response to update metadata
+        loadSessions();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -238,177 +328,199 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="border-b bg-white dark:bg-gray-800 shadow-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => router.push('/')}
-              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              ← 返回
-            </button>
-            <div className="flex items-center gap-3">
-              <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
-                {agentInfo.icon}
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                  {agentInfo.name}
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {agentInfo.description}
-                </p>
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Session Sidebar */}
+      <SessionSidebar
+        sessions={sessions}
+        isLoading={isSessionsLoading}
+        currentSessionId={sessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewSession={handleNewSession}
+        onDeleteSession={handleDeleteSession}
+      />
+
+      {/* Main Content */}
+      <div className="flex flex-col flex-1 ml-80">
+        {/* Header */}
+        <header className="border-b bg-white dark:bg-gray-800 shadow-sm">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/')}
+                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                ← 返回
+              </button>
+              <div className="flex items-center gap-3">
+                <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
+                  {agentInfo.icon}
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {agentInfo.name}
+                  </h1>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {agentInfo.description}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="container mx-auto px-4 py-6 max-w-4xl">
-          {messages.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-6xl mb-4">{agentInfo.icon}</div>
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
-                开始与 {agentInfo.name} 对话
-              </h2>
-              <p className="text-gray-600 dark:text-gray-400 mb-8">
-                尝试以下示例问题，或输入您自己的问题
-              </p>
-              <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
-                {agentInfo.examples.map((example, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleExampleClick(example)}
-                    className="p-4 text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                  >
-                    <p className="text-gray-700 dark:text-gray-300">{example}</p>
-                  </button>
-                ))}
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto relative">
+          {isLoadingHistory && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 z-10">
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-3 rounded-full shadow-lg border border-gray-100 dark:border-gray-700">
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">加载会话...</span>
               </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+          )}
+
+          <div className="container mx-auto px-4 py-6 max-w-4xl h-full">
+            {messages.length === 0 && !isLoadingHistory ? (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">{agentInfo.icon}</div>
+                <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                  开始与 {agentInfo.name} 对话
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-8">
+                  尝试以下示例问题，或输入您自己的问题
+                </p>
+                <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
+                  {agentInfo.examples.map((example, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleExampleClick(example)}
+                      className="p-4 text-left bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                    >
+                      <p className="text-gray-700 dark:text-gray-300">{example}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {messages.map((message) => (
                   <div
-                    className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === 'user'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
-                      }`}
+                    key={message.id}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <div className="break-words">
-                      {message.role === 'assistant' ? (
-                        <div className="prose prose-sm dark:prose-invert max-w-none">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              // Customize link rendering to open in new tab
-                              a: ({ ...props }) => (
-                                <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" />
-                              ),
-                              // Customize code blocks
-                              code: (props) => {
-                                const { children, className, ...rest } = props;
-                                // Code blocks have language classes like 'language-javascript'
-                                const isInline = !className || !className.startsWith('language-');
-                                return isInline ? (
-                                  <code {...rest} className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">
-                                    {children}
-                                  </code>
-                                ) : (
-                                  <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
-                                    <code {...rest} className={className}>
-                                      {children}
-                                    </code>
-                                  </pre>
-                                );
-                              },
-                              // Customize list styling
-                              ul: ({ ...props }) => (
-                                <ul {...props} className="list-disc list-inside space-y-1" />
-                              ),
-                              ol: ({ ...props }) => (
-                                <ol {...props} className="list-decimal list-inside space-y-1" />
-                              ),
-                              // Customize heading styles
-                              h1: ({ ...props }) => (
-                                <h1 {...props} className="text-2xl font-bold mt-4 mb-2" />
-                              ),
-                              h2: ({ ...props }) => (
-                                <h2 {...props} className="text-xl font-bold mt-3 mb-2" />
-                              ),
-                              h3: ({ ...props }) => (
-                                <h3 {...props} className="text-lg font-bold mt-2 mb-1" />
-                              ),
-                              // Customize paragraph spacing
-                              p: ({ ...props }) => (
-                                <p {...props} className="mb-2" />
-                              ),
-                            }}
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                      )}
-                    </div>
                     <div
-                      className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                      className={`max-w-[80%] rounded-lg px-4 py-3 ${message.role === 'user'
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700'
                         }`}
                     >
-                      {message.timestamp.toLocaleTimeString('zh-CN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      <div className="break-words">
+                        {message.role === 'assistant' ? (
+                          <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{
+                                // Customize link rendering to open in new tab
+                                a: ({ ...props }) => (
+                                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" />
+                                ),
+                                // Customize code blocks
+                                code: (props) => {
+                                  const { children, className, ...rest } = props;
+                                  // Code blocks have language classes like 'language-javascript'
+                                  const isInline = !className || !className.startsWith('language-');
+                                  return isInline ? (
+                                    <code {...rest} className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">
+                                      {children}
+                                    </code>
+                                  ) : (
+                                    <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
+                                      <code {...rest} className={className}>
+                                        {children}
+                                      </code>
+                                    </pre>
+                                  );
+                                },
+                                // Customize list styling
+                                ul: ({ ...props }) => (
+                                  <ul {...props} className="list-disc list-inside space-y-1" />
+                                ),
+                                ol: ({ ...props }) => (
+                                  <ol {...props} className="list-decimal list-inside space-y-1" />
+                                ),
+                                // Customize heading styles
+                                h1: ({ ...props }) => (
+                                  <h1 {...props} className="text-2xl font-bold mt-4 mb-2" />
+                                ),
+                                h2: ({ ...props }) => (
+                                  <h2 {...props} className="text-xl font-bold mt-3 mb-2" />
+                                ),
+                                h3: ({ ...props }) => (
+                                  <h3 {...props} className="text-lg font-bold mt-2 mb-1" />
+                                ),
+                                // Customize paragraph spacing
+                                p: ({ ...props }) => (
+                                  <p {...props} className="mb-2" />
+                                ),
+                              }}
+                            >
+                              {message.content}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                        )}
+                      </div>
+                      <div
+                        className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500 dark:text-gray-400'
+                          }`}
+                      >
+                        {message.timestamp.toLocaleTimeString('zh-CN', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="max-w-[80%] rounded-lg px-4 py-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-          )}
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Input Area */}
-      <div className="border-t bg-white dark:bg-gray-800 shadow-lg">
-        <div className="container mx-auto px-4 py-4 max-w-4xl">
-          <form onSubmit={handleSubmit} className="flex gap-2">
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="输入您的消息..."
-              className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              disabled={isLoading}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !inputValue.trim()}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
-            >
-              {isLoading ? '发送中...' : '发送'}
-            </button>
-          </form>
+        {/* Input Area */}
+        <div className="border-t bg-white dark:bg-gray-800 shadow-lg">
+          <div className="container mx-auto px-4 py-4 max-w-4xl">
+            <form onSubmit={handleSubmit} className="flex gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                placeholder="输入您的消息..."
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                disabled={isLoading}
+              />
+              <button
+                type="submit"
+                disabled={isLoading || !inputValue.trim()}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors font-medium"
+              >
+                {isLoading ? '发送中...' : '发送'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
