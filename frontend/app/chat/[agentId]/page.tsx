@@ -81,11 +81,14 @@ const agentInfoMap: Record<string, AgentInfo> = {
 // Helper component for AI Avatar
 const AIAvatar = ({ icon }: { icon: string }) => {
   return (
-    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background`}>
+    <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background">
       <span className="text-base">{icon}</span>
     </div>
   );
 };
+
+// Feedback timeout duration in milliseconds
+const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
 const AIMessageContent = ({ content }: { content: string }) => {
@@ -120,18 +123,18 @@ const AIMessageContent = ({ content }: { content: string }) => {
       await navigator.clipboard.writeText(content);
       setCopied(true);
       setCopyError(false);
-      copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+      copyTimeoutRef.current = setTimeout(() => setCopied(false), FEEDBACK_TIMEOUT_MS);
     } catch (err) {
       console.error('Failed to copy:', err);
       setCopyError(true);
-      errorTimeoutRef.current = setTimeout(() => setCopyError(false), 2000);
+      errorTimeoutRef.current = setTimeout(() => setCopyError(false), FEEDBACK_TIMEOUT_MS);
     }
   };
 
   return (
     <div className="relative group">
       {/* Toggle and Copy buttons - improved accessibility with focus-within */}
-      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           variant="ghost"
@@ -181,7 +184,7 @@ const AIMessageContent = ({ content }: { content: string }) => {
 
       {/* Content display */}
       {showRaw ? (
-        <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto">
+        <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
           {content}
         </pre>
       ) : (
