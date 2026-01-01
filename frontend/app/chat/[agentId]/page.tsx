@@ -278,7 +278,8 @@ export default function ChatPage() {
             }
           }
         }
-        loadSessions();
+        // Wait a bit for backend to generate title before reloading sessions
+        setTimeout(() => loadSessions(), 1000);
       }
     } catch (error) {
       console.error('Error sending message:', error);

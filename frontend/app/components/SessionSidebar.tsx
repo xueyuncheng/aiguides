@@ -108,14 +108,14 @@ export default function SessionSidebar({
           <div className="p-4 text-center text-[#8e8e8e] text-sm">
             加载中...
           </div>
-        ) : sessions.length === 0 ? (
+        ) : sessions.filter(s => s.title || s.first_message).length === 0 ? (
           <div className="p-4 text-center text-[#8e8e8e] text-sm">
             暂无会话历史
           </div>
         ) : (
           <div className="space-y-1">
             <h3 className="px-3 py-2 text-xs font-semibold text-[#8e8e8e]">最近</h3>
-            {sessions.map((session) => (
+            {sessions.filter(s => s.title || s.first_message).map((session) => (
               <div
                 key={session.session_id}
                 onClick={() => onSessionSelect(session.session_id)}
