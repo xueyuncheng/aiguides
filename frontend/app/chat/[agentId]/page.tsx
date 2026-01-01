@@ -297,25 +297,15 @@ export default function ChatPage() {
                             components={{
                               // Customize link rendering to open in new tab and embed Google Maps
                               a: ({ href, children, ...props }) => {
-                                // Check if this is a Google Maps link
-                                const isGoogleMapsLink = href && (
-                                  href.includes('google.com/maps') || 
-                                  href.includes('maps.google.com')
+                                // Validate and check if this is a legitimate Google Maps link
+                                const isGoogleMapsLink = href && typeof href === 'string' && (
+                                  href.startsWith('https://www.google.com/maps') || 
+                                  href.startsWith('https://maps.google.com') ||
+                                  href.startsWith('http://www.google.com/maps') ||
+                                  href.startsWith('http://maps.google.com')
                                 );
                                 
                                 if (isGoogleMapsLink) {
-                                  // Convert the Google Maps URL to an embeddable format
-                                  let embedUrl = href;
-                                  
-                                  // For direction URLs, convert to embed format
-                                  if (href.includes('/dir/') || href.includes('/search/')) {
-                                    // Extract the URL and create embed URL
-                                    // Google Maps Embed API format: https://www.google.com/maps/embed/v1/directions
-                                    // For simplicity, we'll use iframe with the original URL
-                                    // which Google Maps will render appropriately
-                                    embedUrl = href;
-                                  }
-                                  
                                   return (
                                     <div className="my-4">
                                       <div className="mb-2">
@@ -330,7 +320,7 @@ export default function ChatPage() {
                                         </a>
                                       </div>
                                       <iframe
-                                        src={embedUrl}
+                                        src={href}
                                         width="100%"
                                         height="450"
                                         style={{ border: 0 }}
@@ -338,6 +328,7 @@ export default function ChatPage() {
                                         loading="lazy"
                                         referrerPolicy="no-referrer-when-downgrade"
                                         className="rounded-lg shadow-md"
+                                        sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
                                       />
                                     </div>
                                   );
