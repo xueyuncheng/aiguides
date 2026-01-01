@@ -5,6 +5,7 @@ import (
 	"aiguide/internal/app/aiguide/agentmanager/emailsummary"
 	"aiguide/internal/app/aiguide/agentmanager/travelagent"
 	"aiguide/internal/app/aiguide/agentmanager/websummary"
+	"aiguide/internal/pkg/auth"
 	"aiguide/internal/pkg/constant"
 	"context"
 	"fmt"
@@ -18,14 +19,24 @@ import (
 	"gorm.io/gorm"
 )
 
+type Config struct {
+	GoogleClientID       string
+	GoogleClientSecret   string
+	GoogleRedirectURL    string
+	JWTSecret            string
+	EnableAuthentication bool
+}
+
 type AgentManager struct {
 	model   model.LLM
 	session session.Service
+	config  *Config
 
-	runnerMap map[constant.AppName]*runner.Runner
+	runnerMap   map[constant.AppName]*runner.Runner
+	authService *auth.AuthService
 }
 
-func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
+func New(model model.LLM, dialector gorm.Dialector, appConfig interface{}) (*AgentManager, error) {
 	session, err := database.NewSessionService(dialector)
 	if err != nil {
 		slog.Error("database.NewSessionService() error", "err", err)
@@ -37,10 +48,45 @@ func New(model model.LLM, dialector gorm.Dialector) (*AgentManager, error) {
 		return nil, fmt.Errorf("database.AutoMigrate() error, err = %w", err)
 	}
 
+	// 转换配置
+	var config *Config
+	if cfg, ok := appConfig.(interface {
+		GetGoogleClientID() string
+		GetGoogleClientSecret() string
+		GetGoogleRedirectURL() string
+		GetJWTSecret() string
+		GetEnableAuthentication() bool
+	}); ok {
+		config = &Config{
+			GoogleClientID:       cfg.GetGoogleClientID(),
+			GoogleClientSecret:   cfg.GetGoogleClientSecret(),
+			GoogleRedirectURL:    cfg.GetGoogleRedirectURL(),
+			JWTSecret:            cfg.GetJWTSecret(),
+			EnableAuthentication: cfg.GetEnableAuthentication(),
+		}
+	} else {
+		// 默认配置（不启用认证）
+		config = &Config{
+			EnableAuthentication: false,
+		}
+	}
+
 	agentManager := &AgentManager{
 		model:     model,
 		session:   session,
+		config:    config,
 		runnerMap: make(map[constant.AppName]*runner.Runner, 16),
+	}
+
+	// 如果启用了认证，初始化认证服务
+	if config.EnableAuthentication && config.GoogleClientID != "" {
+		authConfig := &auth.Config{
+			ClientID:     config.GoogleClientID,
+			ClientSecret: config.GoogleClientSecret,
+			RedirectURL:  config.GoogleRedirectURL,
+			JWTSecret:    config.JWTSecret,
+		}
+		agentManager.authService = auth.NewAuthService(authConfig)
 	}
 
 	if err := agentManager.addTravelAgentRunner(); err != nil {

@@ -2,3 +2,16 @@ api_key: xxxx
 model_name: gemini-2.0-flash-exp
 use_gin: true
 gin_port: 8080
+
+# Google OAuth 配置（可选）
+# 如果要启用 Google 登录，请设置以下参数：
+# 1. 在 Google Cloud Console 创建 OAuth 2.0 凭据
+# 2. 填写 Client ID 和 Client Secret
+# 3. 设置 enable_authentication 为 true
+# 4. 设置 jwt_secret 为一个安全的随机字符串
+
+enable_authentication: false
+# google_client_id: your_google_client_id_here
+# google_client_secret: your_google_client_secret_here
+# google_redirect_url: http://localhost:8080/auth/google/callback
+# jwt_secret: your_random_jwt_secret_here

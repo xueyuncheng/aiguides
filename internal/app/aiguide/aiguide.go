@@ -14,11 +14,41 @@ import (
 )
 
 type Config struct {
-	APIKey    string `yaml:"api_key"`
-	ModelName string `yaml:"model_name"`
-	Proxy     string `yaml:"proxy"`
-	UseGin    bool   `yaml:"use_gin"`
-	GinPort   int    `yaml:"gin_port"`
+	APIKey              string `yaml:"api_key"`
+	ModelName           string `yaml:"model_name"`
+	Proxy               string `yaml:"proxy"`
+	UseGin              bool   `yaml:"use_gin"`
+	GinPort             int    `yaml:"gin_port"`
+	GoogleClientID      string `yaml:"google_client_id"`
+	GoogleClientSecret  string `yaml:"google_client_secret"`
+	GoogleRedirectURL   string `yaml:"google_redirect_url"`
+	JWTSecret           string `yaml:"jwt_secret"`
+	EnableAuthentication bool  `yaml:"enable_authentication"`
+}
+
+// GetGoogleClientID returns the Google Client ID
+func (c *Config) GetGoogleClientID() string {
+	return c.GoogleClientID
+}
+
+// GetGoogleClientSecret returns the Google Client Secret
+func (c *Config) GetGoogleClientSecret() string {
+	return c.GoogleClientSecret
+}
+
+// GetGoogleRedirectURL returns the Google Redirect URL
+func (c *Config) GetGoogleRedirectURL() string {
+	return c.GoogleRedirectURL
+}
+
+// GetJWTSecret returns the JWT Secret
+func (c *Config) GetJWTSecret() string {
+	return c.JWTSecret
+}
+
+// GetEnableAuthentication returns whether authentication is enabled
+func (c *Config) GetEnableAuthentication() bool {
+	return c.EnableAuthentication
 }
 
 type AIGuide struct {
@@ -45,7 +75,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	dialector := sqlite.Open("file:aiguide_sessions.db")
 
-	agentManager, err := agentmanager.New(model, dialector)
+	agentManager, err := agentmanager.New(model, dialector, config)
 	if err != nil {
 		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
 	}
