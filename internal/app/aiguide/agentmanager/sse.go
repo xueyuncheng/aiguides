@@ -118,6 +118,13 @@ func (a *AgentManager) setupSSEResponse(ctx *gin.Context) {
 
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
 // 只发送最后一个 agent 的输出结果给前端
+//
+// 在多 agent 场景下（如 AssistantAgent 包含 SearchAgent 和 FactCheckAgent），
+// 该函数会收集所有 agent 的输出，然后只将最后一个 agent 的结果发送给前端。
+// 这样可以避免中间 agent 的输出干扰用户，只展示最终结果。
+//
+// 注意：这种实现方式会等待所有 agent 完成后才开始发送数据，
+// 因此会牺牲一些实时性，但可以确保用户只看到最终的、最完整的答案。
 func (a *AgentManager) streamAgentEvents(
 	ctx *gin.Context,
 	runner *runner.Runner,
