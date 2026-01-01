@@ -9,10 +9,17 @@ import (
 func (a *AgentManager) initRouter(engine *gin.Engine) error {
 	api := engine.Group("/api")
 
+	// 聊天接口
 	api.POST("/travel/chats/:id", a.travelChatHandler)
 	api.POST("/web_summary/chats/:id", a.webSummaryChatHandler)
 	api.POST("/assistant/chats/:id", a.assistantChatHandler)
 	api.POST("/email_summary/chats/:id", a.emailSummaryChatHandler)
+
+	// 会话管理接口
+	api.GET("/:agentId/sessions", a.listSessionsHandler)
+	api.GET("/:agentId/sessions/:sessionId/history", a.getSessionHistoryHandler)
+	api.POST("/:agentId/sessions", a.createSessionHandler)
+	api.DELETE("/:agentId/sessions/:sessionId", a.deleteSessionHandler)
 
 	return nil
 }
