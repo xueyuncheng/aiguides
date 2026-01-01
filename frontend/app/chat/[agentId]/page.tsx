@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@/app/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import SessionSidebar, { Session } from '../../components/SessionSidebar';
-import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Card, CardContent } from '../../components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '../../components/ui/avatar';
-import { ArrowLeft } from 'lucide-react';
-import { cn } from '../../lib/utils';
+import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Card } from '@/app/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/app/components/ui/avatar';
+import { ArrowUp, User } from 'lucide-react';
+import { cn } from '@/app/lib/utils';
 
 interface Message {
   id: string;
@@ -19,8 +19,6 @@ interface Message {
   content: string;
   timestamp: Date;
 }
-
-
 
 interface AgentInfo {
   id: string;
@@ -82,18 +80,12 @@ const agentInfoMap: Record<string, AgentInfo> = {
   },
 };
 
-// Helper component for AI Avatar - moved outside to prevent recreation on every render
+// Helper component for AI Avatar
 const AIAvatar = ({ icon, color }: { icon: string; color: string }) => {
-  // Convert Tailwind color classes like 'bg-blue-500' to 'bg-blue-500/20' for 20% opacity
-  // Assumes color follows the pattern 'bg-{color}-{shade}' as defined in agentInfoMap
-  const colorWithOpacity = color.includes('-') ? color + '/20' : color;
-  
   return (
-    <Avatar className="h-8 w-8 flex-shrink-0">
-      <AvatarFallback className={cn(colorWithOpacity, "text-lg")}>
-        {icon}
-      </AvatarFallback>
-    </Avatar>
+    <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background`}>
+      <span className="text-base">{icon}</span>
+    </div>
   );
 };
 
@@ -121,7 +113,6 @@ export default function ChatPage() {
       const response = await fetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
       if (response.ok) {
         const data = await response.json();
-        // Sort by last update time, most recent first
         const sortedSessions = (data || []).sort((a: Session, b: Session) =>
           new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
         );
@@ -165,15 +156,12 @@ export default function ChatPage() {
   };
 
   const handleNewSession = async () => {
-    // Generate a temporary session ID locally
-    // The actual session will be created on the backend when the first message is sent
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     setSessionId(newSessionId);
     setMessages([]);
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
-
     try {
       const response = await fetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {
         method: 'DELETE',
@@ -200,7 +188,6 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    // If no session ID, create a new one
     if (!sessionId) {
       handleNewSession();
     }
@@ -227,10 +214,8 @@ export default function ChatPage() {
     try {
       const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include', // Include cookies for authentication
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           user_id: user?.user_id,
           session_id: sessionId,
@@ -238,16 +223,13 @@ export default function ChatPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let assistantContent = '';
 
       if (reader) {
-        // 1. 初始化 AI 的空消息占位
         const assistantMessage: Message = {
           id: `msg-${Date.now()}-assistant`,
           role: 'assistant',
@@ -256,43 +238,30 @@ export default function ChatPage() {
         };
         setMessages((prev) => [...prev, assistantMessage]);
 
-        // 2. 核心修复：定义缓冲区，用于处理 TCP 分包导致的数据截断
         let buffer = '';
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          // 3. 解码数据块 (stream: true 保持流式解码状态)
           const chunk = decoder.decode(value, { stream: true });
           buffer += chunk;
-
-          // 4. 按换行符分割数据
           const lines = buffer.split('\n');
-
-          // 5. 将最后一行（可能不完整）留到下一次循环处理
-          // pop() 会移除数组最后一个元素并返回它
           buffer = lines.pop() || '';
 
           for (const line of lines) {
             const trimmedLine = line.trim();
-            // 6. 解析 SSE 格式：只处理以 "data:" 开头的行
             if (trimmedLine.startsWith('data:')) {
               try {
-                // 去掉 "data:" 前缀并解析 JSON
                 const jsonStr = trimmedLine.substring(5).trim();
                 if (!jsonStr) continue;
 
                 const data = JSON.parse(jsonStr);
 
-                // 7. 更新 UI 状态
                 if (data.content) {
                   assistantContent += data.content;
-
-                  // 使用函数式更新，确保总是获取到最新的 messages 数组
                   setMessages((prev) => {
                     const newMessages = [...prev];
-                    // 找到最后一条消息（即当前正在生成的 AI 消息）并更新它
                     const lastIndex = newMessages.length - 1;
                     if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
                       newMessages[lastIndex] = {
@@ -303,18 +272,12 @@ export default function ChatPage() {
                     return newMessages;
                   });
                 }
-
-                // Refresh sessions list to update preview and time
-                if (data.done) { // Assuming 'done' flag or check if stream ended? 
-                  // The stream loop breaks on 'done'.
-                }
               } catch (e) {
-                console.warn('JSON parse error, skipping line:', trimmedLine, e);
+                console.warn('JSON parse error:', e);
               }
             }
           }
         }
-        // Reload sessions after full response to update metadata
         loadSessions();
       }
     } catch (error) {
@@ -337,19 +300,20 @@ export default function ChatPage() {
   };
 
   const handleExampleClick = (example: string) => {
-    setInputValue(example);
+    if (isLoading) return;
+    sendMessage(example);
   };
 
   if (loading || !agentInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background font-sans text-foreground">
       {/* Session Sidebar */}
       <SessionSidebar
         sessions={sessions}
@@ -361,207 +325,159 @@ export default function ChatPage() {
       />
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 ml-80">
-        {/* Header */}
-        <header className="border-b bg-card shadow-sm">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={() => router.push('/')}
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                返回
-              </Button>
-              <div className="flex items-center gap-3">
-                <div className={`text-3xl p-2 rounded-lg ${agentInfo.color} bg-opacity-10`}>
-                  {agentInfo.icon}
-                </div>
-                <div>
-                  <h1 className="text-xl font-bold">
-                    {agentInfo.name}
-                  </h1>
-                  <p className="text-sm text-muted-foreground">
-                    {agentInfo.description}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
+      <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto relative">
+        <div className="flex-1 overflow-y-auto no-scrollbar">
           {isLoadingHistory && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-              <Card className="px-6 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm font-medium">加载会话...</span>
-                </div>
-              </Card>
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
 
-          <div className="container mx-auto px-4 py-6 max-w-4xl h-full">
-            {messages.length === 0 && !isLoadingHistory ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">{agentInfo.icon}</div>
-                <h2 className="text-2xl font-semibold mb-2">
-                  开始与 {agentInfo.name} 对话
-                </h2>
-                <p className="text-muted-foreground mb-8">
-                  尝试以下示例问题，或输入您自己的问题
-                </p>
-                <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto">
-                  {agentInfo.examples.map((example, index) => (
-                    <Card
-                      key={index}
-                      onClick={() => handleExampleClick(example)}
-                      className="p-4 text-left cursor-pointer hover:shadow-md transition-shadow"
-                    >
-                      <p>{example}</p>
-                    </Card>
-                  ))}
+          <div className="flex flex-col items-center">
+            <div className="w-full max-w-3xl px-6 py-10 space-y-8">
+              {messages.length === 0 && !isLoadingHistory ? (
+                <div className="text-center py-20">
+                  <div className="flex justify-center mb-6">
+                    <div className="p-4 bg-secondary rounded-2xl">
+                      <span className="text-4xl">{agentInfo.icon}</span>
+                    </div>
+                  </div>
+                  <h2 className="text-2xl font-semibold mb-8">
+                    {agentInfo.name} 能够为您做什么？
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                    {agentInfo.examples.map((example, index) => (
+                      <button
+                        key={index}
+                        onClick={() => handleExampleClick(example)}
+                        className="p-4 text-left border rounded-xl hover:bg-secondary/50 transition-colors text-sm text-balance"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    {message.role === 'assistant' && (
-                      <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
-                    )}
-                    <Card
-                      className={`max-w-[80%] ${message.role === 'user'
-                        ? 'bg-blue-500 text-white border-blue-500'
-                        : ''
-                        }`}
+              ) : (
+                <>
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={cn(
+                        "flex w-full",
+                        message.role === 'user' ? "justify-end" : "justify-start"
+                      )}
                     >
-                      <CardContent className="p-4">
-                        <div className="break-words">
+                      <div className={cn(
+                        "flex gap-4 max-w-[85%]",
+                        message.role === 'user' ? "flex-row-reverse" : "flex-row"
+                      )}>
+                        {message.role === 'assistant' ? (
+                          <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
+                        ) : null}
+
+                        <div className={cn(
+                          "relative text-base",
+                          message.role === 'user'
+                            ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm"
+                            : "leading-7 pt-1"
+                        )}>
                           {message.role === 'assistant' ? (
-                            <div className="prose prose-sm dark:prose-invert max-w-none">
+                            <div className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg">
                               <ReactMarkdown
                                 remarkPlugins={[remarkGfm]}
-                              components={{
-                                // Customize link rendering to open in new tab
-                                a: ({ ...props }) => (
-                                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-600 dark:text-blue-400 hover:underline" />
-                                ),
-                                // Customize code blocks
-                                code: (props) => {
-                                  const { children, className, ...rest } = props;
-                                  // Code blocks have language classes like 'language-javascript'
-                                  const isInline = !className || !className.startsWith('language-');
-                                  return isInline ? (
-                                    <code {...rest} className="bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded text-sm">
-                                      {children}
-                                    </code>
-                                  ) : (
-                                    <pre className="bg-gray-100 dark:bg-gray-700 p-2 rounded text-sm overflow-x-auto">
-                                      <code {...rest} className={className}>
+                                components={{
+                                  a: ({ ...props }) => (
+                                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                                  ),
+                                  code: ({ className, children, ...props }) => {
+                                    const match = /language-(\w+)/.exec(className || '')
+                                    const isInline = !match;
+                                    return isInline ? (
+                                      <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
                                         {children}
                                       </code>
-                                    </pre>
-                                  );
-                                },
-                                // Customize list styling
-                                ul: ({ ...props }) => (
-                                  <ul {...props} className="list-disc list-inside space-y-1" />
-                                ),
-                                ol: ({ ...props }) => (
-                                  <ol {...props} className="list-decimal list-inside space-y-1" />
-                                ),
-                                // Customize heading styles
-                                h1: ({ ...props }) => (
-                                  <h1 {...props} className="text-2xl font-bold mt-4 mb-2" />
-                                ),
-                                h2: ({ ...props }) => (
-                                  <h2 {...props} className="text-xl font-bold mt-3 mb-2" />
-                                ),
-                                h3: ({ ...props }) => (
-                                  <h3 {...props} className="text-lg font-bold mt-2 mb-1" />
-                                ),
-                                // Customize paragraph spacing
-                                p: ({ ...props }) => (
-                                  <p {...props} className="mb-2" />
-                                ),
-                              }}
-                            >
-                              {message.content}
-                            </ReactMarkdown>
-                          </div>
-                        ) : (
-                          <div className="whitespace-pre-wrap">{message.content}</div>
-                        )}
-                      </div>
-                      <div
-                        className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-muted-foreground'
-                          }`}
-                      >
-                        {message.timestamp.toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </div>
-                    </CardContent>
-                    </Card>
-                    {message.role === 'user' && (
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarImage src={user?.picture} alt={user?.name || 'User'} />
-                        <AvatarFallback className="bg-blue-500 text-white">
-                          {user?.name?.charAt(0).toUpperCase() || 'U'}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                ))}
-                {isLoading && (
-                  <div className="flex justify-start gap-3">
-                    <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
-                    <Card className="max-w-[80%]">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                          <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                    ) : (
+                                      <div className="my-4 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+                                        <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
+                                          <span>{match?.[1]}</span>
+                                        </div>
+                                        <pre className="p-4 overflow-x-auto text-sm">
+                                          <code className={className} {...props}>
+                                            {children}
+                                          </code>
+                                        </pre>
+                                      </div>
+                                    )
+                                  },
+                                  ul: ({ ...props }) => (
+                                    <ul {...props} className="list-disc list-inside space-y-1 my-4" />
+                                  ),
+                                  ol: ({ ...props }) => (
+                                    <ol {...props} className="list-decimal list-inside space-y-1 my-4" />
+                                  ),
+                                }}
+                              >
+                                {message.content}
+                              </ReactMarkdown>
+                            </div>
+                          ) : (
+                            <div className="whitespace-pre-wrap">{message.content}</div>
+                          )}
                         </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex w-full justify-start">
+                      <div className="flex gap-4 max-w-[85%]">
+                        <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
+                        <div className="pt-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} className="h-24" />
+                </>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Input Area */}
-        <div className="border-t bg-card shadow-lg">
-          <div className="container mx-auto px-4 py-4 max-w-4xl">
-            <form onSubmit={handleSubmit} className="flex gap-2">
-              <Input
-                type="text"
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                placeholder="输入您的消息..."
-                className="flex-1 h-11"
-                disabled={isLoading}
-              />
-              <Button
-                type="submit"
-                disabled={isLoading || !inputValue.trim()}
-                size="lg"
-              >
-                {isLoading ? '发送中...' : '发送'}
-              </Button>
-            </form>
+        <div className="absolute bottom-0 left-0 w-full pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6">
+          <div className="max-w-3xl mx-auto px-6">
+            <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
+              <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
+                <Input
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder={`给 ${agentInfo.name} 发送消息`}
+                  className="flex-1 min-h-[44px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 resize-none text-base"
+                  disabled={isLoading}
+                  autoComplete="off"
+                />
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!inputValue.trim() || isLoading}
+                  className={cn(
+                    "h-8 w-8 mb-1 rounded-full transition-all duration-200",
+                    inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+              </form>
+            </div>
+            <div className="text-center text-xs text-muted-foreground mt-3">
+              AI 可能会生成不准确的信息，请核查重要事实。
+            </div>
           </div>
         </div>
       </div>
