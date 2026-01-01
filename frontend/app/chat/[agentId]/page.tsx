@@ -95,8 +95,8 @@ const AIMessageContent = ({ content }: { content: string }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
-  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const errorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup timeouts on unmount
   useEffect(() => {
@@ -119,6 +119,14 @@ const AIMessageContent = ({ content }: { content: string }) => {
       clearTimeout(errorTimeoutRef.current);
     }
 
+    // Check if clipboard API is available
+    if (!navigator.clipboard) {
+      console.error('Clipboard API not available');
+      setCopyError(true);
+      errorTimeoutRef.current = setTimeout(() => setCopyError(false), FEEDBACK_TIMEOUT_MS);
+      return;
+    }
+
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
@@ -132,9 +140,9 @@ const AIMessageContent = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="relative group">
+    <div className="relative group mt-2">
       {/* Toggle and Copy buttons - improved accessibility with focus-within */}
-      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+      <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           variant="ghost"
