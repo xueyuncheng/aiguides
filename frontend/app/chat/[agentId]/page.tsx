@@ -390,22 +390,19 @@ export default function ChatPage() {
           </div>
         </header>
 
-        {/* Loading History Overlay */}
-        {isLoadingHistory && (
-          <div className="absolute inset-0 bg-gray-900/50 flex items-center justify-center z-40">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-gray-900 dark:text-white">加载会话历史...</span>
+        {/* Messages Area */}
+        <div className="flex-1 overflow-y-auto relative">
+          {isLoadingHistory && (
+            <div className="absolute inset-0 flex items-center justify-center bg-white/50 dark:bg-gray-900/50 z-10">
+              <div className="flex items-center gap-3 bg-white dark:bg-gray-800 px-6 py-3 rounded-full shadow-lg border border-gray-100 dark:border-gray-700">
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">加载会话...</span>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="container mx-auto px-4 py-6 max-w-4xl">
-            {messages.length === 0 ? (
+          <div className="container mx-auto px-4 py-6 max-w-4xl h-full">
+            {messages.length === 0 && !isLoadingHistory ? (
               <div className="text-center py-12">
                 <div className="text-6xl mb-4">{agentInfo.icon}</div>
                 <h2 className="text-2xl font-semibold text-gray-800 dark:text-gray-200 mb-2">
