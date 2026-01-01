@@ -48,9 +48,9 @@ type CreateSessionResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// listSessionsHandler 处理获取会话列表的请求
+// ListSessionsHandler 处理获取会话列表的请求
 // GET /api/:agentId/sessions?user_id=xxx
-func (a *AgentManager) listSessionsHandler(ctx *gin.Context) {
+func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	userID := ctx.Query("user_id")
 
@@ -110,9 +110,9 @@ func (a *AgentManager) listSessionsHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, sessions)
 }
 
-// getSessionHistoryHandler 处理获取会话历史的请求
+// GetSessionHistoryHandler 处理获取会话历史的请求
 // GET /api/:agentId/sessions/:sessionId/history?user_id=xxx
-func (a *AgentManager) getSessionHistoryHandler(ctx *gin.Context) {
+func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
 	userID := ctx.Query("user_id")
@@ -175,9 +175,9 @@ func (a *AgentManager) getSessionHistoryHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
-// createSessionHandler 处理创建新会话的请求
+// CreateSessionHandler 处理创建新会话的请求
 // POST /api/:agentId/sessions
-func (a *AgentManager) createSessionHandler(ctx *gin.Context) {
+func (a *AgentManager) CreateSessionHandler(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 
 	var req CreateSessionRequest
@@ -211,9 +211,9 @@ func (a *AgentManager) createSessionHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, response)
 }
 
-// deleteSessionHandler 处理删除会话的请求
+// DeleteSessionHandler 处理删除会话的请求
 // DELETE /api/:agentId/sessions/:sessionId?user_id=xxx
-func (a *AgentManager) deleteSessionHandler(ctx *gin.Context) {
+func (a *AgentManager) DeleteSessionHandler(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
 	userID := ctx.Query("user_id")

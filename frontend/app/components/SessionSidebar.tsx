@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-interface Session {
+export interface Session {
   session_id: string;
   app_name: string;
   user_id: string;
@@ -12,68 +12,28 @@ interface Session {
 }
 
 interface SessionSidebarProps {
-  agentId: string;
-  userId: string;
+  sessions: Session[];
   currentSessionId: string;
   onSessionSelect: (sessionId: string) => void;
   onNewSession: () => void;
-  onDeleteSession?: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+  isLoading: boolean;
 }
 
 export default function SessionSidebar({
-  agentId,
-  userId,
+  sessions,
   currentSessionId,
   onSessionSelect,
   onNewSession,
   onDeleteSession,
+  isLoading,
 }: SessionSidebarProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  useEffect(() => {
-    loadSessions();
-  }, [agentId, userId]);
-
-  const loadSessions = async () => {
-    try {
-      setIsLoading(true);
-      const response = await fetch(`/api/${agentId}/sessions?user_id=${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Sort by last update time, most recent first
-        const sortedSessions = (data || []).sort((a: Session, b: Session) => 
-          new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
-        );
-        setSessions(sortedSessions);
-      }
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = async (sessionId: string, e: React.MouseEvent) => {
+  const handleDelete = (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!confirm('确定要删除这个会话吗？')) {
-      return;
-    }
-
-    try {
-      const response = await fetch(`/api/${agentId}/sessions/${sessionId}?user_id=${userId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        setSessions(sessions.filter(s => s.session_id !== sessionId));
-        if (onDeleteSession) {
-          onDeleteSession(sessionId);
-        }
-      }
-    } catch (error) {
-      console.error('Error deleting session:', error);
+    if (confirm('确定要删除这个会话吗？')) {
+      onDeleteSession(sessionId);
     }
   };
 
@@ -89,9 +49,9 @@ export default function SessionSidebar({
     if (diffMins < 60) return `${diffMins}分钟前`;
     if (diffHours < 24) return `${diffHours}小时前`;
     if (diffDays < 7) return `${diffDays}天前`;
-    
-    return date.toLocaleDateString('zh-CN', { 
-      month: 'short', 
+
+    return date.toLocaleDateString('zh-CN', {
+      month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
@@ -159,11 +119,10 @@ export default function SessionSidebar({
               <div
                 key={session.session_id}
                 onClick={() => onSessionSelect(session.session_id)}
-                className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${
-                  session.session_id === currentSessionId
+                className={`group relative p-3 rounded-lg cursor-pointer transition-colors ${session.session_id === currentSessionId
                     ? 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
                     : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
+                  }`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
@@ -181,17 +140,15 @@ export default function SessionSidebar({
                       )}
                     </div>
                   </div>
-                  {onDeleteSession && (
-                    <button
-                      onClick={(e) => handleDelete(session.session_id, e)}
-                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/20 rounded transition-all"
-                      aria-label="删除会话"
-                    >
-                      <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => handleDelete(session.session_id, e)}
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red900/20 rounded transition-all"
+                    aria-label="删除会话"
+                  >
+                    <svg className="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             ))}

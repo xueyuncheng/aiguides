@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '../../contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import SessionSidebar from '../../components/SessionSidebar';
+import SessionSidebar, { Session } from '../../components/SessionSidebar';
 
 interface Message {
   id: string;
@@ -88,22 +88,106 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const handleSessionSelect = (newSessionId: string) => {
-    setSessionId(newSessionId);
-    setMessages([]); // Clear messages when switching session
+  const loadSessions = async () => {
+    if (!user?.user_id) return;
+
+    try {
+      setIsSessionsLoading(true);
+      const response = await fetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        // Sort by last update time, most recent first
+        const sortedSessions = (data || []).sort((a: Session, b: Session) =>
+          new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
+        );
+        setSessions(sortedSessions);
+      }
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    } finally {
+      setIsSessionsLoading(false);
+    }
   };
 
-  const handleNewSession = () => {
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  useEffect(() => {
+    if (user?.user_id) {
+      loadSessions();
+    }
+  }, [agentId, user?.user_id]);
+
+  const handleSessionSelect = async (newSessionId: string) => {
     setSessionId(newSessionId);
     setMessages([]);
+    setIsLoadingHistory(true);
+
+    try {
+      const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}`);
+      if (response.ok) {
+        const data = await response.json();
+        const historyMessages = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(historyMessages);
+      }
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const handleNewSession = async () => {
+    try {
+      const response = await fetch(`/api/${agentId}/sessions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.user_id,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSessionId(data.session_id);
+        setMessages([]);
+        loadSessions(); // Reload sessions list
+      }
+    } catch (error) {
+      console.error('Error creating session:', error);
+      // Fallback to local generation if API fails
+      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      setSessionId(newSessionId);
+      setMessages([]);
+    }
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
-    if (sessionIdToDelete === sessionId) {
-      handleNewSession();
+    if (!confirm('确定要删除这个会话吗？')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setSessions(prev => prev.filter(s => s.session_id !== sessionIdToDelete));
+        if (sessionIdToDelete === sessionId) {
+          handleNewSession();
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting session:', error);
     }
   };
 
@@ -117,9 +201,11 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    // Generate a simple session ID
-    setSessionId(`session-${Date.now()}-${Math.random().toString(36).substring(7)}`);
-  }, [agentId, agentInfo, router]);
+    // If no session ID, create a new one
+    if (!sessionId) {
+      handleNewSession();
+    }
+  }, [agentId, agentInfo, router, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -218,12 +304,19 @@ export default function ChatPage() {
                     return newMessages;
                   });
                 }
+
+                // Refresh sessions list to update preview and time
+                if (data.done) { // Assuming 'done' flag or check if stream ended? 
+                  // The stream loop breaks on 'done'.
+                }
               } catch (e) {
                 console.warn('JSON parse error, skipping line:', trimmedLine, e);
               }
             }
           }
         }
+        // Reload sessions after full response to update metadata
+        loadSessions();
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -260,8 +353,8 @@ export default function ChatPage() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {/* Session Sidebar */}
       <SessionSidebar
-        agentId={agentId}
-        userId={user?.user_id || ''}
+        sessions={sessions}
+        isLoading={isSessionsLoading}
         currentSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
         onNewSession={handleNewSession}
