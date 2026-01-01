@@ -8,9 +8,7 @@ import remarkGfm from 'remark-gfm';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
-import { Card } from '@/app/components/ui/card';
-import { Avatar, AvatarImage, AvatarFallback } from '@/app/components/ui/avatar';
-import { ArrowUp, User } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -81,10 +79,118 @@ const agentInfoMap: Record<string, AgentInfo> = {
 };
 
 // Helper component for AI Avatar
-const AIAvatar = ({ icon, color }: { icon: string; color: string }) => {
+const AIAvatar = ({ icon }: { icon: string }) => {
   return (
     <div className={`h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background`}>
       <span className="text-base">{icon}</span>
+    </div>
+  );
+};
+
+// Helper component for AI Message with raw markdown toggle
+const AIMessageContent = ({ content }: { content: string }) => {
+  const [showRaw, setShowRaw] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  return (
+    <div className="relative group">
+      {/* Toggle and Copy buttons */}
+      <div className="absolute -top-2 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowRaw(!showRaw)}
+          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
+          title={showRaw ? "显示渲染效果" : "显示原始内容"}
+        >
+          {showRaw ? (
+            <>
+              <Eye className="h-3 w-3 mr-1" />
+              渲染
+            </>
+          ) : (
+            <>
+              <Code2 className="h-3 w-3 mr-1" />
+              原始
+            </>
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleCopy}
+          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
+          title="复制原始内容"
+        >
+          {copied ? (
+            <>
+              <Check className="h-3 w-3 mr-1" />
+              已复制
+            </>
+          ) : (
+            <>
+              <Copy className="h-3 w-3 mr-1" />
+              复制
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Content display */}
+      {showRaw ? (
+        <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto">
+          {content}
+        </pre>
+      ) : (
+        <div className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              a: ({ ...props }) => (
+                <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+              ),
+              code: ({ className, children, ...props }) => {
+                const match = /language-(\w+)/.exec(className || '')
+                const isInline = !match;
+                return isInline ? (
+                  <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                    {children}
+                  </code>
+                ) : (
+                  <div className="my-4 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+                    <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
+                      <span>{match?.[1]}</span>
+                    </div>
+                    <pre className="p-4 overflow-x-auto text-sm">
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    </pre>
+                  </div>
+                )
+              },
+              ul: ({ ...props }) => (
+                <ul {...props} className="list-disc list-inside space-y-1 my-4" />
+              ),
+              ol: ({ ...props }) => (
+                <ol {...props} className="list-decimal list-inside space-y-1 my-4" />
+              ),
+            }}
+          >
+            {content}
+          </ReactMarkdown>
+        </div>
+      )}
     </div>
   );
 };
@@ -373,7 +479,7 @@ export default function ChatPage() {
                         message.role === 'user' ? "flex-row-reverse" : "flex-row"
                       )}>
                         {message.role === 'assistant' ? (
-                          <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
+                          <AIAvatar icon={agentInfo.icon} />
                         ) : null}
 
                         <div className={cn(
@@ -383,44 +489,7 @@ export default function ChatPage() {
                             : "leading-7 pt-1"
                         )}>
                           {message.role === 'assistant' ? (
-                            <div className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg">
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  a: ({ ...props }) => (
-                                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
-                                  ),
-                                  code: ({ className, children, ...props }) => {
-                                    const match = /language-(\w+)/.exec(className || '')
-                                    const isInline = !match;
-                                    return isInline ? (
-                                      <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
-                                        {children}
-                                      </code>
-                                    ) : (
-                                      <div className="my-4 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
-                                        <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
-                                          <span>{match?.[1]}</span>
-                                        </div>
-                                        <pre className="p-4 overflow-x-auto text-sm">
-                                          <code className={className} {...props}>
-                                            {children}
-                                          </code>
-                                        </pre>
-                                      </div>
-                                    )
-                                  },
-                                  ul: ({ ...props }) => (
-                                    <ul {...props} className="list-disc list-inside space-y-1 my-4" />
-                                  ),
-                                  ol: ({ ...props }) => (
-                                    <ol {...props} className="list-decimal list-inside space-y-1 my-4" />
-                                  ),
-                                }}
-                              >
-                                {message.content}
-                              </ReactMarkdown>
-                            </div>
+                            <AIMessageContent content={message.content} />
                           ) : (
                             <div className="whitespace-pre-wrap">{message.content}</div>
                           )}
@@ -431,7 +500,7 @@ export default function ChatPage() {
                   {isLoading && (
                     <div className="flex w-full justify-start">
                       <div className="flex gap-4 max-w-[85%]">
-                        <AIAvatar icon={agentInfo.icon} color={agentInfo.color} />
+                        <AIAvatar icon={agentInfo.icon} />
                         <div className="pt-2">
                           <div className="flex space-x-1">
                             <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
