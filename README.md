@@ -289,6 +289,11 @@ npm run dev
   - 显示会话创建时间和消息预览
   - 支持创建新会话和删除旧会话
   - 每个 AI 助手的会话独立管理
+- 📝 **原始内容查看** - 查看和复制 AI 回答的原始 Markdown 内容 ⭐ 新功能
+  - 悬停在 AI 回答上时显示操作按钮
+  - 支持在渲染效果和原始 Markdown 之间切换
+  - 一键复制原始 Markdown 内容到剪贴板
+  - 便于获取和编辑 AI 生成的内容
 
 详细的前端使用说明请查看 [frontend/README.md](frontend/README.md)。
 
