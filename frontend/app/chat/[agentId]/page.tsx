@@ -255,6 +255,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -294,6 +295,7 @@ export default function ChatPage() {
     setSessionId(newSessionId);
     setMessages([]);
     setIsLoadingHistory(true);
+    setShouldScrollInstantly(true); // Enable instant scroll for history loading
 
     try {
       const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}`);
@@ -311,6 +313,8 @@ export default function ChatPage() {
       console.error('Error loading history:', error);
     } finally {
       setIsLoadingHistory(false);
+      // Reset to smooth scroll after a short delay to ensure history is rendered
+      setTimeout(() => setShouldScrollInstantly(false), 100);
     }
   };
 
@@ -354,9 +358,12 @@ export default function ChatPage() {
 
   useEffect(() => {
     if (!isHovering) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Use instant scroll when loading history, smooth scroll for new messages
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior: shouldScrollInstantly ? 'auto' : 'smooth' 
+      });
     }
-  }, [messages]); // Only scroll when messages update
+  }, [messages, shouldScrollInstantly]); // Depend on both messages and scroll behavior flag
 
   // Auto-resize textarea based on content
   useEffect(() => {
