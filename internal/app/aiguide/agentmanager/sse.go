@@ -128,6 +128,7 @@ func (a *AgentManager) streamAgentEvents(
 		// 检查客户端是否断开连接
 		select {
 		case <-ctx.Request.Context().Done():
+			slog.Info("client abort connection", "err", ctx.Request.Context().Err())
 			return // 客户端断开，停止处理
 		default:
 		}
