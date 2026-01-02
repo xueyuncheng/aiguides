@@ -45,7 +45,9 @@ func run(ctx context.Context, file string) error {
 		return fmt.Errorf("aiguide.New() error, err = %w", err)
 	}
 
-	guide.Run(ctx)
+	if err := guide.Run(ctx); err != nil {
+		return fmt.Errorf("guide.Run() error, err = %w", err)
+	}
 
 	return nil
 }
