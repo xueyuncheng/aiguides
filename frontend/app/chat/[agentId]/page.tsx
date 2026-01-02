@@ -265,6 +265,10 @@ export default function ChatPage() {
   // Note: This value should match the max-h-[200px] in the Textarea className below
   const MAX_TEXTAREA_HEIGHT = 200;
 
+  // Delay before resetting scroll behavior to smooth after loading history
+  // This ensures messages are fully rendered before enabling smooth scroll again
+  const SCROLL_RESET_DELAY = 100;
+
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
@@ -323,7 +327,7 @@ export default function ChatPage() {
       scrollResetTimeoutRef.current = setTimeout(() => {
         setShouldScrollInstantly(false);
         scrollResetTimeoutRef.current = null;
-      }, 100);
+      }, SCROLL_RESET_DELAY);
     }
   };
 
