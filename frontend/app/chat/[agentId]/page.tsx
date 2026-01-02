@@ -9,7 +9,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, Undo2 } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -268,13 +268,11 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [showUndoButton, setShowUndoButton] = useState(false);
-  const [canUndo, setCanUndo] = useState(false);
-  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
@@ -369,15 +367,6 @@ export default function ChatPage() {
     }
   }, [agentId, agentInfo, router, user]);
 
-  // Cleanup undo timer on unmount
-  useEffect(() => {
-    return () => {
-      if (undoTimerRef.current) {
-        clearTimeout(undoTimerRef.current);
-      }
-    };
-  }, []);
-
   useEffect(() => {
     if (!isHovering) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -393,55 +382,42 @@ export default function ChatPage() {
     }
   }, [inputValue]);
 
-  const handleUndoMessage = async () => {
-    if (!canUndo) return;
+  const handleCancelMessage = async () => {
+    // Abort the ongoing fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
 
+    // Remove the last user message and any partial AI response
+    setMessages(prev => {
+      // Find last user message index by iterating backwards
+      let lastUserIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i--) {
+        if (prev[i].role === 'user') {
+          lastUserIndex = i;
+          break;
+        }
+      }
+      if (lastUserIndex !== -1) {
+        return prev.slice(0, lastUserIndex);
+      }
+      return prev;
+    });
+
+    setIsLoading(false);
+
+    // Try to delete the message from the backend if it hasn't been responded to
     try {
-      const response = await fetch(`/api/${agentId}/sessions/${sessionId}/recall?user_id=${user?.user_id}`, {
+      await fetch(`/api/${agentId}/sessions/${sessionId}/recall?user_id=${user?.user_id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
       });
-
-      if (response.ok) {
-        // Remove the last user message from the UI
-        setMessages(prev => {
-          // Find last user message index by iterating backwards
-          let lastUserIndex = -1;
-          for (let i = prev.length - 1; i >= 0; i--) {
-            if (prev[i].role === 'user') {
-              lastUserIndex = i;
-              break;
-            }
-          }
-          if (lastUserIndex !== -1) {
-            return prev.slice(0, lastUserIndex);
-          }
-          return prev;
-        });
-        setShowUndoButton(false);
-        setCanUndo(false);
-      } else {
-        const errorData = await response.json();
-        console.error('Failed to undo message:', errorData.error);
-        // Show error feedback to user
-        // Note: Using native alert() for minimal changes. For production, consider implementing
-        // a toast notification system for better UX consistency
-        alert('无法撤回消息：' + (errorData.error === 'cannot recall message after AI has responded' 
-          ? 'AI 已经开始回复' 
-          : errorData.error === 'no user message to recall'
-          ? '没有可撤回的消息'
-          : '撤回失败'));
-        setShowUndoButton(false);
-        setCanUndo(false);
-      }
+      // Silently handle success or failure - UI already updated
     } catch (error) {
-      console.error('Error undoing message:', error);
-      // Note: Using native alert() for minimal changes. For production, consider implementing
-      // a toast notification system for better UX consistency
-      alert('撤回消息时发生错误，请稍后重试');
-      setShowUndoButton(false);
-      setCanUndo(false);
+      // Silently handle error - UI already updated
+      console.log('Message recall attempt:', error);
     }
   };
 
@@ -459,20 +435,8 @@ export default function ChatPage() {
     setInputValue('');
     setIsLoading(true);
 
-    // Show undo button for 5 seconds after sending message
-    setShowUndoButton(true);
-    setCanUndo(true);
-    
-    // Clear any existing timer
-    if (undoTimerRef.current) {
-      clearTimeout(undoTimerRef.current);
-    }
-    
-    // Set timer to hide undo button after 5 seconds
-    undoTimerRef.current = setTimeout(() => {
-      setShowUndoButton(false);
-      setCanUndo(false);
-    }, 5000);
+    // Create a new AbortController for this request
+    abortControllerRef.current = new AbortController();
 
     try {
       const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
@@ -484,6 +448,7 @@ export default function ChatPage() {
           session_id: sessionId,
           message: content.trim(),
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -515,13 +480,6 @@ export default function ChatPage() {
                 const data = JSON.parse(jsonStr);
 
                 if (data.content) {
-                  // AI has started responding, disable undo
-                  setCanUndo(false);
-                  setShowUndoButton(false);
-                  if (undoTimerRef.current) {
-                    clearTimeout(undoTimerRef.current);
-                  }
-
                   // Check if this is a duplicate complete message (identical to accumulated content)
                   const isCompleteDuplicate = data.content === assistantContent;
 
@@ -582,16 +540,23 @@ export default function ChatPage() {
         }, 2000); // Poll every 2 seconds
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: `msg-${Date.now()}-error`,
-        role: 'assistant',
-        content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Check if the error is due to abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Request was cancelled by user - this is expected, don't show error
+        console.log('Request cancelled by user');
+      } else {
+        console.error('Error sending message:', error);
+        const errorMessage: Message = {
+          id: `msg-${Date.now()}-error`,
+          role: 'assistant',
+          content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -744,38 +709,34 @@ export default function ChatPage() {
                   autoComplete="off"
                   rows={1}
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!inputValue.trim() || isLoading}
-                  className={cn(
-                    "h-8 w-8 mb-1 rounded-full transition-all duration-200",
-                    inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={handleCancelMessage}
+                    className="h-8 w-8 mb-1 rounded-full transition-all duration-200 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    title="取消"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!inputValue.trim()}
+                    className={cn(
+                      "h-8 w-8 mb-1 rounded-full transition-all duration-200",
+                      inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                )}
               </form>
             </div>
             <div className="text-center text-xs text-muted-foreground mt-3">
               AI 可能会生成不准确的信息，请核查重要事实。
             </div>
-            
-            {/* Undo Button */}
-            {showUndoButton && (
-              <div className="flex justify-center mt-3">
-                <Button
-                  onClick={handleUndoMessage}
-                  variant="outline"
-                  size="sm"
-                  disabled={!canUndo}
-                  className="h-8 px-3 text-xs gap-2 bg-background/80 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
-                >
-                  <Undo2 className="h-3 w-3" />
-                  撤回消息
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </div>
