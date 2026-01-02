@@ -11,6 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	// AvatarCacheMaxAge is the cache duration for avatar images in seconds (1 day)
+	AvatarCacheMaxAge = 24 * 60 * 60
+)
+
 // logoutHandler 处理登出
 func (a *AIGuide) logoutHandler(c *gin.Context) {
 	c.SetCookie("auth_token", "", -1, "/", "", false, true)
@@ -70,13 +75,31 @@ func (a *AIGuide) getAvatarHandler(c *gin.Context) {
 		return
 	}
 
-	// Serve the stored avatar
+	// Validate stored MIME type against allowlist
 	mimeType := user.AvatarMimeType
-	if mimeType == "" {
-		mimeType = "image/jpeg" // Default
+	if mimeType == "" || !isValidImageMimeType(mimeType) {
+		// If stored MIME type is invalid, fall back to original URL
+		if user.Picture != "" {
+			c.Redirect(http.StatusFound, user.Picture)
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "avatar not found"})
+		}
+		return
 	}
 
 	// Set cache headers for better performance
-	c.Header("Cache-Control", "public, max-age=86400") // Cache for 1 day
+	c.Header("Cache-Control", fmt.Sprintf("public, max-age=%d", AvatarCacheMaxAge))
 	c.Data(http.StatusOK, mimeType, user.AvatarData)
+}
+
+// isValidImageMimeType checks if the MIME type is in the allowlist of safe image types
+func isValidImageMimeType(mimeType string) bool {
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/jpg":  true,
+		"image/png":  true,
+		"image/gif":  true,
+		"image/webp": true,
+	}
+	return allowedTypes[mimeType]
 }

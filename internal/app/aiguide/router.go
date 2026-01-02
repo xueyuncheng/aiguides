@@ -10,11 +10,29 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+const (
+	// AvatarDownloadTimeout is the maximum time allowed for downloading an avatar
+	AvatarDownloadTimeout = 10 * time.Second
+	// MaxAvatarSizeBytes is the maximum size of avatar images (5MB)
+	MaxAvatarSizeBytes = 5 * 1024 * 1024
+)
+
+// Allowlist of safe image MIME types
+var allowedImageMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/jpg":  true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
 
 func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// 健康检查
@@ -195,17 +213,26 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 }
 
 // downloadAvatar downloads the avatar image from the given URL
-func downloadAvatar(url string) ([]byte, string, error) {
-	if url == "" {
+func downloadAvatar(urlStr string) ([]byte, string, error) {
+	if urlStr == "" {
 		return nil, "", fmt.Errorf("empty avatar URL")
 	}
 
+	// Validate URL scheme to prevent SSRF attacks
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid URL: %w", err)
+	}
+	if parsedURL.Scheme != "https" {
+		return nil, "", fmt.Errorf("only HTTPS URLs are allowed, got: %s", parsedURL.Scheme)
+	}
+
 	// Create a context with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), AvatarDownloadTimeout)
 	defer cancel()
 
 	// Create HTTP request
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
@@ -223,18 +250,38 @@ func downloadAvatar(url string) ([]byte, string, error) {
 		return nil, "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
-	// Get MIME type from Content-Type header
-	mimeType := resp.Header.Get("Content-Type")
-	if mimeType == "" {
-		mimeType = "image/jpeg" // Default to JPEG
+	// Check Content-Length if available to avoid downloading oversized files
+	if resp.ContentLength > 0 && resp.ContentLength > MaxAvatarSizeBytes {
+		return nil, "", fmt.Errorf("avatar too large: %d bytes (max %d bytes)", resp.ContentLength, MaxAvatarSizeBytes)
 	}
 
-	// Read the response body
+	// Get and validate MIME type from Content-Type header
+	mimeType := resp.Header.Get("Content-Type")
+	// Remove any charset or other parameters from Content-Type
+	if idx := strings.Index(mimeType, ";"); idx != -1 {
+		mimeType = strings.TrimSpace(mimeType[:idx])
+	}
+
+	if mimeType == "" {
+		return nil, "", fmt.Errorf("missing Content-Type header")
+	}
+
+	// Validate MIME type is an allowed image format
+	if !allowedImageMimeTypes[mimeType] {
+		return nil, "", fmt.Errorf("invalid MIME type: %s (expected image/jpeg, image/png, image/gif, or image/webp)", mimeType)
+	}
+
+	// Read the response body, detecting truncation
 	var buf bytes.Buffer
-	// Limit reading to 5MB to prevent excessive memory usage
-	limitedReader := io.LimitReader(resp.Body, 5*1024*1024)
+	// Limit reading to MaxAvatarSizeBytes+1 to detect oversized responses
+	limitedReader := io.LimitReader(resp.Body, MaxAvatarSizeBytes+1)
 	if _, err := io.Copy(&buf, limitedReader); err != nil {
 		return nil, "", fmt.Errorf("failed to read avatar data: %w", err)
+	}
+
+	// Check if the image was truncated
+	if buf.Len() > MaxAvatarSizeBytes {
+		return nil, "", fmt.Errorf("avatar too large: exceeds %d bytes", MaxAvatarSizeBytes)
 	}
 
 	return buf.Bytes(), mimeType, nil
