@@ -156,63 +156,14 @@ const AIMessageContent = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="relative group">
-      {/* Toggle and Copy buttons - aligned at top */}
-      <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setShowRaw(!showRaw)}
-          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
-          title={showRaw ? "显示渲染效果" : "显示原始内容"}
-          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
-        >
-          {showRaw ? (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              渲染
-            </>
-          ) : (
-            <>
-              <Code2 className="h-3 w-3 mr-1" />
-              原始
-            </>
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleCopy}
-          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
-          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-        >
-          {copyError ? (
-            <>
-              <X className="h-3 w-3 mr-1 text-red-500" aria-hidden="true" />
-              失败
-            </>
-          ) : copied ? (
-            <>
-              <Check className="h-3 w-3 mr-1" />
-              已复制
-            </>
-          ) : (
-            <>
-              <Copy className="h-3 w-3 mr-1" />
-              复制
-            </>
-          )}
-        </Button>
-      </div>
-
+    <div className="group">
       {/* Content display */}
       {showRaw ? (
         <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
           {content}
         </pre>
       ) : (
-        <div className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg">
+        <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -223,15 +174,15 @@ const AIMessageContent = ({ content }: { content: string }) => {
                 const match = /language-(\w+)/.exec(className || '')
                 const isInline = !match;
                 return isInline ? (
-                  <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                  <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                     {children}
                   </code>
                 ) : (
-                  <div className="my-4 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+                  <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
                     <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
                       <span>{match?.[1]}</span>
                     </div>
-                    <pre className="p-4 overflow-x-auto text-sm">
+                    <pre className="p-4 overflow-x-auto text-xs">
                       <code className={className} {...props}>
                         {children}
                       </code>
@@ -240,10 +191,10 @@ const AIMessageContent = ({ content }: { content: string }) => {
                 )
               },
               ul: ({ ...props }) => (
-                <ul {...props} className="list-disc list-inside space-y-1 my-4" />
+                <ul {...props} className="list-disc list-inside space-y-0.5 my-3 text-sm" />
               ),
               ol: ({ ...props }) => (
-                <ol {...props} className="list-decimal list-inside space-y-1 my-4" />
+                <ol {...props} className="list-decimal list-inside space-y-0.5 my-3 text-sm" />
               ),
             }}
           >
@@ -251,6 +202,40 @@ const AIMessageContent = ({ content }: { content: string }) => {
           </ReactMarkdown>
         </div>
       )}
+
+      {/* Toggle and Copy buttons - below content with icons only */}
+      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowRaw(!showRaw)}
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+          title={showRaw ? "显示渲染效果" : "显示原始内容"}
+          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
+        >
+          {showRaw ? (
+            <Eye className="h-3.5 w-3.5" />
+          ) : (
+            <Code2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleCopy}
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+        >
+          {copyError ? (
+            <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+          ) : copied ? (
+            <Check className="h-3.5 w-3.5 text-green-600" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 };
@@ -272,6 +257,7 @@ export default function ChatPage() {
   const [isHovering, setIsHovering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
@@ -381,6 +367,17 @@ export default function ChatPage() {
     }
   }, [inputValue]);
 
+  const handleCancelMessage = () => {
+    // Abort the ongoing fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    // Just set loading to false - keep the messages as they are
+    setIsLoading(false);
+  };
+
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
 
@@ -395,6 +392,9 @@ export default function ChatPage() {
     setInputValue('');
     setIsLoading(true);
 
+    // Create a new AbortController for this request
+    abortControllerRef.current = new AbortController();
+
     try {
       const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
@@ -405,6 +405,7 @@ export default function ChatPage() {
           session_id: sessionId,
           message: content.trim(),
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
@@ -496,16 +497,23 @@ export default function ChatPage() {
         }, 2000); // Poll every 2 seconds
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: `msg-${Date.now()}-error`,
-        role: 'assistant',
-        content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, errorMessage]);
+      // Check if the error is due to abort
+      if (error instanceof Error && error.name === 'AbortError') {
+        // Request was cancelled by user - this is expected, don't show error
+        console.log('Request cancelled by user');
+      } else {
+        console.error('Error sending message:', error);
+        const errorMessage: Message = {
+          id: `msg-${Date.now()}-error`,
+          role: 'assistant',
+          content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -607,10 +615,10 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-base",
+                          "relative text-sm",
                           message.role === 'user'
                             ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm"
-                            : "leading-7 pt-1"
+                            : "leading-6 pt-1"
                         )}>
                           {message.role === 'assistant' ? (
                             <AIMessageContent content={message.content} />
@@ -658,17 +666,29 @@ export default function ChatPage() {
                   autoComplete="off"
                   rows={1}
                 />
-                <Button
-                  type="submit"
-                  size="icon"
-                  disabled={!inputValue.trim() || isLoading}
-                  className={cn(
-                    "h-8 w-8 mb-1 rounded-full transition-all duration-200",
-                    inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
+                {isLoading ? (
+                  <Button
+                    type="button"
+                    size="icon"
+                    onClick={handleCancelMessage}
+                    className="h-8 w-8 mb-1 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg"
+                    title="取消"
+                  >
+                    <X className="h-4 w-4 stroke-[2.5]" />
+                  </Button>
+                ) : (
+                  <Button
+                    type="submit"
+                    size="icon"
+                    disabled={!inputValue.trim()}
+                    className={cn(
+                      "h-8 w-8 mb-1 rounded-full transition-all duration-200",
+                      inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                )}
               </form>
             </div>
             <div className="text-center text-xs text-muted-foreground mt-3">

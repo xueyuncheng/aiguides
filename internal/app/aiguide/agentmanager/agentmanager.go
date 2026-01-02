@@ -16,6 +16,7 @@ import (
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/session/database"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type Config struct {
@@ -34,7 +35,10 @@ type AgentManager struct {
 }
 
 func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
-	session, err := database.NewSessionService(db.Dialector)
+	gormConfig := &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
+	}
+	session, err := database.NewSessionService(db.Dialector, gormConfig)
 	if err != nil {
 		slog.Error("database.NewSessionService() error", "err", err)
 		return nil, fmt.Errorf("database.NewSessionService() error, err = %w", err)
