@@ -278,6 +278,9 @@ export default function ChatPage() {
   // Number of messages to load per request
   const MESSAGES_PER_PAGE = 50;
 
+  // Scroll threshold (in pixels) to trigger loading older messages
+  const LOAD_MORE_THRESHOLD = 100;
+
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
@@ -656,8 +659,8 @@ export default function ChatPage() {
           onMouseLeave={() => setIsHovering(false)}
           onScroll={(e) => {
             const container = e.currentTarget;
-            // Check if scrolled to top (with some threshold)
-            if (container.scrollTop < 100 && hasMoreMessages && !isLoadingOlderMessages && !isLoadingHistory) {
+            // Check if scrolled to top (with threshold)
+            if (container.scrollTop < LOAD_MORE_THRESHOLD && hasMoreMessages && !isLoadingOlderMessages && !isLoadingHistory) {
               loadOlderMessages();
             }
           }}

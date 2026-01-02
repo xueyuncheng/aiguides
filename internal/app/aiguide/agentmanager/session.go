@@ -30,6 +30,10 @@ type SessionHistoryResponse struct {
 	AppName   string         `json:"app_name"`
 	UserID    string         `json:"user_id"`
 	Messages  []MessageEvent `json:"messages"`
+	Total     int            `json:"total,omitempty"`
+	Limit     int            `json:"limit,omitempty"`
+	Offset    int            `json:"offset,omitempty"`
+	HasMore   bool           `json:"has_more,omitempty"`
 }
 
 // MessageEvent 定义消息事件结构
@@ -205,8 +209,8 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 		startIdx = 0
 	}
 	endIdx := totalCount - offset
-	if endIdx > totalCount {
-		endIdx = totalCount
+	if endIdx < 0 {
+		endIdx = 0
 	}
 
 	if startIdx < endIdx {
@@ -215,15 +219,15 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 
 	hasMore := startIdx > 0
 
-	response := map[string]any{
-		"session_id": sess.ID(),
-		"app_name":   sess.AppName(),
-		"user_id":    sess.UserID(),
-		"messages":   messages,
-		"total":      totalCount,
-		"limit":      limit,
-		"offset":     offset,
-		"has_more":   hasMore,
+	response := SessionHistoryResponse{
+		SessionID: sess.ID(),
+		AppName:   sess.AppName(),
+		UserID:    sess.UserID(),
+		Messages:  messages,
+		Total:     totalCount,
+		Limit:     limit,
+		Offset:    offset,
+		HasMore:   hasMore,
 	}
 
 	ctx.JSON(http.StatusOK, response)
