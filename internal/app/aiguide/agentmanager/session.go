@@ -141,11 +141,8 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	limit := 50 // 默认返回最近50条消息
 	if limitStr := ctx.Query("limit"); limitStr != "" {
 		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
 			// 限制最大值防止性能问题
-			if limit > 100 {
-				limit = 100
-			}
+			limit = min(parsedLimit, 100)
 		}
 	}
 
@@ -221,10 +218,7 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	// 应用分页：从最新消息开始，offset=0表示最新的消息
 	// 为了返回最近的消息，我们从末尾开始取
 	messages := make([]MessageEvent, 0)
-	startIdx := totalCount - offset - limit
-	if startIdx < 0 {
-		startIdx = 0
-	}
+	startIdx := max(totalCount-offset-limit, 0)
 	endIdx := totalCount - offset
 
 	if startIdx < endIdx {
