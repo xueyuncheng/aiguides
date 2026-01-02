@@ -271,6 +271,9 @@ export default function ChatPage() {
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Maximum height for the textarea in pixels
+  const MAX_TEXTAREA_HEIGHT = 200;
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -370,7 +373,7 @@ export default function ChatPage() {
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
     }
   }, [inputValue]);
 
