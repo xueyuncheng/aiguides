@@ -12,18 +12,10 @@ type Migrator struct {
 	db *gorm.DB
 }
 
-func New(dialector gorm.Dialector) (*Migrator, error) {
-	db, err := gorm.Open(dialector, &gorm.Config{})
-	if err != nil {
-		slog.Error("gorm.Open() error", "err", err)
-		return nil, fmt.Errorf("gorm.Open() error, err = %w", err)
-	}
-
-	migrator := &Migrator{
+func New(db *gorm.DB) *Migrator {
+	return &Migrator{
 		db: db,
 	}
-
-	return migrator, nil
 }
 
 func (m *Migrator) Run() error {
