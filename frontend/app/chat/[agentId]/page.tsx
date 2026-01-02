@@ -389,7 +389,14 @@ export default function ChatPage() {
       if (response.ok) {
         // Remove the last user message from the UI
         setMessages(prev => {
-          const lastUserIndex = prev.findLastIndex(msg => msg.role === 'user');
+          // Find last user message index by iterating backwards
+          let lastUserIndex = -1;
+          for (let i = prev.length - 1; i >= 0; i--) {
+            if (prev[i].role === 'user') {
+              lastUserIndex = i;
+              break;
+            }
+          }
           if (lastUserIndex !== -1) {
             return prev.slice(0, lastUserIndex);
           }
@@ -400,12 +407,18 @@ export default function ChatPage() {
       } else {
         const errorData = await response.json();
         console.error('Failed to undo message:', errorData.error);
-        // Still hide the button even if the undo failed
+        // Show error feedback to user
+        alert('无法撤回消息：' + (errorData.error === 'cannot recall message after AI has responded' 
+          ? 'AI 已经开始回复' 
+          : errorData.error === 'no user message to recall'
+          ? '没有可撤回的消息'
+          : '撤回失败'));
         setShowUndoButton(false);
         setCanUndo(false);
       }
     } catch (error) {
       console.error('Error undoing message:', error);
+      alert('撤回消息时发生错误，请稍后重试');
       setShowUndoButton(false);
       setCanUndo(false);
     }
