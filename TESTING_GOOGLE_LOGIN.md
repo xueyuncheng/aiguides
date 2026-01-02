@@ -238,6 +238,69 @@ curl http://localhost:18080/health
    - 使用 HTTP-only Cookie 防止 XSS 攻击
    - 实施 CSRF 保护
 
+## 用户头像存储功能
+
+### 功能说明
+
+为了解决有时访问 Google 头像 URL 会返回错误的问题，系统现在会在用户登录时自动下载并存储用户的头像图片。
+
+### 实现细节
+
+1. **数据库存储**
+   - `AvatarData`: 存储头像图片的二进制数据
+   - `AvatarMimeType`: 存储图片的 MIME 类型（如 "image/jpeg", "image/png"）
+
+2. **下载机制**
+   - 首次登录时自动下载用户头像
+   - 当头像 URL 变化时重新下载
+   - 下载失败时优雅降级，继续使用原始 URL
+   - 设置了超时限制（10秒）和大小限制（5MB）
+
+3. **头像访问**
+   - 新的 API 端点：`/api/auth/avatar/:userId`
+   - 自动返回存储的头像图片
+   - 如果没有存储的图片，则重定向到原始 Google URL
+   - 设置了缓存头（Cache-Control: public, max-age=86400）以提高性能
+
+### 测试头像功能
+
+1. **使用 Google 登录**：
+   ```bash
+   # 登录后检查数据库
+   sqlite3 aiguide.db "SELECT id, google_email, length(avatar_data), avatar_mime_type FROM users;"
+   ```
+   
+   预期结果：应该看到 avatar_data 的长度（字节数）和 mime 类型
+
+2. **访问头像 API**：
+   ```bash
+   # 获取用户 ID（从上一步或通过 /api/auth/user 获取）
+   curl -I http://localhost:18080/api/auth/avatar/1
+   ```
+   
+   预期结果：
+   - 200 OK
+   - Content-Type: image/jpeg 或 image/png
+   - Cache-Control: public, max-age=86400
+
+3. **检查前端显示**：
+   - 登录后，用户头像应该显示在右上角
+   - 检查浏览器开发者工具的 Network 标签
+   - 头像请求应该指向 `/api/auth/avatar/:userId` 而不是外部 Google URL
+
+4. **测试降级处理**：
+   - 如果头像下载失败（例如网络问题），系统仍然会保存用户信息
+   - 此时头像会显示 Google 的原始 URL（如果可用）
+   - 下次登录时会尝试重新下载
+
+### 头像功能的优势
+
+- ✅ 提高可靠性：避免 Google URL 访问失败
+- ✅ 减少外部依赖：头像存储在本地数据库
+- ✅ 提升性能：带缓存头的本地图片加载更快
+- ✅ 向后兼容：下载失败时自动降级到原始 URL
+- ✅ 安全性：限制下载超时和文件大小，防止滥用
+
 ## 性能测试
 
 可选的性能测试：
