@@ -3,10 +3,14 @@ package aiguide
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/auth"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -28,6 +32,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		authGroup.GET("/callback/google", a.googleCallbackHandler)
 		authGroup.POST("/logout", a.logoutHandler)
 		authGroup.GET("/user", auth.AuthMiddleware(a.authService), a.getUserHandler)
+		authGroup.GET("/avatar/:userId", a.getAvatarHandler)
 	}
 
 	api.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
@@ -141,11 +146,20 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 			return fmt.Errorf("db.First() error, err = %w", err)
 		}
 
+		// Download avatar image
+		avatarData, mimeType, err := downloadAvatar(user.Picture)
+		if err != nil {
+			slog.Warn("failed to download avatar", "err", err, "url", user.Picture)
+			// Continue without avatar data - store the URL anyway
+		}
+
 		u = table.User{
-			GoogleUserID: user.ID,
-			GoogleEmail:  user.Email,
-			GoogleName:   user.Name,
-			Picture:      user.Picture,
+			GoogleUserID:   user.ID,
+			GoogleEmail:    user.Email,
+			GoogleName:     user.Name,
+			Picture:        user.Picture,
+			AvatarData:     avatarData,
+			AvatarMimeType: mimeType,
 		}
 
 		if err := db.Create(&u).Error; err != nil {
@@ -157,6 +171,19 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 		u.GoogleEmail = user.Email
 		u.GoogleName = user.Name
 		u.Picture = user.Picture
+
+		// Download and update avatar if URL changed or avatar data is missing
+		if u.AvatarData == nil || u.Picture != user.Picture {
+			avatarData, mimeType, err := downloadAvatar(user.Picture)
+			if err != nil {
+				slog.Warn("failed to download avatar", "err", err, "url", user.Picture)
+				// Continue without updating avatar data
+			} else {
+				u.AvatarData = avatarData
+				u.AvatarMimeType = mimeType
+			}
+		}
+
 		if err := db.Save(&u).Error; err != nil {
 			slog.Error("db.Save() error", "err", err)
 			return fmt.Errorf("db.Save() error, err = %w", err)
@@ -164,4 +191,52 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 	}
 
 	return nil
+}
+
+// downloadAvatar downloads the avatar image from the given URL
+func downloadAvatar(url string) ([]byte, string, error) {
+	if url == "" {
+		return nil, "", fmt.Errorf("empty avatar URL")
+	}
+
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Create HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Execute request
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to download avatar: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check status code
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	// Get MIME type from Content-Type header
+	mimeType := resp.Header.Get("Content-Type")
+	if mimeType == "" {
+		mimeType = "image/jpeg" // Default to JPEG
+	}
+
+	// Read the response body
+	var buf bytes.Buffer
+	// Limit reading to 5MB to prevent excessive memory usage
+	limitedReader := io.LimitReader(resp.Body, 5*1024*1024)
+	if _, err := io.Copy(&buf, limitedReader); err != nil {
+		return nil, "", fmt.Errorf("failed to read avatar data: %w", err)
+	}
+
+	return buf.Bytes(), mimeType, nil
 }
