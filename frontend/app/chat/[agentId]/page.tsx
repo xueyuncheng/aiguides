@@ -246,6 +246,38 @@ const AIMessageContent = memo(({ content }: { content: string }) => {
 
 AIMessageContent.displayName = 'AIMessageContent';
 
+// Helper component for Chat Skeleton
+const ChatSkeleton = memo(() => {
+  return (
+    <div className="w-full max-w-5xl px-6 py-10 space-y-12 animate-skeleton">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="flex flex-col space-y-8">
+          {/* User message skeleton */}
+          <div className="flex justify-end">
+            <div className="flex gap-4 max-w-[85%] flex-row-reverse items-start">
+              <div className="h-8 w-8 rounded-full bg-secondary shrink-0" />
+              <div className="bg-secondary/50 h-10 w-48 rounded-2xl rounded-tr-sm" />
+            </div>
+          </div>
+          {/* Assistant message skeleton */}
+          <div className="flex justify-start">
+            <div className="flex gap-4 max-w-[85%] items-start">
+              <div className="h-8 w-8 rounded-full bg-secondary shrink-0" />
+              <div className="space-y-3 pt-1">
+                <div className="h-4 bg-secondary/50 w-[300px] md:w-[500px] rounded" />
+                <div className="h-4 bg-secondary/50 w-[200px] md:w-[400px] rounded" />
+                <div className="h-4 bg-secondary/50 w-[250px] md:w-[450px] rounded" />
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+ChatSkeleton.displayName = 'ChatSkeleton';
+
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
@@ -314,7 +346,10 @@ export default function ChatPage() {
   }, [agentId, user?.user_id]);
 
   const handleSessionSelect = async (newSessionId: string) => {
+    if (newSessionId === sessionId) return;
+
     setSessionId(newSessionId);
+    // Clear messages immediately to show skeleton and avoid layout jumps
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
@@ -679,12 +714,6 @@ export default function ChatPage() {
           className="flex-1 overflow-y-auto no-scrollbar"
           onScroll={handleScroll}
         >
-          {isLoadingHistory && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            </div>
-          )}
-
           <div className="flex flex-col items-center">
             <div className="w-full max-w-5xl px-6 py-10 space-y-8">
               {/* Loading older messages indicator */}
@@ -712,8 +741,12 @@ export default function ChatPage() {
               {/* Hidden ref for tracking start of messages */}
               <div ref={messagesStartRef} />
 
-              {messages.length === 0 && !isLoadingHistory ? (
-                <div className="text-center py-20">
+              {isLoadingHistory ? (
+                <div className="flex justify-center w-full">
+                  <ChatSkeleton />
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-20 animate-fade-in">
                   <div className="flex justify-center mb-6">
                     <div className="p-4 bg-secondary rounded-2xl">
                       <span className="text-4xl">{agentInfo.icon}</span>
@@ -735,7 +768,7 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : (
-                <>
+                <div className="space-y-8 animate-fade-in">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -784,7 +817,7 @@ export default function ChatPage() {
                     </div>
                   )}
                   <div ref={messagesEndRef} className="h-24" />
-                </>
+                </div>
               )}
             </div>
           </div>
@@ -800,9 +833,9 @@ export default function ChatPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`给 ${agentInfo.name} 发送消息`}
+                  placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
                   className="flex-1 min-h-[44px] max-h-[200px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 text-base overflow-y-auto"
-                  disabled={isLoading}
+                  disabled={isLoading || isLoadingHistory}
                   autoComplete="off"
                   rows={1}
                 />
