@@ -9,12 +9,12 @@ import (
 
 func TestDownloadAvatar(t *testing.T) {
 	tests := []struct {
-		name          string
-		setupServer   func() *httptest.Server
-		url           string
-		expectError   bool
-		expectData    bool
-		expectMIME    string
+		name        string
+		setupServer func() *httptest.Server
+		url         string
+		expectError bool
+		expectData  bool
+		expectMIME  string
 	}{
 		{
 			name: "successful download",
@@ -67,7 +67,7 @@ func TestDownloadAvatar(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var server *httptest.Server
 			url := tt.url
-			
+
 			if tt.setupServer != nil {
 				server = tt.setupServer()
 				if server != nil {
