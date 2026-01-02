@@ -7,7 +7,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
+import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
@@ -270,6 +270,11 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Maximum height for the textarea in pixels
+  // Note: This value should match the max-h-[200px] in the Textarea className below
+  const MAX_TEXTAREA_HEIGHT = 200;
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -363,6 +368,15 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+    }
+  }, [inputValue]);
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -497,6 +511,15 @@ export default function ChatPage() {
     sendMessage(inputValue);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Submit on Enter without Shift
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(inputValue);
+    }
+    // Allow Shift+Enter for new line (default behavior)
+  };
+
   const handleExampleClick = (example: string) => {
     if (isLoading) return;
     sendMessage(example);
@@ -617,13 +640,16 @@ export default function ChatPage() {
           <div className="max-w-5xl mx-auto px-6">
             <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
               <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
-                <Input
+                <Textarea
+                  ref={textareaRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
+                  onKeyDown={handleKeyDown}
                   placeholder={`给 ${agentInfo.name} 发送消息`}
-                  className="flex-1 min-h-[44px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 resize-none text-base"
+                  className="flex-1 min-h-[44px] max-h-[200px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 text-base overflow-y-auto"
                   disabled={isLoading}
                   autoComplete="off"
+                  rows={1}
                 />
                 <Button
                   type="submit"
