@@ -382,43 +382,15 @@ export default function ChatPage() {
     }
   }, [inputValue]);
 
-  const handleCancelMessage = async () => {
+  const handleCancelMessage = () => {
     // Abort the ongoing fetch request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
 
-    // Remove the last user message and any partial AI response
-    setMessages(prev => {
-      // Find last user message index by iterating backwards
-      let lastUserIndex = -1;
-      for (let i = prev.length - 1; i >= 0; i--) {
-        if (prev[i].role === 'user') {
-          lastUserIndex = i;
-          break;
-        }
-      }
-      if (lastUserIndex !== -1) {
-        return prev.slice(0, lastUserIndex);
-      }
-      return prev;
-    });
-
+    // Just set loading to false - keep the messages as they are
     setIsLoading(false);
-
-    // Try to delete the message from the backend if it hasn't been responded to
-    try {
-      await fetch(`/api/${agentId}/sessions/${sessionId}/recall?user_id=${user?.user_id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-      });
-      // Silently handle success or failure - UI already updated
-    } catch (error) {
-      // Silently handle error - UI already updated
-      console.log('Message recall attempt:', error);
-    }
   };
 
   const sendMessage = async (content: string) => {

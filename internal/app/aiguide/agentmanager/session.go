@@ -12,10 +12,6 @@ import (
 	"google.golang.org/adk/session"
 )
 
-// adkSessionEventsTable is the table name used by ADK session service to store events
-// Note: This is based on ADK's internal implementation and may change in future versions
-const adkSessionEventsTable = "adk_session_events"
-
 // SessionInfo 定义会话信息的响应结构
 type SessionInfo struct {
 	SessionID      string    `json:"session_id"`
@@ -266,86 +262,4 @@ func randomString(length int) string {
 		return time.Now().Format("150405999999")[:length]
 	}
 	return hex.EncodeToString(bytes)[:length]
-}
-
-// RecallLastMessageHandler 处理撤回最后一条用户消息的请求
-// POST /api/:agentId/sessions/:sessionId/recall?user_id=xxx
-func (a *AgentManager) RecallLastMessageHandler(ctx *gin.Context) {
-	agentID := ctx.Param("agentId")
-	sessionID := ctx.Param("sessionId")
-	userID := ctx.Query("user_id")
-
-	if userID == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
-		return
-	}
-
-	// 获取会话历史
-	getReq := &session.GetRequest{
-		AppName:   agentID,
-		UserID:    userID,
-		SessionID: sessionID,
-	}
-
-	getResp, err := a.session.Get(ctx, getReq)
-	if err != nil {
-		slog.Error("session.Get() error", "err", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	sess := getResp.Session
-	events := sess.Events()
-
-	// 找到最后一条用户消息的索引
-	lastUserEventIndex := -1
-	eventsSlice := make([]*session.Event, 0)
-	for event := range events.All() {
-		eventsSlice = append(eventsSlice, event)
-		if event.Content != nil && event.Content.Role == "user" {
-			lastUserEventIndex = len(eventsSlice) - 1
-		}
-	}
-
-	if lastUserEventIndex == -1 {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "no user message to recall"})
-		return
-	}
-
-	// 检查最后一条用户消息后面是否有助手回复
-	// 如果有，说明AI已经开始回复，不允许撤回
-	hasAssistantResponse := false
-	for i := lastUserEventIndex + 1; i < len(eventsSlice); i++ {
-		if eventsSlice[i].Content != nil && eventsSlice[i].Content.Role == "model" {
-			hasAssistantResponse = true
-			break
-		}
-	}
-
-	if hasAssistantResponse {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot recall message after AI has responded"})
-		return
-	}
-
-	// 直接从数据库中删除最后一条用户消息
-	// 注意：ADK session service 不提供删除单个事件的 API，因此必须直接操作数据库
-	// 这是一个权衡：虽然绕过了 ORM，但这是唯一实现消息撤回的方式
-	lastEventID := eventsSlice[lastUserEventIndex].ID
-	result := a.db.Exec("DELETE FROM "+adkSessionEventsTable+" WHERE id = ? AND session_id = ? AND app_name = ?",
-		lastEventID, sessionID, agentID)
-	if result.Error != nil {
-		slog.Error("failed to delete event from database", "err", result.Error)
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recall message"})
-		return
-	}
-
-	// 检查是否真的删除了记录
-	if result.RowsAffected == 0 {
-		slog.Warn("no event was deleted", "event_id", lastEventID, "session_id", sessionID)
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "message not found or already deleted"})
-		return
-	}
-
-	slog.Info("message recalled successfully", "event_id", lastEventID, "session_id", sessionID, "user_id", userID)
-	ctx.JSON(http.StatusOK, gin.H{"message": "message recalled successfully"})
 }
