@@ -168,12 +168,13 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 		}
 	} else {
 		// Update existing user info
+		oldPictureURL := u.Picture // Store old URL for comparison
 		u.GoogleEmail = user.Email
 		u.GoogleName = user.Name
 		u.Picture = user.Picture
 
 		// Download and update avatar if URL changed or avatar data is missing
-		if u.AvatarData == nil || u.Picture != user.Picture {
+		if u.AvatarData == nil || oldPictureURL != user.Picture {
 			avatarData, mimeType, err := downloadAvatar(user.Picture)
 			if err != nil {
 				slog.Warn("failed to download avatar", "err", err, "url", user.Picture)
@@ -210,9 +211,7 @@ func downloadAvatar(url string) ([]byte, string, error) {
 	}
 
 	// Execute request
-	client := &http.Client{
-		Timeout: 10 * time.Second,
-	}
+	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to download avatar: %w", err)

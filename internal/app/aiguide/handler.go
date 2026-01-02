@@ -43,6 +43,8 @@ func (a *AIGuide) getUserHandler(c *gin.Context) {
 }
 
 // getAvatarHandler 获取用户头像
+// Note: This endpoint is intentionally public (no auth required) as user avatars
+// are typically public information, similar to profile pictures on social platforms.
 func (a *AIGuide) getAvatarHandler(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := strconv.ParseUint(userIDStr, 10, 64)
