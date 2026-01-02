@@ -56,7 +56,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
 	}
 
-	dialector := sqlite.Open("file:aiguide_sessions.db")
+	dialector := sqlite.Open(config.DBFile)
 
 	db, err := gorm.Open(dialector)
 	if err != nil {
@@ -64,10 +64,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("gorm.Open() error, err = %w", err)
 	}
 
-	migrator, err := migration.New(dialector)
-	if err != nil {
-		return nil, fmt.Errorf("migration.New() error, err = %w", err)
-	}
+	migrator := migration.New(db)
 
 	agentManager, err := agentmanager.New(model, db)
 	if err != nil {
