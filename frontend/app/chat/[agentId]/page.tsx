@@ -372,11 +372,12 @@ export default function ChatPage() {
   useEffect(() => {
     if (!isHovering) {
       // Use instant scroll when loading history, smooth scroll for new messages
+      // Note: shouldScrollInstantly is read but not in deps because we only want to scroll on message changes
       messagesEndRef.current?.scrollIntoView({ 
         behavior: shouldScrollInstantly ? 'auto' : 'smooth' 
       });
     }
-  }, [messages, shouldScrollInstantly]); // Depend on both messages and scroll behavior flag
+  }, [messages, isHovering]); // Only scroll when messages change or hover state changes
 
   // Cleanup scroll reset timeout on unmount
   useEffect(() => {
