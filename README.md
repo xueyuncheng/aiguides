@@ -12,6 +12,7 @@
 - **独立管理**：每个 AI 助手的会话独立存储和管理
 - **会话删除**：支持删除不需要的会话
 - **实时更新**：会话列表显示最新消息和时间戳
+- **消息撤回**：发送消息后5秒内可以撤回未被AI回复的消息 🆕
 
 本项目包含以下 AI 助手：
 
@@ -465,6 +466,23 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 
 无需任何配置，只需正常使用 TravelAgent 即可。
 
+### 如何撤回已发送的消息？
+
+当您不小心发送了未完成或错误的消息时：
+
+1. 在发送消息后，界面底部会显示"撤回消息"按钮
+2. 点击该按钮即可撤回最后一条消息
+3. **注意事项**：
+   - 撤回功能仅在发送后 5 秒内有效
+   - 如果 AI 已经开始回复，则无法撤回
+   - 只能撤回最后一条用户消息
+   - 撤回后该消息将从会话历史中永久删除
+
+**使用场景：**
+- 不小心按下回车键时消息未输入完整
+- 发现输入的问题有错误或不准确
+- 想要重新组织问题的表达方式
+
 ## 技术栈
 
 - **后端框架**：
@@ -606,6 +624,44 @@ curl -X DELETE http://localhost:8080/api/assistant/sessions/session-123?user_id=
 ```json
 {
   "message": "session deleted successfully"
+}
+```
+
+#### POST /api/:agentId/sessions/:sessionId/recall
+
+撤回会话中的最后一条用户消息。
+
+**请求参数：**
+- `user_id` (query, required): 用户 ID
+
+**使用限制：**
+- 只能撤回最后一条用户消息
+- 如果 AI 已经对该消息进行了回复，则无法撤回
+
+**请求示例：**
+```bash
+curl -X POST http://localhost:8080/api/assistant/sessions/session-123/recall?user_id=user-123
+```
+
+**成功响应示例：**
+```json
+{
+  "message": "message recalled successfully"
+}
+```
+
+**错误响应示例：**
+```json
+{
+  "error": "cannot recall message after AI has responded"
+}
+```
+
+或
+
+```json
+{
+  "error": "no user message to recall"
 }
 ```
 
