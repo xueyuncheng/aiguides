@@ -273,6 +273,7 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // Maximum height for the textarea in pixels
+  // Note: This value should match the max-h-[200px] in the Textarea className below
   const MAX_TEXTAREA_HEIGHT = 200;
 
   const loadSessions = async (silent = false) => {
