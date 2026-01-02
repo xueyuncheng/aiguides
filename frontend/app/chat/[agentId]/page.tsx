@@ -17,6 +17,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  author?: string;
 }
 
 interface AgentInfo {
@@ -91,7 +92,7 @@ const AIAvatar = ({ icon }: { icon: string }) => {
 // Helper component for User Avatar
 const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null }) => {
   if (!user) return null;
-  
+
   return (
     <Avatar className="h-8 w-8 flex-shrink-0">
       <AvatarImage src={user.picture} alt={user.name} />
@@ -393,17 +394,10 @@ export default function ChatPage() {
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
+      let currentAuthor = '';
       let assistantContent = '';
 
       if (reader) {
-        const assistantMessage: Message = {
-          id: `msg-${Date.now()}-assistant`,
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-
         let buffer = '';
 
         while (true) {
@@ -425,18 +419,40 @@ export default function ChatPage() {
                 const data = JSON.parse(jsonStr);
 
                 if (data.content) {
-                  assistantContent += data.content;
-                  setMessages((prev) => {
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
-                      newMessages[lastIndex] = {
-                        ...newMessages[lastIndex],
+                  // Check if this is a duplicate complete message (identical to accumulated content)
+                  const isCompleteDuplicate = data.content === assistantContent;
+
+                  if (!isCompleteDuplicate) {
+                    // Check if author changed - create new message block
+                    if (data.author && data.author !== currentAuthor) {
+                      currentAuthor = data.author;
+                      assistantContent = data.content;
+
+                      // Create new message for new author
+                      const newMessage: Message = {
+                        id: `msg-${Date.now()}-${currentAuthor}`,
+                        role: 'assistant',
                         content: assistantContent,
+                        timestamp: new Date(),
+                        author: currentAuthor,
                       };
+                      setMessages((prev) => [...prev, newMessage]);
+                    } else {
+                      // Same author - accumulate content
+                      assistantContent += data.content;
+                      setMessages((prev) => {
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                        if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
+                          newMessages[lastIndex] = {
+                            ...newMessages[lastIndex],
+                            content: assistantContent,
+                          };
+                        }
+                        return newMessages;
+                      });
                     }
-                    return newMessages;
-                  });
+                  }
                 }
               } catch (e) {
                 console.warn('JSON parse error:', e);

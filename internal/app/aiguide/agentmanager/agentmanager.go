@@ -82,12 +82,12 @@ func (a *AgentManager) addAssistantRunner() error {
 		return fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}
 
-	assistantRunnerConfig := &runner.Config{
+	assistantRunnerConfig := runner.Config{
 		AppName:        constant.AppNameAssistant.String(),
 		Agent:          assistantAgent,
 		SessionService: a.session,
 	}
-	assistantRunner, err := runner.New(*assistantRunnerConfig)
+	assistantRunner, err := runner.New(assistantRunnerConfig)
 	if err != nil {
 		slog.Error("runner.New() error", "err", err)
 		return fmt.Errorf("runner.New() error, err = %w", err)

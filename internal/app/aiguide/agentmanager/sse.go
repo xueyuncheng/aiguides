@@ -67,7 +67,7 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 	go func() {
 		// 创建一个新的 context，因为 request context 会被取消
 		bgCtx := context.Background()
-		if err := a.generateTitle(bgCtx, appName.String(), userID, sessionID, req.Message); err != nil {
+		if err := a.generateTitle(bgCtx, sessionID, req.Message); err != nil {
 			slog.Error("generateTitle failed", "err", err)
 		}
 	}()
@@ -149,7 +149,7 @@ func (a *AgentManager) streamAgentEvents(
 			for _, part := range event.LLMResponse.Content.Parts {
 				if part.Text != "" {
 					// 发送数据事件
-					ctx.SSEvent("data", gin.H{"content": part.Text})
+					ctx.SSEvent("data", gin.H{"author": event.Author, "content": part.Text})
 					ctx.Writer.Flush()
 				}
 			}
@@ -162,7 +162,7 @@ func (a *AgentManager) streamAgentEvents(
 }
 
 // generateTitle 生成会话标题
-func (a *AgentManager) generateTitle(ctx context.Context, appName, userID, sessionID, firstMessage string) error {
+func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
 	// 1. 检查数据库中是否已有标题
 	var meta table.SessionMeta
 	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {
