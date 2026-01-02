@@ -254,11 +254,12 @@ export default function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+  const isAtBottomRef = useRef(true);
+
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
   const MAX_TEXTAREA_HEIGHT = 200;
@@ -352,8 +353,21 @@ export default function ChatPage() {
     }
   }, [agentId, agentInfo, router, user]);
 
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      // Use a small threshold (10px) to account for zoom or small variations
+      const atBottom = scrollHeight - scrollTop - clientHeight < 10;
+      isAtBottomRef.current = atBottom;
+    }
+  };
+
   useEffect(() => {
-    if (!isHovering) {
+    // Scroll to bottom on EVERY new message added (especially user message)
+    // Or if we are already at the bottom while streaming (to follow content)
+    const isNewUserMessage = messages.length > 0 && messages[messages.length - 1].role === 'user';
+
+    if (isNewUserMessage || isAtBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]); // Only scroll when messages update
@@ -560,9 +574,9 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
         {/* Messages Area */}
         <div
+          ref={scrollContainerRef}
           className="flex-1 overflow-y-auto no-scrollbar"
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
+          onScroll={handleScroll}
         >
           {isLoadingHistory && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
