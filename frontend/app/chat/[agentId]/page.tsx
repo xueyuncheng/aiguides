@@ -259,6 +259,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
@@ -297,6 +298,11 @@ export default function ChatPage() {
     setIsLoadingHistory(true);
     setShouldScrollInstantly(true); // Enable instant scroll for history loading
 
+    // Clear any pending timeout from previous session switch
+    if (scrollResetTimeoutRef.current) {
+      clearTimeout(scrollResetTimeoutRef.current);
+    }
+
     try {
       const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}`);
       if (response.ok) {
@@ -314,7 +320,10 @@ export default function ChatPage() {
     } finally {
       setIsLoadingHistory(false);
       // Reset to smooth scroll after a short delay to ensure history is rendered
-      setTimeout(() => setShouldScrollInstantly(false), 100);
+      scrollResetTimeoutRef.current = setTimeout(() => {
+        setShouldScrollInstantly(false);
+        scrollResetTimeoutRef.current = null;
+      }, 100);
     }
   };
 
@@ -364,6 +373,15 @@ export default function ChatPage() {
       });
     }
   }, [messages, shouldScrollInstantly]); // Depend on both messages and scroll behavior flag
+
+  // Cleanup scroll reset timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (scrollResetTimeoutRef.current) {
+        clearTimeout(scrollResetTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Auto-resize textarea based on content
   useEffect(() => {
