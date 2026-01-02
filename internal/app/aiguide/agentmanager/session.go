@@ -201,6 +201,23 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 
 	totalCount := len(allMessages)
 
+	// 验证 offset 是否超出范围
+	if offset >= totalCount {
+		// offset 超出范围，返回空消息列表
+		response := SessionHistoryResponse{
+			SessionID: sess.ID(),
+			AppName:   sess.AppName(),
+			UserID:    sess.UserID(),
+			Messages:  []MessageEvent{},
+			Total:     totalCount,
+			Limit:     limit,
+			Offset:    offset,
+			HasMore:   false,
+		}
+		ctx.JSON(http.StatusOK, response)
+		return
+	}
+
 	// 应用分页：从最新消息开始，offset=0表示最新的消息
 	// 为了返回最近的消息，我们从末尾开始取
 	messages := make([]MessageEvent, 0)
@@ -209,9 +226,6 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 		startIdx = 0
 	}
 	endIdx := totalCount - offset
-	if endIdx < 0 {
-		endIdx = 0
-	}
 
 	if startIdx < endIdx {
 		messages = allMessages[startIdx:endIdx]
