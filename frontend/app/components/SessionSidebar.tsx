@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight, Trash2, Home } from 'lucide-react';
@@ -30,14 +30,14 @@ interface SessionSidebarProps {
   isLoading: boolean;
 }
 
-export default function SessionSidebar({
+const SessionSidebar = memo(({
   sessions,
   currentSessionId,
   onSessionSelect,
   onNewSession,
   onDeleteSession,
   isLoading,
-}: SessionSidebarProps) {
+}: SessionSidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Memoize filtered sessions to avoid redundant filtering
@@ -185,4 +185,8 @@ export default function SessionSidebar({
       </div>
     </div>
   );
-}
+});
+
+SessionSidebar.displayName = 'SessionSidebar';
+
+export default SessionSidebar;

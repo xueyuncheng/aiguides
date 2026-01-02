@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
@@ -81,16 +81,18 @@ const agentInfoMap: Record<string, AgentInfo> = {
 };
 
 // Helper component for AI Avatar
-const AIAvatar = ({ icon }: { icon: string }) => {
+const AIAvatar = memo(({ icon }: { icon: string }) => {
   return (
     <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background">
       <span className="text-base">{icon}</span>
     </div>
   );
-};
+});
+
+AIAvatar.displayName = 'AIAvatar';
 
 // Helper component for User Avatar
-const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null }) => {
+const UserAvatar = memo(({ user }: { user: { name: string; picture?: string } | null }) => {
   if (!user) return null;
 
   return (
@@ -101,13 +103,15 @@ const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null 
       </AvatarFallback>
     </Avatar>
   );
-};
+});
+
+UserAvatar.displayName = 'UserAvatar';
 
 // Feedback timeout duration in milliseconds
 const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
-const AIMessageContent = ({ content }: { content: string }) => {
+const AIMessageContent = memo(({ content }: { content: string }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -238,7 +242,9 @@ const AIMessageContent = ({ content }: { content: string }) => {
       </div>
     </div>
   );
-};
+});
+
+AIMessageContent.displayName = 'AIMessageContent';
 
 export default function ChatPage() {
   const params = useParams();
