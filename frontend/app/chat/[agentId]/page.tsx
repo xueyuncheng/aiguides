@@ -156,9 +156,9 @@ const AIMessageContent = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="relative group mt-6">
-      {/* Toggle and Copy buttons - moved outside content area */}
-      <div className="absolute -top-6 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+    <div className="relative group">
+      {/* Toggle and Copy buttons - aligned at top */}
+      <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           variant="ghost"
