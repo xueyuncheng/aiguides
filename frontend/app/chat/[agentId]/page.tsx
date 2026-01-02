@@ -157,51 +157,36 @@ const AIMessageContent = ({ content }: { content: string }) => {
 
   return (
     <div className="relative group">
-      {/* Toggle and Copy buttons - aligned at top */}
-      <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+      {/* Toggle and Copy buttons - aligned at bottom left with icons only */}
+      <div className="absolute bottom-0 left-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
         <Button
           size="sm"
           variant="ghost"
           onClick={() => setShowRaw(!showRaw)}
-          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
           title={showRaw ? "显示渲染效果" : "显示原始内容"}
           aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
         >
           {showRaw ? (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              渲染
-            </>
+            <Eye className="h-3.5 w-3.5" />
           ) : (
-            <>
-              <Code2 className="h-3 w-3 mr-1" />
-              原始
-            </>
+            <Code2 className="h-3.5 w-3.5" />
           )}
         </Button>
         <Button
           size="sm"
           variant="ghost"
           onClick={handleCopy}
-          className="h-7 px-2 text-xs bg-background/80 backdrop-blur-sm border"
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
           title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
           aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
         >
           {copyError ? (
-            <>
-              <X className="h-3 w-3 mr-1 text-red-500" aria-hidden="true" />
-              失败
-            </>
+            <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
           ) : copied ? (
-            <>
-              <Check className="h-3 w-3 mr-1" />
-              已复制
-            </>
+            <Check className="h-3.5 w-3.5 text-green-600" />
           ) : (
-            <>
-              <Copy className="h-3 w-3 mr-1" />
-              复制
-            </>
+            <Copy className="h-3.5 w-3.5" />
           )}
         </Button>
       </div>
@@ -212,7 +197,7 @@ const AIMessageContent = ({ content }: { content: string }) => {
           {content}
         </pre>
       ) : (
-        <div className="prose prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg">
+        <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
@@ -223,15 +208,15 @@ const AIMessageContent = ({ content }: { content: string }) => {
                 const match = /language-(\w+)/.exec(className || '')
                 const isInline = !match;
                 return isInline ? (
-                  <code className="bg-secondary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>
+                  <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                     {children}
                   </code>
                 ) : (
-                  <div className="my-4 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+                  <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
                     <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
                       <span>{match?.[1]}</span>
                     </div>
-                    <pre className="p-4 overflow-x-auto text-sm">
+                    <pre className="p-4 overflow-x-auto text-xs">
                       <code className={className} {...props}>
                         {children}
                       </code>
@@ -240,10 +225,10 @@ const AIMessageContent = ({ content }: { content: string }) => {
                 )
               },
               ul: ({ ...props }) => (
-                <ul {...props} className="list-disc list-inside space-y-1 my-4" />
+                <ul {...props} className="list-disc list-inside space-y-0.5 my-3 text-sm" />
               ),
               ol: ({ ...props }) => (
-                <ol {...props} className="list-decimal list-inside space-y-1 my-4" />
+                <ol {...props} className="list-decimal list-inside space-y-0.5 my-3 text-sm" />
               ),
             }}
           >
@@ -630,10 +615,10 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-base",
+                          "relative text-sm",
                           message.role === 'user'
                             ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm"
-                            : "leading-7 pt-1"
+                            : "leading-6 pt-1"
                         )}>
                           {message.role === 'assistant' ? (
                             <AIMessageContent content={message.content} />
