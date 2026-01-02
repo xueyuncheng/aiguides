@@ -269,6 +269,7 @@ export default function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
@@ -366,8 +367,10 @@ export default function ChatPage() {
   }, [agentId, agentInfo, router, user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (!isHovering) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]); // Only scroll when messages update
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -548,7 +551,11 @@ export default function ChatPage() {
       {/* Main Content */}
       <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto no-scrollbar">
+        <div
+          className="flex-1 overflow-y-auto no-scrollbar"
+          onMouseEnter={() => setIsHovering(true)}
+          onMouseLeave={() => setIsHovering(false)}
+        >
           {isLoadingHistory && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
