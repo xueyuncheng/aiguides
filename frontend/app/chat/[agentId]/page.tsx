@@ -252,14 +252,20 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
+  const [totalMessageCount, setTotalMessageCount] = useState(0);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesStartRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previousScrollHeightRef = useRef<number>(0);
   
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
@@ -268,6 +274,9 @@ export default function ChatPage() {
   // Delay before resetting scroll behavior to smooth after loading history
   // This ensures messages are fully rendered before enabling smooth scroll again
   const SCROLL_RESET_DELAY = 100;
+
+  // Number of messages to load per request
+  const MESSAGES_PER_PAGE = 50;
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -299,6 +308,8 @@ export default function ChatPage() {
   const handleSessionSelect = async (newSessionId: string) => {
     setSessionId(newSessionId);
     setMessages([]);
+    setHasMoreMessages(false);
+    setTotalMessageCount(0);
     setIsLoadingHistory(true);
     setShouldScrollInstantly(true); // Enable instant scroll for history loading
 
@@ -308,7 +319,8 @@ export default function ChatPage() {
     }
 
     try {
-      const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}`);
+      // Load only the most recent messages (pagination)
+      const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
       if (response.ok) {
         const data = await response.json();
         const historyMessages = data.messages.map((msg: any) => ({
@@ -318,6 +330,8 @@ export default function ChatPage() {
           timestamp: new Date(msg.timestamp),
         }));
         setMessages(historyMessages);
+        setHasMoreMessages(data.has_more || false);
+        setTotalMessageCount(data.total || 0);
       }
     } catch (error) {
       console.error('Error loading history:', error);
@@ -331,10 +345,56 @@ export default function ChatPage() {
     }
   };
 
+  const loadOlderMessages = async () => {
+    if (isLoadingOlderMessages || !hasMoreMessages || !sessionId) return;
+
+    setIsLoadingOlderMessages(true);
+
+    // Store current scroll position before loading
+    const container = messagesContainerRef.current;
+    if (container) {
+      previousScrollHeightRef.current = container.scrollHeight;
+    }
+
+    try {
+      const currentOffset = messages.length;
+      const response = await fetch(`/api/${agentId}/sessions/${sessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`);
+      if (response.ok) {
+        const data = await response.json();
+        const olderMessages = data.messages.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: new Date(msg.timestamp),
+        }));
+        
+        // Prepend older messages to the beginning
+        setMessages(prev => [...olderMessages, ...prev]);
+        setHasMoreMessages(data.has_more || false);
+        
+        // Restore scroll position after messages are added
+        setTimeout(() => {
+          const container = messagesContainerRef.current;
+          if (container && previousScrollHeightRef.current) {
+            const newScrollHeight = container.scrollHeight;
+            const scrollDiff = newScrollHeight - previousScrollHeightRef.current;
+            container.scrollTop = scrollDiff;
+          }
+        }, 0);
+      }
+    } catch (error) {
+      console.error('Error loading older messages:', error);
+    } finally {
+      setIsLoadingOlderMessages(false);
+    }
+  };
+
   const handleNewSession = async () => {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     setSessionId(newSessionId);
     setMessages([]);
+    setHasMoreMessages(false);
+    setTotalMessageCount(0);
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
@@ -590,9 +650,17 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
         {/* Messages Area */}
         <div
+          ref={messagesContainerRef}
           className="flex-1 overflow-y-auto no-scrollbar"
           onMouseEnter={() => setIsHovering(true)}
           onMouseLeave={() => setIsHovering(false)}
+          onScroll={(e) => {
+            const container = e.currentTarget;
+            // Check if scrolled to top (with some threshold)
+            if (container.scrollTop < 100 && hasMoreMessages && !isLoadingOlderMessages && !isLoadingHistory) {
+              loadOlderMessages();
+            }
+          }}
         >
           {isLoadingHistory && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
@@ -602,6 +670,31 @@ export default function ChatPage() {
 
           <div className="flex flex-col items-center">
             <div className="w-full max-w-5xl px-6 py-10 space-y-8">
+              {/* Loading older messages indicator */}
+              {isLoadingOlderMessages && (
+                <div className="flex justify-center py-4">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+                    <span>加载更早的消息...</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Show info about available older messages */}
+              {hasMoreMessages && !isLoadingOlderMessages && messages.length > 0 && (
+                <div className="flex justify-center py-2">
+                  <button
+                    onClick={loadOlderMessages}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors underline"
+                  >
+                    还有 {totalMessageCount - messages.length} 条更早的消息，向上滚动或点击加载
+                  </button>
+                </div>
+              )}
+              
+              {/* Hidden ref for tracking start of messages */}
+              <div ref={messagesStartRef} />
+              
               {messages.length === 0 && !isLoadingHistory ? (
                 <div className="text-center py-20">
                   <div className="flex justify-center mb-6">

@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -121,7 +122,7 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 }
 
 // GetSessionHistoryHandler 处理获取会话历史的请求
-// GET /api/:agentId/sessions/:sessionId/history?user_id=xxx
+// GET /api/:agentId/sessions/:sessionId/history?user_id=xxx&limit=50&offset=0
 func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
@@ -130,6 +131,25 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	if userID == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
+	}
+
+	// 解析分页参数
+	limit := 50 // 默认返回最近50条消息
+	if limitStr := ctx.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = parsedLimit
+			// 限制最大值防止性能问题
+			if limit > 100 {
+				limit = 100
+			}
+		}
+	}
+
+	offset := 0
+	if offsetStr := ctx.Query("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
 	}
 
 	getReq := &session.GetRequest{
@@ -148,8 +168,8 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 	sess := getResp.Session
 	events := sess.Events()
 
-	// 将事件转换为消息格式
-	messages := make([]MessageEvent, 0)
+	// 将所有事件转换为消息格式
+	allMessages := make([]MessageEvent, 0)
 	for event := range events.All() {
 		if event.Content != nil {
 			role := "assistant"
@@ -165,7 +185,7 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 			}
 
 			if content != "" {
-				messages = append(messages, MessageEvent{
+				allMessages = append(allMessages, MessageEvent{
 					ID:        event.ID,
 					Timestamp: event.Timestamp,
 					Role:      role,
@@ -175,11 +195,35 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 		}
 	}
 
-	response := SessionHistoryResponse{
-		SessionID: sess.ID(),
-		AppName:   sess.AppName(),
-		UserID:    sess.UserID(),
-		Messages:  messages,
+	totalCount := len(allMessages)
+
+	// 应用分页：从最新消息开始，offset=0表示最新的消息
+	// 为了返回最近的消息，我们从末尾开始取
+	messages := make([]MessageEvent, 0)
+	startIdx := totalCount - offset - limit
+	if startIdx < 0 {
+		startIdx = 0
+	}
+	endIdx := totalCount - offset
+	if endIdx > totalCount {
+		endIdx = totalCount
+	}
+
+	if startIdx < endIdx {
+		messages = allMessages[startIdx:endIdx]
+	}
+
+	hasMore := startIdx > 0
+
+	response := map[string]any{
+		"session_id": sess.ID(),
+		"app_name":   sess.AppName(),
+		"user_id":    sess.UserID(),
+		"messages":   messages,
+		"total":      totalCount,
+		"limit":      limit,
+		"offset":     offset,
+		"has_more":   hasMore,
 	}
 
 	ctx.JSON(http.StatusOK, response)
