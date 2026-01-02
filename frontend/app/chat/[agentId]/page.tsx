@@ -408,6 +408,8 @@ export default function ChatPage() {
         const errorData = await response.json();
         console.error('Failed to undo message:', errorData.error);
         // Show error feedback to user
+        // Note: Using native alert() for minimal changes. For production, consider implementing
+        // a toast notification system for better UX consistency
         alert('无法撤回消息：' + (errorData.error === 'cannot recall message after AI has responded' 
           ? 'AI 已经开始回复' 
           : errorData.error === 'no user message to recall'
@@ -418,6 +420,8 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error undoing message:', error);
+      // Note: Using native alert() for minimal changes. For production, consider implementing
+      // a toast notification system for better UX consistency
       alert('撤回消息时发生错误，请稍后重试');
       setShowUndoButton(false);
       setCanUndo(false);

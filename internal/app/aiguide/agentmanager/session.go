@@ -12,6 +12,10 @@ import (
 	"google.golang.org/adk/session"
 )
 
+// adkSessionEventsTable is the table name used by ADK session service to store events
+// Note: This is based on ADK's internal implementation and may change in future versions
+const adkSessionEventsTable = "adk_session_events"
+
 // SessionInfo 定义会话信息的响应结构
 type SessionInfo struct {
 	SessionID      string    `json:"session_id"`
@@ -325,10 +329,9 @@ func (a *AgentManager) RecallLastMessageHandler(ctx *gin.Context) {
 
 	// 直接从数据库中删除最后一条用户消息
 	// 注意：ADK session service 不提供删除单个事件的 API，因此必须直接操作数据库
-	// ADK session 使用的表名为 "adk_session_events"
 	// 这是一个权衡：虽然绕过了 ORM，但这是唯一实现消息撤回的方式
 	lastEventID := eventsSlice[lastUserEventIndex].ID
-	result := a.db.Exec("DELETE FROM adk_session_events WHERE id = ? AND session_id = ? AND app_name = ?",
+	result := a.db.Exec("DELETE FROM "+adkSessionEventsTable+" WHERE id = ? AND session_id = ? AND app_name = ?",
 		lastEventID, sessionID, agentID)
 	if result.Error != nil {
 		slog.Error("failed to delete event from database", "err", result.Error)
