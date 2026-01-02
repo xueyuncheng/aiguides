@@ -55,7 +55,6 @@ func NewSearchAgent(model model.LLM) (agent.Agent, error) {
 		Model:       model,
 		Description: "专业的信息检索助手，擅长通过搜索获取准确、全面的信息并提供详细解答",
 		Instruction: searchAgentInstruction,
-		OutputKey:   "search_agent_output",
 		Tools: []tool.Tool{
 			geminitool.GoogleSearch{},
 		},
