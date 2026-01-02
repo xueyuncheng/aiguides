@@ -156,41 +156,7 @@ const AIMessageContent = ({ content }: { content: string }) => {
   };
 
   return (
-    <div className="relative group">
-      {/* Toggle and Copy buttons - aligned at bottom left with icons only */}
-      <div className="absolute bottom-0 left-0 flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setShowRaw(!showRaw)}
-          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-          title={showRaw ? "显示渲染效果" : "显示原始内容"}
-          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
-        >
-          {showRaw ? (
-            <Eye className="h-3.5 w-3.5" />
-          ) : (
-            <Code2 className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleCopy}
-          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-        >
-          {copyError ? (
-            <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
-          ) : copied ? (
-            <Check className="h-3.5 w-3.5 text-green-600" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-        </Button>
-      </div>
-
+    <div className="group">
       {/* Content display */}
       {showRaw ? (
         <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
@@ -236,6 +202,40 @@ const AIMessageContent = ({ content }: { content: string }) => {
           </ReactMarkdown>
         </div>
       )}
+
+      {/* Toggle and Copy buttons - below content with icons only */}
+      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setShowRaw(!showRaw)}
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+          title={showRaw ? "显示渲染效果" : "显示原始内容"}
+          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
+        >
+          {showRaw ? (
+            <Eye className="h-3.5 w-3.5" />
+          ) : (
+            <Code2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleCopy}
+          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+        >
+          {copyError ? (
+            <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+          ) : copied ? (
+            <Check className="h-3.5 w-3.5 text-green-600" />
+          ) : (
+            <Copy className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
     </div>
   );
 };
