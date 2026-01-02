@@ -20,6 +20,8 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
+      # 这个 URL 用于服务端渲染时的内部通信
+      # 浏览器请求会通过 Next.js rewrites 代理到后端
       - NEXT_PUBLIC_API_URL=http://backend:8080
     depends_on:
       - backend
