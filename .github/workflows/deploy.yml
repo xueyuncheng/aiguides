@@ -58,8 +58,8 @@ jobs:
           SERVER_USER: ${{ secrets.SERVER_USER }}
           DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
         run: |
-          ssh $SERVER_USER@$SERVER_HOST << 'EOF'
-            cd $DEPLOY_PATH
+          ssh $SERVER_USER@$SERVER_HOST << EOF
+            cd ${{ secrets.DEPLOY_PATH }}
             make load-images
             make deploy
             make clean

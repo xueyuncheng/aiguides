@@ -65,11 +65,29 @@ sudo usermod -aG docker $USER
 sudo apt-get install make
 ```
 
-### 3. 创建部署目录
+### 3. 创建部署目录和配置文件
 
 ```bash
+# 创建部署目录
 mkdir -p /home/ubuntu/aiguide  # 或您在 DEPLOY_PATH 中指定的路径
+
+# 创建配置目录
+mkdir -p /home/ubuntu/aiguide/config
+mkdir -p /home/ubuntu/aiguide/data
+
+# 复制并编辑配置文件
+# 您需要将 aiguide.yaml 配置文件复制到服务器的 config 目录
+# 配置文件包含 API 密钥等敏感信息，不要提交到 Git
+scp cmd/aiguide/aiguide.yaml your-server:/home/ubuntu/aiguide/config/
+
+# 或者在服务器上直接创建和编辑配置文件
+vim /home/ubuntu/aiguide/config/aiguide.yaml
 ```
+
+**重要**: 配置文件 (`aiguide.yaml`) 包含 API 密钥和其他敏感信息，应该：
+- 不要提交到 Git 仓库
+- 直接在服务器上创建和管理
+- 确保文件权限正确: `chmod 600 /home/ubuntu/aiguide/config/aiguide.yaml`
 
 ## 本地测试
 
@@ -164,6 +182,7 @@ docker compose ps
 - 使用多阶段构建减小镜像大小
 - 基于 Alpine Linux 构建轻量级镜像
 - 默认暴露 8080 端口
+- **配置文件通过 volume 挂载**，不包含在镜像中以保护敏感信息
 
 ### `Dockerfile.frontend`
 - 使用 Next.js standalone 输出模式
@@ -174,6 +193,24 @@ docker compose ps
 - 定义前后端服务
 - 配置网络连接
 - 设置自动重启策略
+- 后端配置文件挂载: `./config:/config:ro`（只读）
+- 后端数据目录挂载: `./data:/app/data`（用于数据库等持久化数据）
+
+### 目录结构
+
+在服务器上，您的部署目录应该有以下结构：
+
+```
+/home/ubuntu/aiguide/
+├── docker-compose.yml       # Docker 编排配置
+├── Makefile                 # 部署命令
+├── config/                  # 配置文件目录
+│   └── aiguide.yaml        # 后端配置（包含 API 密钥）
+├── data/                    # 数据持久化目录
+│   └── aiguide.db          # SQLite 数据库（自动创建）
+├── aiguide-backend.tar     # 后端镜像（临时）
+└── aiguide-frontend.tar    # 前端镜像（临时）
+```
 
 ## 安全建议
 

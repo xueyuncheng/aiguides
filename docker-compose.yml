@@ -1,11 +1,12 @@
-version: '3.8'
-
 services:
   backend:
     image: aiguide-backend:latest
     container_name: aiguide-backend
     ports:
       - "8080:8080"
+    volumes:
+      - ./config:/config:ro
+      - ./data:/app/data
     environment:
       - GIN_MODE=release
     restart: unless-stopped

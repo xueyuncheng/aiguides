@@ -4,7 +4,7 @@ FROM golang:1.25.5-alpine AS builder
 WORKDIR /app
 
 # 安装必要的构建工具
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 
 # 复制 go mod 文件
 COPY go.mod go.sum ./
@@ -17,20 +17,16 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o aiguide ./cmd/aiguide/aiguide.go
 
 # 运行阶段
-FROM alpine:latest
+FROM alpine:3.19
 
-RUN apk --no-cache add ca-certificates
+# 从构建阶段复制证书和二进制文件
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /app/aiguide /app/aiguide
 
-WORKDIR /root/
-
-# 从构建阶段复制二进制文件
-COPY --from=builder /app/aiguide .
-
-# 复制配置文件
-COPY cmd/aiguide/aiguide.yaml ./cmd/aiguide/aiguide.yaml
+WORKDIR /app
 
 # 暴露端口
 EXPOSE 8080
 
-# 运行应用
-CMD ["./aiguide", "-f", "./cmd/aiguide/aiguide.yaml"]
+# 运行应用 - 配置文件将通过 volume 挂载
+CMD ["./aiguide", "-f", "/config/aiguide.yaml"]
