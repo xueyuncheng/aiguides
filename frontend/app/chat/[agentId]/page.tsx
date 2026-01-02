@@ -9,7 +9,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, Undo2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -268,6 +268,9 @@ export default function ChatPage() {
   const [sessionId, setSessionId] = useState<string>('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [showUndoButton, setShowUndoButton] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -360,9 +363,53 @@ export default function ChatPage() {
     }
   }, [agentId, agentInfo, router, user]);
 
+  // Cleanup undo timer on unmount
+  useEffect(() => {
+    return () => {
+      if (undoTimerRef.current) {
+        clearTimeout(undoTimerRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const handleUndoMessage = async () => {
+    if (!canUndo) return;
+
+    try {
+      const response = await fetch(`/api/${agentId}/sessions/${sessionId}/recall?user_id=${user?.user_id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        // Remove the last user message from the UI
+        setMessages(prev => {
+          const lastUserIndex = prev.findLastIndex(msg => msg.role === 'user');
+          if (lastUserIndex !== -1) {
+            return prev.slice(0, lastUserIndex);
+          }
+          return prev;
+        });
+        setShowUndoButton(false);
+        setCanUndo(false);
+      } else {
+        const errorData = await response.json();
+        console.error('Failed to undo message:', errorData.error);
+        // Still hide the button even if the undo failed
+        setShowUndoButton(false);
+        setCanUndo(false);
+      }
+    } catch (error) {
+      console.error('Error undoing message:', error);
+      setShowUndoButton(false);
+      setCanUndo(false);
+    }
+  };
 
   const sendMessage = async (content: string) => {
     if (!content.trim() || isLoading) return;
@@ -377,6 +424,21 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsLoading(true);
+
+    // Show undo button for 5 seconds after sending message
+    setShowUndoButton(true);
+    setCanUndo(true);
+    
+    // Clear any existing timer
+    if (undoTimerRef.current) {
+      clearTimeout(undoTimerRef.current);
+    }
+    
+    // Set timer to hide undo button after 5 seconds
+    undoTimerRef.current = setTimeout(() => {
+      setShowUndoButton(false);
+      setCanUndo(false);
+    }, 5000);
 
     try {
       const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
@@ -419,6 +481,13 @@ export default function ChatPage() {
                 const data = JSON.parse(jsonStr);
 
                 if (data.content) {
+                  // AI has started responding, disable undo
+                  setCanUndo(false);
+                  setShowUndoButton(false);
+                  if (undoTimerRef.current) {
+                    clearTimeout(undoTimerRef.current);
+                  }
+
                   // Check if this is a duplicate complete message (identical to accumulated content)
                   const isCompleteDuplicate = data.content === assistantContent;
 
@@ -641,6 +710,22 @@ export default function ChatPage() {
             <div className="text-center text-xs text-muted-foreground mt-3">
               AI 可能会生成不准确的信息，请核查重要事实。
             </div>
+            
+            {/* Undo Button */}
+            {showUndoButton && (
+              <div className="flex justify-center mt-3">
+                <Button
+                  onClick={handleUndoMessage}
+                  variant="outline"
+                  size="sm"
+                  disabled={!canUndo}
+                  className="h-8 px-3 text-xs gap-2 bg-background/80 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  撤回消息
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

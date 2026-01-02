@@ -65,6 +65,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		agentGroup.POST("", a.agentManager.CreateSessionHandler)
 		agentGroup.GET("/:sessionId/history", a.agentManager.GetSessionHistoryHandler)
 		agentGroup.DELETE("/:sessionId", a.agentManager.DeleteSessionHandler)
+		agentGroup.POST("/:sessionId/recall", a.agentManager.RecallLastMessageHandler)
 	}
 
 	return nil

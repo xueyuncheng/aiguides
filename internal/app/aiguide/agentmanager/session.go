@@ -263,3 +263,75 @@ func randomString(length int) string {
 	}
 	return hex.EncodeToString(bytes)[:length]
 }
+
+// RecallLastMessageHandler 处理撤回最后一条用户消息的请求
+// POST /api/:agentId/sessions/:sessionId/recall?user_id=xxx
+func (a *AgentManager) RecallLastMessageHandler(ctx *gin.Context) {
+	agentID := ctx.Param("agentId")
+	sessionID := ctx.Param("sessionId")
+	userID := ctx.Query("user_id")
+
+	if userID == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	// 获取会话历史
+	getReq := &session.GetRequest{
+		AppName:   agentID,
+		UserID:    userID,
+		SessionID: sessionID,
+	}
+
+	getResp, err := a.session.Get(ctx, getReq)
+	if err != nil {
+		slog.Error("session.Get() error", "err", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	sess := getResp.Session
+	events := sess.Events()
+
+	// 找到最后一条用户消息的索引
+	lastUserEventIndex := -1
+	eventsSlice := make([]*session.Event, 0)
+	for event := range events.All() {
+		eventsSlice = append(eventsSlice, event)
+		if event.Content != nil && event.Content.Role == "user" {
+			lastUserEventIndex = len(eventsSlice) - 1
+		}
+	}
+
+	if lastUserEventIndex == -1 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "no user message to recall"})
+		return
+	}
+
+	// 检查最后一条用户消息后面是否有助手回复
+	// 如果有，说明AI已经开始回复，不允许撤回
+	hasAssistantResponse := false
+	for i := lastUserEventIndex + 1; i < len(eventsSlice); i++ {
+		if eventsSlice[i].Content != nil && eventsSlice[i].Content.Role != "user" {
+			hasAssistantResponse = true
+			break
+		}
+	}
+
+	if hasAssistantResponse {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "cannot recall message after AI has responded"})
+		return
+	}
+
+	// 直接从数据库中删除最后一条用户消息
+	// ADK session 使用的表名为 "adk_session_events"
+	lastEventID := eventsSlice[lastUserEventIndex].ID
+	result := a.db.Exec("DELETE FROM adk_session_events WHERE id = ?", lastEventID)
+	if result.Error != nil {
+		slog.Error("failed to delete event from database", "err", result.Error)
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to recall message"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "message recalled successfully"})
+}
