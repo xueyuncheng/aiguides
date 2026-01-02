@@ -686,10 +686,10 @@ export default function ChatPage() {
                     type="button"
                     size="icon"
                     onClick={handleCancelMessage}
-                    className="h-8 w-8 mb-1 rounded-full transition-all duration-200 bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="h-8 w-8 mb-1 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg"
                     title="取消"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 stroke-[2.5]" />
                   </Button>
                 ) : (
                   <Button
