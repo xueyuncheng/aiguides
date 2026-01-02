@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
@@ -81,16 +81,18 @@ const agentInfoMap: Record<string, AgentInfo> = {
 };
 
 // Helper component for AI Avatar
-const AIAvatar = ({ icon }: { icon: string }) => {
+const AIAvatar = memo(({ icon }: { icon: string }) => {
   return (
     <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background">
       <span className="text-base">{icon}</span>
     </div>
   );
-};
+});
+
+AIAvatar.displayName = 'AIAvatar';
 
 // Helper component for User Avatar
-const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null }) => {
+const UserAvatar = memo(({ user }: { user: { name: string; picture?: string } | null }) => {
   if (!user) return null;
 
   return (
@@ -101,13 +103,15 @@ const UserAvatar = ({ user }: { user: { name: string; picture?: string } | null 
       </AvatarFallback>
     </Avatar>
   );
-};
+});
+
+UserAvatar.displayName = 'UserAvatar';
 
 // Feedback timeout duration in milliseconds
 const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
-const AIMessageContent = ({ content }: { content: string }) => {
+const AIMessageContent = memo(({ content }: { content: string }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -238,7 +242,9 @@ const AIMessageContent = ({ content }: { content: string }) => {
       </div>
     </div>
   );
-};
+});
+
+AIMessageContent.displayName = 'AIMessageContent';
 
 export default function ChatPage() {
   const params = useParams();
@@ -254,11 +260,12 @@ export default function ChatPage() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  
+  const isAtBottomRef = useRef(true);
+
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
   const MAX_TEXTAREA_HEIGHT = 200;
@@ -352,8 +359,21 @@ export default function ChatPage() {
     }
   }, [agentId, agentInfo, router, user]);
 
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      // Use a small threshold (10px) to account for zoom or small variations
+      const atBottom = scrollHeight - scrollTop - clientHeight < 10;
+      isAtBottomRef.current = atBottom;
+    }
+  };
+
   useEffect(() => {
-    if (!isHovering) {
+    // Scroll to bottom on EVERY new message added (especially user message)
+    // Or if we are already at the bottom while streaming (to follow content)
+    const isNewUserMessage = messages.length > 0 && messages[messages.length - 1].role === 'user';
+
+    if (isNewUserMessage || isAtBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]); // Only scroll when messages update
@@ -560,9 +580,9 @@ export default function ChatPage() {
       <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
         {/* Messages Area */}
         <div
+          ref={scrollContainerRef}
           className="flex-1 overflow-y-auto no-scrollbar"
-          onMouseEnter={() => setIsHovering(true)}
-          onMouseLeave={() => setIsHovering(false)}
+          onScroll={handleScroll}
         >
           {isLoadingHistory && (
             <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
