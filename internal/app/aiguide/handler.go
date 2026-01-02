@@ -94,12 +94,5 @@ func (a *AIGuide) getAvatarHandler(c *gin.Context) {
 
 // isValidImageMimeType checks if the MIME type is in the allowlist of safe image types
 func isValidImageMimeType(mimeType string) bool {
-	allowedTypes := map[string]bool{
-		"image/jpeg": true,
-		"image/jpg":  true,
-		"image/png":  true,
-		"image/gif":  true,
-		"image/webp": true,
-	}
-	return allowedTypes[mimeType]
+	return allowedImageMimeTypes[mimeType]
 }
