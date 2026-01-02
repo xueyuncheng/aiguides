@@ -76,7 +76,6 @@ func NewEmailSummaryAgent(model model.LLM) (agent.Agent, error) {
 		Model:       model,
 		Description: "专业的邮件分析助手，擅长读取 Apple Mail 邮件并提供重要邮件总结",
 		Instruction: emailSummaryAgentInstruction,
-		OutputKey:   "email_summary_output",
 		Tools: []tool.Tool{
 			mailFetchTool,
 		},

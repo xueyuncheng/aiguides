@@ -107,7 +107,6 @@ func NewTravelAgent(model model.LLM) (agent.Agent, error) {
 		Model:       model,
 		Description: "专业的旅游规划助手，根据用户的旅游时间和目的地提供详细的旅游行程规划",
 		Instruction: travelAgentInstruction,
-		OutputKey:   "travel_agent_output",
 		Tools: []tool.Tool{
 			searchTool,
 			googleMapsTool,

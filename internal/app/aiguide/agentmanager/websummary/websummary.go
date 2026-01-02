@@ -67,7 +67,6 @@ func NewWebSummaryAgent(model model.LLM) (agent.Agent, error) {
 		Model:       model,
 		Description: "专业的网页内容分析助手，擅长访问网页并提供深度总结",
 		Instruction: webSummaryAgentInstruction,
-		OutputKey:   "web_summary_output",
 		Tools: []tool.Tool{
 			agenttool.New(searchAgent, nil),
 			webFetchTool,
