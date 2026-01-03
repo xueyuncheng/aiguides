@@ -608,6 +608,25 @@ export default function ChatPage() {
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
 
+    // Start polling for session updates immediately (before waiting for response)
+    // This speeds up session title generation feedback
+    let pollCount = 0;
+    const maxPolls = 30; // Poll up to 30 times
+    const pollInterval = setInterval(async () => {
+      const fetchedSessions = await loadSessions(true);
+      const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
+
+      if (currentSession?.title) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      pollCount++;
+      if (pollCount >= maxPolls) {
+        clearInterval(pollInterval);
+      }
+    }, 1000); // Poll every 1 second
+
     try {
       const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
@@ -707,24 +726,6 @@ export default function ChatPage() {
 
         // Finalize streaming state for all messages in this session
         setMessages((prev) => prev.map(msg => ({ ...msg, isStreaming: false })));
-
-        // Poll for session updates to capture title generation
-        let pollCount = 0;
-        const maxPolls = 5;
-        const pollInterval = setInterval(async () => {
-          const fetchedSessions = await loadSessions(true);
-          const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
-
-          if (currentSession?.title) {
-            clearInterval(pollInterval);
-            return;
-          }
-
-          pollCount++;
-          if (pollCount >= maxPolls) {
-            clearInterval(pollInterval);
-          }
-        }, 2000); // Poll every 2 seconds
       }
     } catch (error) {
       // Check if the error is due to abort
