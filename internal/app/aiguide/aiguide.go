@@ -16,6 +16,7 @@ import (
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+	"gorm.io/gorm/schema"
 )
 
 type Config struct {
@@ -65,6 +66,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	dialector := sqlite.Open(config.DBFile)
 	dbConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
+		NamingStrategy: schema.NamingStrategy{
+			SingularTable: true,
+		},
 	}
 
 	db, err := gorm.Open(dialector, dbConfig)
