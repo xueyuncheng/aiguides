@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # 构建应用
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o aiguide ./cmd/aiguide/aiguide.go
+RUN CGO_ENABLED=0 GOOS=linux go build -o aiguide ./cmd/aiguide/aiguide.go
 
 # 运行阶段
 FROM alpine:3.19
@@ -29,4 +29,4 @@ WORKDIR /app
 EXPOSE 8080
 
 # 运行应用 - 配置文件将通过 volume 挂载
-CMD ["./aiguide", "-f", "/config/aiguide.yaml"]
+CMD ["./aiguide", "-f", "/app/config/aiguide.yaml"]
