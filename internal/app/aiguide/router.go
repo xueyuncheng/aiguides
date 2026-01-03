@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -134,6 +135,21 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 		return
 	}
 
+	// 验证是否在允许登录的邮箱列表中
+	frontendURL := a.config.FrontendURL
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+
+	if len(a.config.AllowedEmails) > 0 {
+		allowed := slices.Contains(a.config.AllowedEmails, user.Email)
+		if !allowed {
+			slog.Error("login attempt from unauthorized email", "email", user.Email)
+			c.Redirect(http.StatusFound, frontendURL+"/login?error=unauthorized")
+			return
+		}
+	}
+
 	// 保存用户信息到数据库
 	if err := saveUser(a.db, user); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user info"})
@@ -152,10 +168,6 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 	c.SetCookie("auth_token", jwtToken, 86400, "/", "", false, true)
 
 	// 重定向到前端
-	frontendURL := a.config.FrontendURL
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
 	c.Redirect(http.StatusFound, frontendURL)
 }
 
