@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
@@ -150,7 +151,12 @@ func (a *AgentManager) streamAgentEvents(
 			for _, part := range event.LLMResponse.Content.Parts {
 				if part.Text != "" {
 					// 发送数据事件
-					ctx.SSEvent("data", gin.H{"author": event.Author, "content": part.Text})
+					data := gin.H{
+						"author":     event.Author,
+						"content":    part.Text,
+						"is_thought": part.Thought,
+					}
+					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
 				}
 			}
@@ -162,8 +168,20 @@ func (a *AgentManager) streamAgentEvents(
 	ctx.Writer.Flush()
 }
 
+const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s". 
+Rules: 
+1. Use the same language as the user's message. 
+2. Do NOT use any Markdown formatting (no bold, no italics). 
+3. Do NOT use quotes in the title. 
+4. Output only the title text.`
+
 // generateTitle 生成会话标题
 func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
+	t := time.Now()
+	defer func() {
+		slog.Info("generateTitle", "duration", time.Since(t))
+	}()
+
 	// 1. 检查数据库中是否已有标题
 	var meta table.SessionMeta
 	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {
@@ -171,13 +189,20 @@ func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessag
 	}
 
 	// 2. 调用 LLM 生成标题
-	prompt := "Please generate a short title (3-5 words) for this conversation based on the user's message: " + firstMessage
+	prompt := fmt.Sprintf(titlePromptTemplate, firstMessage)
 	content := genai.NewContentFromText(prompt, genai.RoleUser)
 
 	req := &model.LLMRequest{
+		// Model:    "gemini-2.0-flash",
 		Contents: []*genai.Content{content},
+		Config: &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				IncludeThoughts: false,
+			},
+		},
 	}
 
+	generatedTitle := ""
 	for resp, err := range a.model.GenerateContent(ctx, req, false) {
 		if err != nil {
 			slog.Error("a.model.GenerateContent() error", "err", err)
@@ -189,32 +214,30 @@ func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessag
 			continue
 		}
 
-		generatedTitle := ""
 		for _, part := range resp.Content.Parts {
+			if part.Thought {
+				continue
+			}
 			if part.Text != "" {
-				generatedTitle = part.Text
-				break
+				generatedTitle += part.Text
 			}
 		}
-
-		if generatedTitle == "" {
-			continue
-		}
-
-		// 3. 保存到数据库
-		meta = table.SessionMeta{
-			SessionID: sessionID,
-			Title:     generatedTitle,
-		}
-
-		if err := a.db.Save(&meta).Error; err != nil {
-			slog.Error("db.Save() error", "err", err)
-			return fmt.Errorf("db.Save() error, err = %w", err)
-		}
-
-		// 只要有一个结果就返回（非流式）
-		return nil
 	}
 
-	return errors.New("no content generated")
+	if generatedTitle == "" {
+		return errors.New("no content generated")
+	}
+
+	// 3. 保存到数据库
+	meta = table.SessionMeta{
+		SessionID: sessionID,
+		Title:     generatedTitle,
+	}
+
+	if err := a.db.Save(&meta).Error; err != nil {
+		slog.Error("db.Save() error", "err", err)
+		return fmt.Errorf("db.Save() error, err = %w", err)
+	}
+
+	return nil
 }

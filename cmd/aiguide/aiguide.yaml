@@ -1,5 +1,6 @@
 api_key: xxxx
 model_name: gemini-2.0-flash-exp
+# base_url: https://xxxx.com # 自定义 Gemini API Base URL (可选)
 use_gin: true
 gin_port: 8080
 
@@ -14,13 +15,12 @@ gin_port: 8080
 #    - 创建 OAuth 客户端 ID（Web 应用）
 #    - 添加回调 URL: http://localhost:8080/auth/google/callback
 # 2. 填写 Client ID 和 Client Secret
-# 3. 设置 enable_authentication 为 true
-# 4. 生成安全的 JWT Secret（建议使用以下命令生成）:
-#    openssl rand -base64 32
-#    或: python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 
-enable_authentication: false
 # google_client_id: your_google_client_id_here
 # google_client_secret: your_google_client_secret_here
 # google_redirect_url: http://localhost:8080/auth/google/callback
 # jwt_secret: your_random_jwt_secret_here
+
+# 允许登录的邮箱列表 (可选, 为空则允许所有 Google 邮箱)
+allowed_emails:
+  - datouguix@gmail.com

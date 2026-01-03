@@ -19,17 +19,19 @@ import (
 )
 
 type Config struct {
-	DBFile             string `yaml:"db_file"`
-	APIKey             string `yaml:"api_key"`
-	ModelName          string `yaml:"model_name"`
-	Proxy              string `yaml:"proxy"`
-	UseGin             bool   `yaml:"use_gin"`
-	GinPort            int    `yaml:"gin_port"`
-	GoogleClientID     string `yaml:"google_client_id"`
-	GoogleClientSecret string `yaml:"google_client_secret"`
-	GoogleRedirectURL  string `yaml:"google_redirect_url"`
-	JWTSecret          string `yaml:"jwt_secret"`
-	FrontendURL        string `yaml:"frontend_url"`
+	DBFile             string   `yaml:"db_file"`
+	APIKey             string   `yaml:"api_key"`
+	ModelName          string   `yaml:"model_name"`
+	BaseURL            string   `yaml:"base_url"`
+	Proxy              string   `yaml:"proxy"`
+	UseGin             bool     `yaml:"use_gin"`
+	GinPort            int      `yaml:"gin_port"`
+	GoogleClientID     string   `yaml:"google_client_id"`
+	GoogleClientSecret string   `yaml:"google_client_secret"`
+	GoogleRedirectURL  string   `yaml:"google_redirect_url"`
+	JWTSecret          string   `yaml:"jwt_secret"`
+	FrontendURL        string   `yaml:"frontend_url"`
+	AllowedEmails      []string `yaml:"allowed_emails"`
 }
 
 type AIGuide struct {
@@ -50,6 +52,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	genaiConfig := &genai.ClientConfig{
 		APIKey:     config.APIKey,
 		HTTPClient: httpClient,
+	}
+	if config.BaseURL != "" {
+		genaiConfig.HTTPOptions.BaseURL = config.BaseURL
 	}
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {

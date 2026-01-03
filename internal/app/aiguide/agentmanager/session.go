@@ -42,6 +42,7 @@ type MessageEvent struct {
 	Timestamp time.Time `json:"timestamp"`
 	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
+	Thought   string    `json:"thought,omitempty"`
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -179,18 +180,22 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 			}
 
 			content := ""
+			thought := ""
 			for _, part := range event.Content.Parts {
-				if part.Text != "" {
+				if part.Thought {
+					thought += part.Text
+				} else if part.Text != "" {
 					content += part.Text
 				}
 			}
 
-			if content != "" {
+			if content != "" || thought != "" {
 				allMessages = append(allMessages, MessageEvent{
 					ID:        event.ID,
 					Timestamp: event.Timestamp,
 					Role:      role,
 					Content:   content,
+					Thought:   thought,
 				})
 			}
 		}
