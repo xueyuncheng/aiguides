@@ -21,6 +21,6 @@ gin_port: 8080
 # google_redirect_url: http://localhost:8080/auth/google/callback
 # jwt_secret: your_random_jwt_secret_here
 
-# 允许登录的邮箱列表 (可选, 为空则允许所有 Google 邮箱)
+# 允许登录的邮箱列表 (如果列表为空，则任何人都无法登录)
 allowed_emails:
   - datouguix@gmail.com
