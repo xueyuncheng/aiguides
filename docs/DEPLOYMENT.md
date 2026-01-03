@@ -126,7 +126,7 @@ make down
 2. **传输阶段**
    - 将镜像保存为 tar 文件
    - 通过 SCP 传输到服务器
-   - 同时传输 `docker-compose.yml` 和 `Makefile`
+   - 同时传输 `deployments/docker/docker-compose.yml` 和 `Makefile`
 
 3. **部署阶段**
    - 在服务器上加载镜像
@@ -189,7 +189,7 @@ docker compose ps
 - 多阶段构建优化性能
 - 默认暴露 3000 端口
 
-### `docker-compose.yml`
+### `deployments/docker/docker-compose.yml`
 - 定义前后端服务
 - 配置网络连接
 - 设置自动重启策略
@@ -202,7 +202,7 @@ docker compose ps
 
 ```
 /home/ubuntu/aiguide/
-├── docker-compose.yml       # Docker 编排配置
+├── docker-compose.yml       # Docker 编排配置（从 deployments/docker/ 复制）
 ├── Makefile                 # 部署命令
 ├── config/                  # 配置文件目录
 │   └── aiguide.yaml        # 后端配置（包含 API 密钥）
@@ -211,6 +211,8 @@ docker compose ps
 ├── aiguide-backend.tar     # 后端镜像（临时）
 └── aiguide-frontend.tar    # 前端镜像（临时）
 ```
+
+**注意**: docker-compose.yml 在服务器上直接放在部署目录根目录，虽然在源码仓库中位于 `deployments/docker/` 目录。
 
 ## 安全建议
 
@@ -221,7 +223,7 @@ docker compose ps
 
 ## 环境变量配置
 
-如果您需要配置环境变量（如 API 密钥、数据库连接等），请在 `docker-compose.yml` 中的 `environment` 部分添加，或创建 `.env` 文件。
+如果您需要配置环境变量（如 API 密钥、数据库连接等），请在 `deployments/docker/docker-compose.yml` 中的 `environment` 部分添加，或创建 `.env` 文件。
 
 注意：不要将敏感信息提交到 Git 仓库！
 

@@ -19,10 +19,10 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build backend image
-        run: docker build -f Dockerfile.backend -t aiguide-backend:latest .
+        run: docker build -f deployments/docker/Dockerfile.backend -t aiguide-backend:latest .
 
       - name: Build frontend image
-        run: docker build -f Dockerfile.frontend -t aiguide-frontend:latest .
+        run: docker build -f deployments/docker/Dockerfile.frontend -t aiguide-frontend:latest .
 
       - name: Save images to tar files
         run: |
@@ -50,7 +50,7 @@ jobs:
           scp aiguide-frontend.tar $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
           
           # 传输配置文件
-          scp docker-compose.yml $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
+          scp deployments/docker/docker-compose.yml $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
           scp Makefile $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
 
       - name: Deploy on server

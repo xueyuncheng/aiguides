@@ -41,7 +41,7 @@ jwt_secret: YOUR_JWT_SECRET
 ### 4. 启动服务（1分钟）
 
 ```bash
-./start.sh
+./scripts/start.sh
 ```
 
 打开 http://localhost:3000 - 完成！
@@ -164,7 +164,7 @@ cd frontend && npm run build
 cd frontend && npm run dev
 
 # 一键启动（推荐）
-./start.sh
+./scripts/start.sh
 
 # 生成 JWT Secret
 openssl rand -base64 32

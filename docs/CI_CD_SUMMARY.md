@@ -12,13 +12,13 @@
 - **安全性**：配置文件通过 volume 挂载，不包含在镜像中
 - **端口**：暴露 8080 端口
 
-#### `Dockerfile.frontend` - 前端镜像
+#### `deployments/docker/Dockerfile.frontend` - 前端镜像
 - **Next.js Standalone 模式**：启用 standalone 输出，减小镜像体积
 - **多阶段构建**：依赖安装、构建、运行三个独立阶段
 - **生产优化**：使用 Node.js 20 Alpine，创建非 root 用户运行
 - **端口**：暴露 3000 端口
 
-#### `docker-compose.yml` - 服务编排
+#### `deployments/docker/docker-compose.yml` - 服务编排
 - **网络隔离**：创建独立的 Docker 网络用于服务间通信
 - **Volume 挂载**：
   - `./config:/config:ro` - 只读配置文件目录

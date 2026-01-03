@@ -5,11 +5,11 @@ fmt:
 
 # 构建后端 Docker 镜像
 build-backend:
-	docker build -f Dockerfile.backend -t aiguide-backend:latest .
+	docker build -f deployments/docker/Dockerfile.backend -t aiguide-backend:latest .
 
 # 构建前端 Docker 镜像
 build-frontend:
-	docker build -f Dockerfile.frontend -t aiguide-frontend:latest .
+	docker build -f deployments/docker/Dockerfile.frontend -t aiguide-frontend:latest .
 
 # 构建所有镜像
 build: build-backend build-frontend
