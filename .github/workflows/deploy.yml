@@ -2,7 +2,7 @@ name: Build and Deploy
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, copilot/setup-ci-for-docker-deployment ]
 
 jobs:
   build-and-deploy:
@@ -48,10 +48,6 @@ jobs:
           # 传输镜像文件
           scp aiguide-backend.tar $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
           scp aiguide-frontend.tar $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
-          
-          # 传输配置文件
-          scp deployments/docker/docker-compose.yml $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
-          scp Makefile $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
 
       - name: Deploy on server
         env:
@@ -62,11 +58,6 @@ jobs:
         run: |
           ssh $SERVER_USER@$SERVER_HOST << EOF
             cd ${{ secrets.DEPLOY_PATH }}
-            make load-images
-            make deploy
-            make clean
+            make restart
           EOF
 
-      - name: Clean up
-        run: |
-          rm -f aiguide-backend.tar aiguide-frontend.tar
