@@ -609,24 +609,27 @@ export default function ChatPage() {
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
 
-    // Start polling for session updates immediately (before waiting for response)
-    // This speeds up session title generation feedback
-    let pollCount = 0;
-    const maxPolls = 30; // Poll up to 30 times
-    const pollInterval = setInterval(async () => {
-      const fetchedSessions = await loadSessions(true);
-      const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
+    // Only poll for session title on the first message in this session
+    // Check if this is the first user message (before adding the new one, we had 0 user messages)
+    const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
+    if (isFirstMessage) {
+      let pollCount = 0;
+      const maxPolls = 30; // Poll up to 30 times
+      const pollInterval = setInterval(async () => {
+        const fetchedSessions = await loadSessions(true);
+        const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
 
-      if (currentSession?.title) {
-        clearInterval(pollInterval);
-        return;
-      }
+        if (currentSession?.title) {
+          clearInterval(pollInterval);
+          return;
+        }
 
-      pollCount++;
-      if (pollCount >= maxPolls) {
-        clearInterval(pollInterval);
-      }
-    }, 1000); // Poll every 1 second
+        pollCount++;
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+        }
+      }, 1000); // Poll every 1 second
+    }
 
     try {
       const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
