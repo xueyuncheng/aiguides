@@ -22,6 +22,7 @@ type Config struct {
 	DBFile             string `yaml:"db_file"`
 	APIKey             string `yaml:"api_key"`
 	ModelName          string `yaml:"model_name"`
+	BaseURL            string `yaml:"base_url"`
 	Proxy              string `yaml:"proxy"`
 	UseGin             bool   `yaml:"use_gin"`
 	GinPort            int    `yaml:"gin_port"`
@@ -50,6 +51,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	genaiConfig := &genai.ClientConfig{
 		APIKey:     config.APIKey,
 		HTTPClient: httpClient,
+	}
+	if config.BaseURL != "" {
+		genaiConfig.HTTPOptions.BaseURL = config.BaseURL
 	}
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {

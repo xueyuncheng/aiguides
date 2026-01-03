@@ -150,7 +150,12 @@ func (a *AgentManager) streamAgentEvents(
 			for _, part := range event.LLMResponse.Content.Parts {
 				if part.Text != "" {
 					// 发送数据事件
-					ctx.SSEvent("data", gin.H{"author": event.Author, "content": part.Text})
+					data := gin.H{
+						"author":     event.Author,
+						"content":    part.Text,
+						"is_thought": part.Thought,
+					}
+					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
 				}
 			}

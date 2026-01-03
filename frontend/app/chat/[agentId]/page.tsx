@@ -9,15 +9,17 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  thought?: string;
   timestamp: Date;
   author?: string;
+  isStreaming?: boolean;
 }
 
 interface AgentInfo {
@@ -111,8 +113,23 @@ UserAvatar.displayName = 'UserAvatar';
 const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
-const AIMessageContent = memo(({ content }: { content: string }) => {
+const AIMessageContent = memo(({ content, thought, isStreaming }: { content: string; thought?: string; isStreaming?: boolean }) => {
   const [showRaw, setShowRaw] = useState(false);
+  const [isThoughtExpanded, setIsThoughtExpanded] = useState(false);
+
+  // Handle auto-expand/collapse of thought process during streaming
+  useEffect(() => {
+    if (isStreaming) {
+      if (thought && !content) {
+        // Expand when thought is streaming but content hasn't started
+        setIsThoughtExpanded(true);
+      } else if (content) {
+        // Collapse when main content starts appearing
+        setIsThoughtExpanded(false);
+      }
+    }
+  }, [isStreaming, !!thought, !!content]);
+
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -161,84 +178,128 @@ const AIMessageContent = memo(({ content }: { content: string }) => {
 
   return (
     <div className="group">
-      {/* Content display */}
-      {showRaw ? (
-        <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
-          {content}
-        </pre>
-      ) : (
-        <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ ...props }) => (
-                <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
-              ),
-              code: ({ className, children, ...props }) => {
-                const match = /language-(\w+)/.exec(className || '')
-                const isInline = !match;
-                return isInline ? (
-                  <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
-                    {children}
-                  </code>
-                ) : (
-                  <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
-                    <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
-                      <span>{match?.[1]}</span>
-                    </div>
-                    <pre className="p-4 overflow-x-auto text-xs">
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    </pre>
-                  </div>
-                )
-              },
-              ul: ({ ...props }) => (
-                <ul {...props} className="list-disc list-inside space-y-0.5 my-3 text-sm" />
-              ),
-              ol: ({ ...props }) => (
-                <ol {...props} className="list-decimal list-inside space-y-0.5 my-3 text-sm" />
-              ),
-            }}
+      {/* Thought Process section */}
+      {thought && (
+        <div className="mb-4">
+          <button
+            onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
+            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-lg border bg-secondary/30"
+            aria-expanded={isThoughtExpanded}
           >
-            {content}
-          </ReactMarkdown>
+            {isThoughtExpanded ? (
+              <ChevronDown className="h-3 w-3" />
+            ) : (
+              <ChevronRight className="h-3 w-3" />
+            )}
+            <span>思考过程</span>
+          </button>
+
+          <div className={cn(
+            "mt-2 overflow-hidden transition-all duration-300 ease-in-out",
+            isThoughtExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+          )}>
+            <div className="text-xs text-muted-foreground/80 leading-relaxed pl-4 border-l-2 border-muted py-1 italic whitespace-pre-wrap">
+              {thought}
+              {isStreaming && (
+                <span className="inline-block w-1 h-3 ml-1 bg-muted-foreground/40 animate-pulse align-middle" />
+              )}
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Toggle and Copy buttons - below content with icons only */}
-      <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => setShowRaw(!showRaw)}
-          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-          title={showRaw ? "显示渲染效果" : "显示原始内容"}
-          aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
-        >
-          {showRaw ? (
-            <Eye className="h-3.5 w-3.5" />
-          ) : (
-            <Code2 className="h-3.5 w-3.5" />
-          )}
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={handleCopy}
-          className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-          title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-          aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-        >
-          {copyError ? (
-            <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
-          ) : copied ? (
-            <Check className="h-3.5 w-3.5 text-green-600" />
-          ) : (
-            <Copy className="h-3.5 w-3.5" />
-          )}
-        </Button>
+      {/* Content display */}
+      <div className="relative">
+        {!content && isStreaming && thought && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground py-2 animate-pulse">
+            <div className="flex space-x-1">
+              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"></div>
+            </div>
+            <span>准备回答...</span>
+          </div>
+        )}
+        {showRaw ? (
+          <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
+            {content}
+          </pre>
+        ) : (
+          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ ...props }) => (
+                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                ),
+                code: ({ className, children, ...props }) => {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const isInline = !match;
+                  return isInline ? (
+                    <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                      {children}
+                    </code>
+                  ) : (
+                    <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white">
+                      <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between">
+                        <span>{match?.[1]}</span>
+                      </div>
+                      <pre className="p-4 overflow-x-auto text-xs">
+                        <code className={className} {...props}>
+                          {children}
+                        </code>
+                      </pre>
+                    </div>
+                  )
+                },
+                ul: ({ ...props }) => (
+                  <ul {...props} className="list-disc list-inside space-y-0.5 my-3 text-sm" />
+                ),
+                ol: ({ ...props }) => (
+                  <ol {...props} className="list-decimal list-inside space-y-0.5 my-3 text-sm" />
+                ),
+              }}
+            >
+              {content}
+            </ReactMarkdown>
+          </div>
+        )}
+
+        {/* Toggle and Copy buttons - below content with icons only */}
+        {!isStreaming && (
+          <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setShowRaw(!showRaw)}
+              className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+              title={showRaw ? "显示渲染效果" : "显示原始内容"}
+              aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
+            >
+              {showRaw ? (
+                <Eye className="h-3.5 w-3.5" />
+              ) : (
+                <Code2 className="h-3.5 w-3.5" />
+              )}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleCopy}
+              className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
+              title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+              aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+            >
+              {copyError ? (
+                <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+              ) : copied ? (
+                <Check className="h-3.5 w-3.5 text-green-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -370,6 +431,7 @@ export default function ChatPage() {
           id: msg.id,
           role: msg.role,
           content: msg.content,
+          thought: msg.thought,
           timestamp: new Date(msg.timestamp),
         }));
         setMessages(historyMessages);
@@ -408,6 +470,7 @@ export default function ChatPage() {
           id: msg.id,
           role: msg.role,
           content: msg.content,
+          thought: msg.thought,
           timestamp: new Date(msg.timestamp),
         }));
 
@@ -564,6 +627,7 @@ export default function ChatPage() {
       const decoder = new TextDecoder();
       let currentAuthor = '';
       let assistantContent = '';
+      let assistantThought = '';
 
       if (reader) {
         let buffer = '';
@@ -588,26 +652,34 @@ export default function ChatPage() {
 
                 if (data.content) {
                   // Check if this is a duplicate complete message (identical to accumulated content)
-                  const isCompleteDuplicate = data.content === assistantContent;
+                  const isCompleteDuplicate = !data.is_thought && data.content === assistantContent;
 
                   if (!isCompleteDuplicate) {
                     // Check if author changed - create new message block
                     if (data.author && data.author !== currentAuthor) {
                       currentAuthor = data.author;
-                      assistantContent = data.content;
+                      assistantContent = data.is_thought ? '' : data.content;
+                      assistantThought = data.is_thought ? data.content : '';
 
                       // Create new message for new author
                       const newMessage: Message = {
                         id: `msg-${Date.now()}-${currentAuthor}`,
                         role: 'assistant',
                         content: assistantContent,
+                        thought: assistantThought,
                         timestamp: new Date(),
                         author: currentAuthor,
+                        isStreaming: true,
                       };
                       setMessages((prev) => [...prev, newMessage]);
                     } else {
-                      // Same author - accumulate content
-                      assistantContent += data.content;
+                      // Same author - accumulate content or thought
+                      if (data.is_thought) {
+                        assistantThought += data.content;
+                      } else {
+                        assistantContent += data.content;
+                      }
+
                       setMessages((prev) => {
                         const newMessages = [...prev];
                         const lastIndex = newMessages.length - 1;
@@ -615,6 +687,8 @@ export default function ChatPage() {
                           newMessages[lastIndex] = {
                             ...newMessages[lastIndex],
                             content: assistantContent,
+                            thought: assistantThought,
+                            isStreaming: true,
                           };
                         }
                         return newMessages;
@@ -628,6 +702,10 @@ export default function ChatPage() {
             }
           }
         }
+
+        // Finalize streaming state for all messages in this session
+        setMessages((prev) => prev.map(msg => ({ ...msg, isStreaming: false })));
+
         // Poll for session updates to capture title generation
         let pollCount = 0;
         const maxPolls = 5;
@@ -788,13 +866,17 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-sm",
+                          "relative text-sm w-full",
                           message.role === 'user'
-                            ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm"
-                            : "leading-6 pt-1"
+                            ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm self-end max-w-[85%]"
+                            : "leading-6 pt-1 flex-1"
                         )}>
                           {message.role === 'assistant' ? (
-                            <AIMessageContent content={message.content} />
+                            <AIMessageContent
+                              content={message.content}
+                              thought={message.thought}
+                              isStreaming={message.isStreaming}
+                            />
                           ) : (
                             <div className="whitespace-pre-wrap">{message.content}</div>
                           )}
@@ -802,15 +884,18 @@ export default function ChatPage() {
                       </div>
                     </div>
                   ))}
-                  {isLoading && (
+                  {isLoading && (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') && (
                     <div className="flex w-full justify-start">
                       <div className="flex gap-4 max-w-[85%]">
                         <AIAvatar icon={agentInfo.icon} />
                         <div className="pt-2">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                            <div className="w-2 h-2 bg-muted-foreground/40 rounded-full animate-bounce"></div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                            <div className="flex space-x-1">
+                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"></div>
+                            </div>
+                            <span>AI 正在思考...</span>
                           </div>
                         </div>
                       </div>
