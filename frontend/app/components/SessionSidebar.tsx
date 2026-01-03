@@ -4,6 +4,7 @@ import { useState, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight, Trash2, Home } from 'lucide-react';
+import { cn } from '@/app/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,7 +95,10 @@ const SessionSidebar = memo(({
       )}
       
       {/* Sidebar */}
-      <div className={`fixed left-0 top-0 h-full w-[260px] bg-[#171717] flex flex-col z-50 transition-transform duration-300 ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <div className={cn(
+        "fixed left-0 top-0 h-full w-[260px] bg-[#171717] flex flex-col z-50 transition-transform duration-300",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      )}>
         {/* Header & New Chat */}
         <div className="p-3">
           <div className="flex justify-between items-center mb-2">
@@ -155,10 +159,12 @@ const SessionSidebar = memo(({
               <div
                 key={session.session_id}
                 onClick={() => handleSessionClick(session.session_id)}
-                className={`group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm ${session.session_id === currentSessionId
-                  ? 'bg-[#2c2c2c] text-[#ececec]'
-                  : 'text-[#ececec] hover:bg-[#212121]'
-                  }`}
+                className={cn(
+                  "group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm",
+                  session.session_id === currentSessionId
+                    ? "bg-[#2c2c2c] text-[#ececec]"
+                    : "text-[#ececec] hover:bg-[#212121]"
+                )}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate flex-1">
@@ -166,7 +172,10 @@ const SessionSidebar = memo(({
                   </span>
 
                   {/* Delete button only visible on hover */}
-                  <div className={`flex items-center opacity-0 group-hover:opacity-100 ${session.session_id === currentSessionId ? 'opacity-100' : ''}`}>
+                  <div className={cn(
+                    "flex items-center opacity-0 group-hover:opacity-100",
+                    session.session_id === currentSessionId && "opacity-100"
+                  )}>
                     {/* Shadow gradient to cover text */}
                     <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#171717] to-transparent pointer-events-none group-hover:from-[#212121] group-hover:via-[#212121]"></div>
                     {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#2c2c2c] to-transparent pointer-events-none"></div>}
