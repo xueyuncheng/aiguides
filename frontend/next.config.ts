@@ -8,19 +8,19 @@ const nextConfig: NextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:18080/api/:path*',
+        destination: 'http://localhost:8080/api/:path*',
       },
       {
         source: '/auth/:path*',
-        destination: 'http://localhost:18080/auth/:path*',
+        destination: 'http://localhost:8080/auth/:path*',
       },
       {
         source: '/config',
-        destination: 'http://localhost:18080/config',
+        destination: 'http://localhost:8080/config',
       },
       {
         source: '/health',
-        destination: 'http://localhost:18080/health',
+        destination: 'http://localhost:8080/health',
       },
     ];
   },
