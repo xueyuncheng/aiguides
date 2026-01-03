@@ -43,34 +43,26 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// API 路由
 	api := engine.Group("/api")
 
-	// 认证路由
-	authGroup := api.Group("/auth")
-	{
-		authGroup.GET("/login/google", a.googleLoginHandler)
-		authGroup.GET("/callback/google", a.googleCallbackHandler)
-		authGroup.POST("/logout", a.logoutHandler)
-		authGroup.GET("/user", auth.AuthMiddleware(a.authService), a.getUserHandler)
-		authGroup.GET("/avatar/:userId", a.getAvatarHandler)
-	}
+	// 公开路由 (无需认证)
+	api.GET("/auth/login/google", a.googleLoginHandler)
+	api.GET("/auth/callback/google", a.googleCallbackHandler)
+	api.POST("/auth/logout", a.logoutHandler)
+	api.GET("/auth/avatar/:userId", a.getAvatarHandler)
 
-	// 根据配置决定是否使用认证中间件
-	var chatGroup *gin.RouterGroup
-	if a.config.EnableAuthentication {
-		// 启用认证：所有 API 需要认证
-		chatGroup = api.Group("", auth.AuthMiddleware(a.authService))
-	} else {
-		// 不启用认证：API 无需认证
-		chatGroup = api.Group("")
-	}
+	// 应用认证中间件到后续所有接口
+	api.Use(auth.AuthMiddleware(a.authService))
+
+	// 需要认证的用户信息接口
+	api.GET("/auth/user", a.getUserHandler)
 
 	// Agent 聊天路由
-	chatGroup.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
-	chatGroup.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
-	chatGroup.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
-	chatGroup.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
+	api.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
+	api.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
+	api.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
+	api.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
 
 	// 会话管理路由
-	agentGroup := chatGroup.Group("/:agentId/sessions")
+	agentGroup := api.Group("/:agentId/sessions")
 	{
 		agentGroup.GET("", a.agentManager.ListSessionsHandler)
 		agentGroup.POST("", a.agentManager.CreateSessionHandler)

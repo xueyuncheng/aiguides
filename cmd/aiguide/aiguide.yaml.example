@@ -10,11 +10,8 @@ model_name: gemini-2.0-flash-exp
 use_gin: true
 gin_port: 8080
 
-# Google OAuth 认证配置（可选）
-# 如果不需要认证，将 enable_authentication 设置为 false 即可
-enable_authentication: false
-
-# 如果启用认证，需要配置以下参数：
+# Google OAuth 认证配置
+# 需要配置以下参数：
 # 1. 访问 Google Cloud Console: https://console.cloud.google.com/
 # 2. 创建或选择项目
 # 3. 启用 Google+ API

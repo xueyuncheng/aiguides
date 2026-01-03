@@ -342,7 +342,7 @@ ChatSkeleton.displayName = 'ChatSkeleton';
 export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading, authenticatedFetch } = useAuth();
   const agentId = params.agentId as string;
   const agentInfo = agentInfoMap[agentId];
 
@@ -384,7 +384,7 @@ export default function ChatPage() {
 
     try {
       if (!silent) setIsSessionsLoading(true);
-      const response = await fetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions?user_id=${user.user_id}`);
       if (response.ok) {
         const data = await response.json();
         const sortedSessions = (data || []).sort((a: Session, b: Session) =>
@@ -424,7 +424,7 @@ export default function ChatPage() {
 
     try {
       // Load only the most recent messages (pagination)
-      const response = await fetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
       if (response.ok) {
         const data = await response.json();
         const historyMessages = data.messages.map((msg: any) => ({
@@ -463,7 +463,7 @@ export default function ChatPage() {
 
     try {
       const currentOffset = messages.length;
-      const response = await fetch(`/api/${agentId}/sessions/${sessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`);
       if (response.ok) {
         const data = await response.json();
         const olderMessages = data.messages.map((msg: any) => ({
@@ -505,7 +505,7 @@ export default function ChatPage() {
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
     try {
-      const response = await fetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${user?.user_id}`, {
         method: 'DELETE',
       });
 
@@ -609,7 +609,7 @@ export default function ChatPage() {
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch(`/api/${agentId}/chats/${sessionId}`, {
+      const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -621,7 +621,9 @@ export default function ChatPage() {
         signal: abortControllerRef.current.signal,
       });
 
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();

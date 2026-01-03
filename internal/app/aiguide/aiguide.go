@@ -19,19 +19,18 @@ import (
 )
 
 type Config struct {
-	DBFile               string `yaml:"db_file"`
-	APIKey               string `yaml:"api_key"`
-	ModelName            string `yaml:"model_name"`
-	BaseURL              string `yaml:"base_url"`
-	Proxy                string `yaml:"proxy"`
-	UseGin               bool   `yaml:"use_gin"`
-	GinPort              int    `yaml:"gin_port"`
-	EnableAuthentication bool   `yaml:"enable_authentication"`
-	GoogleClientID       string `yaml:"google_client_id"`
-	GoogleClientSecret   string `yaml:"google_client_secret"`
-	GoogleRedirectURL    string `yaml:"google_redirect_url"`
-	JWTSecret            string `yaml:"jwt_secret"`
-	FrontendURL          string `yaml:"frontend_url"`
+	DBFile             string `yaml:"db_file"`
+	APIKey             string `yaml:"api_key"`
+	ModelName          string `yaml:"model_name"`
+	BaseURL            string `yaml:"base_url"`
+	Proxy              string `yaml:"proxy"`
+	UseGin             bool   `yaml:"use_gin"`
+	GinPort            int    `yaml:"gin_port"`
+	GoogleClientID     string `yaml:"google_client_id"`
+	GoogleClientSecret string `yaml:"google_client_secret"`
+	GoogleRedirectURL  string `yaml:"google_redirect_url"`
+	JWTSecret          string `yaml:"jwt_secret"`
+	FrontendURL        string `yaml:"frontend_url"`
 }
 
 type AIGuide struct {
