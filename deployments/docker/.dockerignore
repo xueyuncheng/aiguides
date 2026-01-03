@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+.github
+
+# Documentation
+*.md
+IMPLEMENTATION_SUMMARY.md
+QUICK_REFERENCE.md
+README.md
+TESTING_GOOGLE_LOGIN.md
+DEPLOYMENT.md
+
+# Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Frontend build artifacts (excluded for backend build)
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/dist
+
+# Go build artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Docker
+*.tar
+docker-compose.yml
+Dockerfile*

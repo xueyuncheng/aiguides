@@ -1,0 +1,63 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main, copilot/setup-ci-for-docker-deployment ]
+
+jobs:
+  build-and-deploy:
+    name: Build Images and Deploy to Server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker build -f deployments/docker/Dockerfile.backend -t aiguide-backend:latest .
+
+      - name: Build frontend image
+        run: docker build -f deployments/docker/Dockerfile.frontend -t aiguide-frontend:latest .
+
+      - name: Save images to tar files
+        run: |
+          docker save -o aiguide-backend.tar aiguide-backend:latest
+          docker save -o aiguide-frontend.tar aiguide-frontend:latest
+
+      - name: Copy images to server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          # 设置 SSH 密钥
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+          
+          # 创建远程目录（如果不存在）
+          ssh $SERVER_USER@$SERVER_HOST "mkdir -p $DEPLOY_PATH"
+          
+          # 传输镜像文件
+          scp aiguide-backend.tar $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
+          scp aiguide-frontend.tar $SERVER_USER@$SERVER_HOST:$DEPLOY_PATH/
+
+      - name: Deploy on server
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          ssh $SERVER_USER@$SERVER_HOST << EOF
+            cd ${{ secrets.DEPLOY_PATH }}
+            make restart
+          EOF
+

@@ -1,0 +1,33 @@
+services:
+  backend:
+    image: aiguide-backend:latest
+    container_name: aiguide-backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/config:ro
+      - ./data:/app/data
+    environment:
+      - GIN_MODE=release
+    restart: unless-stopped
+    networks:
+      - aiguide-network
+
+  frontend:
+    image: aiguide-frontend:latest
+    container_name: aiguide-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # 后端服务地址，Docker 容器内使用服务名称
+      - NEXT_PUBLIC_BACKEND_URL=http://backend:8080
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - aiguide-network
+
+networks:
+  aiguide-network:
+    driver: bridge

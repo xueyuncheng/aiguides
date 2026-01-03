@@ -141,13 +141,11 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 		frontendURL = "http://localhost:3000"
 	}
 
-	if len(a.config.AllowedEmails) > 0 {
-		allowed := slices.Contains(a.config.AllowedEmails, user.Email)
-		if !allowed {
-			slog.Error("login attempt from unauthorized email", "email", user.Email)
-			c.Redirect(http.StatusFound, frontendURL+"/login?error=unauthorized")
-			return
-		}
+	allowed := slices.Contains(a.config.AllowedEmails, user.Email)
+	if !allowed {
+		slog.Error("login attempt from unauthorized email", "email", user.Email)
+		c.Redirect(http.StatusFound, frontendURL+"/login?error=unauthorized")
+		return
 	}
 
 	// 保存用户信息到数据库

@@ -86,7 +86,7 @@ gin_port: 8080       # API 服务端口
 
 3. 使用启动脚本同时启动后端和前端：
 ```bash
-./start.sh
+./scripts/start.sh
 ```
 
 该脚本会自动：
@@ -174,7 +174,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 使用启动脚本启动服务：
 
 ```bash
-./start.sh
+./scripts/start.sh
 ```
 
 或手动启动后端和前端：

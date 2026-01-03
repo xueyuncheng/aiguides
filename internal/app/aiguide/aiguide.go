@@ -25,7 +25,7 @@ type Config struct {
 	BaseURL            string   `yaml:"base_url"`
 	Proxy              string   `yaml:"proxy"`
 	UseGin             bool     `yaml:"use_gin"`
-	GinPort            int      `yaml:"gin_port"`
+	GinPort            string   `yaml:"gin_port"`
 	GoogleClientID     string   `yaml:"google_client_id"`
 	GoogleClientSecret string   `yaml:"google_client_secret"`
 	GoogleRedirectURL  string   `yaml:"google_redirect_url"`
@@ -132,8 +132,8 @@ func (a *AIGuide) Run(ctx context.Context) error {
 		return fmt.Errorf("a.initRouter() error, err = %w", err)
 	}
 
-	slog.Info("http listen", "port", "18080")
-	if err := engine.Run(":18080"); err != nil {
+	slog.Info("http listen", "port", a.config.GinPort)
+	if err := engine.Run(":" + a.config.GinPort); err != nil {
 		slog.Error("engine.Run() error", "err", err)
 	}
 

@@ -3,6 +3,9 @@ __debug_*
 /aiguide
 *.db
 
+# Docker artifacts
+*.tar
+
 # Configuration files with secrets (keep the .example version)
 # cmd/aiguide/aiguide.yaml
 

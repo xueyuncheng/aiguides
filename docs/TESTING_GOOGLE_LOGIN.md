@@ -66,7 +66,7 @@ jwt_secret: YOUR_GENERATED_JWT_SECRET
 
 2. **启动服务**：
    ```bash
-   ./start.sh
+   ./scripts/start.sh
    ```
 
 3. **验证**：
@@ -84,7 +84,7 @@ jwt_secret: YOUR_GENERATED_JWT_SECRET
 
 2. **启动服务**：
    ```bash
-   ./start.sh
+   ./scripts/start.sh
    ```
 
 3. **测试登录流程**：
