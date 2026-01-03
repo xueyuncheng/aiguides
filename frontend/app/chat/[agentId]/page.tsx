@@ -9,7 +9,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -357,6 +357,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesStartRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -608,24 +609,27 @@ export default function ChatPage() {
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
 
-    // Start polling for session updates immediately (before waiting for response)
-    // This speeds up session title generation feedback
-    let pollCount = 0;
-    const maxPolls = 30; // Poll up to 30 times
-    const pollInterval = setInterval(async () => {
-      const fetchedSessions = await loadSessions(true);
-      const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
+    // Only poll for session title on the first message in this session
+    // Check if this is the first user message (before adding the new one, we had 0 user messages)
+    const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
+    if (isFirstMessage) {
+      let pollCount = 0;
+      const maxPolls = 30; // Poll up to 30 times
+      const pollInterval = setInterval(async () => {
+        const fetchedSessions = await loadSessions(true);
+        const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
 
-      if (currentSession?.title) {
-        clearInterval(pollInterval);
-        return;
-      }
+        if (currentSession?.title) {
+          clearInterval(pollInterval);
+          return;
+        }
 
-      pollCount++;
-      if (pollCount >= maxPolls) {
-        clearInterval(pollInterval);
-      }
-    }, 1000); // Poll every 1 second
+        pollCount++;
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+        }
+      }, 1000); // Poll every 1 second
+    }
 
     try {
       const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
@@ -785,10 +789,25 @@ export default function ChatPage() {
         onSessionSelect={handleSessionSelect}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
       />
 
       {/* Main Content */}
-      <div className="flex flex-col flex-1 h-full pl-[260px] relative transition-all duration-300">
+      <div className="flex flex-col flex-1 h-full md:pl-[260px] relative transition-all duration-300">
+        {/* Mobile Menu Button */}
+        <div className="md:hidden fixed top-4 left-4 z-30">
+          <Button
+            onClick={() => setIsMobileSidebarOpen(true)}
+            size="icon"
+            variant="outline"
+            className="h-10 w-10 rounded-full bg-background shadow-md"
+            aria-label="打开菜单"
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        </div>
+
         {/* Messages Area */}
         <div
           ref={scrollContainerRef}
@@ -796,7 +815,7 @@ export default function ChatPage() {
           onScroll={handleScroll}
         >
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl px-6 py-10 space-y-8">
+            <div className="w-full max-w-5xl px-4 sm:px-6 py-10 space-y-8">
               {/* Loading older messages indicator */}
               {isLoadingOlderMessages && (
                 <div className="flex justify-center py-4">
@@ -859,7 +878,7 @@ export default function ChatPage() {
                       )}
                     >
                       <div className={cn(
-                        "flex gap-4 max-w-[85%]",
+                        "flex gap-2 sm:gap-4 max-w-[95%] sm:max-w-[85%]",
                         message.role === 'user' ? "flex-row-reverse" : "flex-row"
                       )}>
                         {message.role === 'assistant' ? (
@@ -871,7 +890,7 @@ export default function ChatPage() {
                         <div className={cn(
                           "relative text-sm w-full",
                           message.role === 'user'
-                            ? "bg-secondary px-5 py-3 rounded-2xl rounded-tr-sm self-end max-w-[85%]"
+                            ? "bg-secondary px-3 sm:px-5 py-2.5 sm:py-3 rounded-2xl rounded-tr-sm self-end max-w-[95%] sm:max-w-[85%]"
                             : "leading-6 pt-1 flex-1"
                         )}>
                           {message.role === 'assistant' ? (
@@ -912,8 +931,8 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 w-full pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6">
-          <div className="max-w-5xl mx-auto px-6">
+        <div className="absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
               <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
                 <Textarea

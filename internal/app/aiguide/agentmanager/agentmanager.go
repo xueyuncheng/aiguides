@@ -37,7 +37,7 @@ type AgentManager struct {
 
 func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Error),
+		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true,
 		},
