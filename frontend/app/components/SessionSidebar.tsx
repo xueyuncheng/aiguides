@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useMemo, memo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, Home, Menu } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, Home } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,28 +66,7 @@ const SessionSidebar = memo(({
     }
   };
 
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 1) return '刚刚';
-    if (diffMins < 60) return `${diffMins}分钟前`;
-    if (diffHours < 24) return `${diffHours}小时前`;
-    if (diffDays < 7) return `${diffDays}天前`;
-
-    return date.toLocaleDateString('zh-CN', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
+  // Desktop collapsed state
   if (isCollapsed) {
     return (
       <div className="hidden md:flex fixed left-0 top-0 h-full bg-[#171717] border-r border-[#2c2c2c] z-50 flex-col items-center py-4">
