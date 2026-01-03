@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
@@ -53,6 +52,15 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 		return
 	}
 
+	// 异步生成标题
+	go func() {
+		// 创建一个新的 context，因为 request context 会被取消
+		bgCtx := context.Background()
+		if err := a.generateTitle(bgCtx, sessionID, req.Message); err != nil {
+			slog.Error("generateTitle failed", "err", err)
+		}
+	}()
+
 	// 配置流式响应
 	runConfig := agent.RunConfig{
 		StreamingMode: agent.StreamingModeSSE,
@@ -63,15 +71,6 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 
 	// 处理流式事件
 	a.streamAgentEvents(ctx, runner, userID, sessionID, message, runConfig)
-
-	// 异步生成标题
-	go func() {
-		// 创建一个新的 context，因为 request context 会被取消
-		bgCtx := context.Background()
-		if err := a.generateTitle(bgCtx, sessionID, req.Message); err != nil {
-			slog.Error("generateTitle failed", "err", err)
-		}
-	}()
 }
 
 // ensureSession 确保 session 存在，不存在则创建
@@ -177,11 +176,6 @@ Rules:
 
 // generateTitle 生成会话标题
 func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
-	t := time.Now()
-	defer func() {
-		slog.Info("generateTitle", "duration", time.Since(t))
-	}()
-
 	// 1. 检查数据库中是否已有标题
 	var meta table.SessionMeta
 	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {
