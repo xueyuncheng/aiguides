@@ -53,13 +53,24 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		authGroup.GET("/avatar/:userId", a.getAvatarHandler)
 	}
 
-	api.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
-	api.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
-	api.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
-	api.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
+	// 根据配置决定是否使用认证中间件
+	var chatGroup *gin.RouterGroup
+	if a.config.EnableAuthentication {
+		// 启用认证：所有 API 需要认证
+		chatGroup = api.Group("", auth.AuthMiddleware(a.authService))
+	} else {
+		// 不启用认证：API 无需认证
+		chatGroup = api.Group("")
+	}
+
+	// Agent 聊天路由
+	chatGroup.POST("/travel/chats/:id", a.agentManager.TravelChatHandler)
+	chatGroup.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
+	chatGroup.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
+	chatGroup.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
 
 	// 会话管理路由
-	agentGroup := api.Group("/:agentId/sessions")
+	agentGroup := chatGroup.Group("/:agentId/sessions")
 	{
 		agentGroup.GET("", a.agentManager.ListSessionsHandler)
 		agentGroup.POST("", a.agentManager.CreateSessionHandler)
