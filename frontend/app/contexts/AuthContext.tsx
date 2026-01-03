@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface User {
   user_id: string;
@@ -15,6 +16,8 @@ interface AuthContextType {
   login: () => void;
   logout: () => void;
   checkAuth: () => Promise<void>;
+  handleUnauthorized: () => void;
+  authenticatedFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -22,6 +25,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const handleUnauthorized = () => {
+    setUser(null);
+    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+      router.push('/login');
+    }
+  };
 
   const checkAuth = async () => {
     try {
@@ -32,27 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-      } else if (response.status === 401) {
-        // If auth is disabled on backend (returns 401 on /api/auth/user)
-        // Create a mock user for demo purposes
-        setUser({
-          user_id: 'demo-user',
-          email: 'demo@example.com',
-          name: '演示用户',
-          picture: undefined,
-        });
       } else {
-        setUser(null);
+        handleUnauthorized();
       }
     } catch (error) {
       console.error('Failed to check auth:', error);
-      // On network error, also use demo user
-      setUser({
-        user_id: 'demo-user',
-        email: 'demo@example.com',
-        name: '演示用户',
-        picture: undefined,
-      });
+      handleUnauthorized();
     } finally {
       setLoading(false);
     }
@@ -88,12 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const authenticatedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await fetch(input, init);
+    if (response.status === 401) {
+      handleUnauthorized();
+    }
+    return response;
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, checkAuth }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, checkAuth, handleUnauthorized, authenticatedFetch }}>
       {children}
     </AuthContext.Provider>
   );
