@@ -1,5 +1,6 @@
 api_key: xxxx
 model_name: gemini-2.0-flash-exp
+# base_url: https://xxxx.com # 自定义 Gemini API Base URL (可选)
 use_gin: true
 gin_port: 8080
 
