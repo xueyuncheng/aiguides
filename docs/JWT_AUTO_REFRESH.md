@@ -257,17 +257,24 @@ setInterval(async () => {
 4. **滑动过期机制**: ✅ **已实现** - 每次刷新时同时发放新的刷新令牌，活跃用户无需重新登录
 5. **非活跃用户保护**: 7 天未访问的用户需要重新认证，平衡了便利性和安全性
 6. **Cookie 路径限制**: ✅ **已实现** - 刷新令牌 Cookie 路径设置为 `/api/auth`，仅在认证端点发送，大幅减少暴露风险
+7. **Secure Cookie 标志**: ✅ **已实现** - Cookie 的 secure 标志默认为 `true`（生产环境），仅在本地开发时设置为 `false`
 
-### 生产环境安全建议
+### Cookie Secure 标志配置
 
-**重要**: 在生产环境中使用 HTTPS 时，应当设置 Cookie 的 Secure 标志。当前实现中 Cookie 的 secure 参数设置为 `false`，这在开发环境中便于测试，但在生产环境应当修改为 `true`。
+**默认行为（安全）**: Cookie 的 secure 标志默认为 `true`，适合生产环境（HTTPS）。
 
-建议根据环境变量或配置来动态设置：
+**本地开发配置**: 在 `aiguide.yaml` 中添加以下配置以允许 HTTP 访问：
 
-```go
-secure := os.Getenv("ENV") == "production" // 或使用配置文件
-c.SetCookie("auth_token", token, maxAge, "/", "", secure, true)
+```yaml
+secure_cookie: false  # 仅用于本地开发，生产环境不要设置此项
 ```
+
+**配置说明**:
+- 不设置 `secure_cookie`：默认为 `true`（安全，生产环境）
+- `secure_cookie: true`：显式启用安全模式（生产环境）
+- `secure_cookie: false`：仅用于本地 HTTP 开发
+
+**生产部署**: 生产环境应使用 HTTPS，并确保 `secure_cookie` 未设置或设置为 `true`。
 
 ## 测试
 

@@ -34,7 +34,11 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 	}
 
 	// 创建 AIGuide 实例（仅用于测试）
+	secureCookieDefault := true
 	aiGuide := &AIGuide{
+		config: &Config{
+			SecureCookie: &secureCookieDefault,
+		},
 		authService: authService,
 	}
 
@@ -181,7 +185,11 @@ func TestLogoutHandlerClearsBothCookies(t *testing.T) {
 		JWTSecret: "test-secret-key-for-testing",
 	})
 
+	secureCookieDefault := true
 	aiGuide := &AIGuide{
+		config: &Config{
+			SecureCookie: &secureCookieDefault,
+		},
 		authService: authService,
 	}
 

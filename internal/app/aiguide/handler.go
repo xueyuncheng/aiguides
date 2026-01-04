@@ -18,8 +18,9 @@ const (
 
 // logoutHandler 处理登出
 func (a *AIGuide) logoutHandler(c *gin.Context) {
-	c.SetCookie("auth_token", "", -1, "/", "", false, true)
-	c.SetCookie("refresh_token", "", -1, "/api/auth", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("auth_token", "", -1, "/", "", secure, true)
+	c.SetCookie("refresh_token", "", -1, "/api/auth", "", secure, true)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
 }
 
@@ -63,9 +64,10 @@ func (a *AIGuide) refreshTokenHandler(c *gin.Context) {
 	}
 
 	// 设置新的访问令牌 cookie (15分钟)
-	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", secure, true)
 	// 设置新的刷新令牌 cookie (7天) - 滑动过期机制，路径限制为 /api/auth 以减少暴露
-	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", false, true)
+	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", secure, true)
 
 	// 返回新的访问令牌和刷新令牌
 	c.JSON(http.StatusOK, gin.H{

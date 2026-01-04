@@ -85,7 +85,8 @@ func (a *AIGuide) googleLoginHandler(c *gin.Context) {
 	}
 
 	// 保存 state 到 cookie（用于 CSRF 保护）
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("oauth_state", state, 600, "/", "", secure, true)
 
 	// 获取 Google OAuth URL
 	url := a.authService.GetAuthURL(state)
@@ -110,7 +111,8 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 	}
 
 	// 清除 state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("oauth_state", "", -1, "/", "", secure, true)
 
 	// 获取授权码
 	code := c.Query("code")
@@ -164,9 +166,9 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 	}
 
 	// 设置访问令牌 cookie (15分钟)
-	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", false, true)
+	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", secure, true)
 	// 设置刷新令牌 cookie (7天)，路径限制为 /api/auth 以减少暴露
-	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", false, true)
+	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", secure, true)
 
 	// 重定向到前端
 	c.Redirect(http.StatusFound, frontendURL)

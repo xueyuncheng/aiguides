@@ -33,6 +33,7 @@ type Config struct {
 	JWTSecret          string   `yaml:"jwt_secret"`
 	FrontendURL        string   `yaml:"frontend_url"`
 	AllowedEmails      []string `yaml:"allowed_emails"`
+	SecureCookie       *bool    `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
 }
 
 type AIGuide struct {
@@ -42,6 +43,16 @@ type AIGuide struct {
 	db           *gorm.DB
 	agentManager *agentmanager.AgentManager
 	authService  *auth.AuthService
+}
+
+// secureCookie 返回 cookie 的 secure 标志值，默认为 true（生产环境）
+func (a *AIGuide) secureCookie() bool {
+	// 如果配置中未设置，默认返回 true（安全生产环境）
+	// 只有在本地开发时才应该显式设置为 false
+	if a.config.SecureCookie == nil {
+		return true // 默认为安全模式
+	}
+	return *a.config.SecureCookie
 }
 
 func New(ctx context.Context, config *Config) (*AIGuide, error) {
