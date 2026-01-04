@@ -370,6 +370,9 @@ export default function ChatPage() {
   const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousScrollHeightRef = useRef<number>(0);
   const isAtBottomRef = useRef(true);
+  const lastScrollTopRef = useRef(0);
+  const scrollDirectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isInputVisible, setIsInputVisible] = useState(true);
   // Maximum height for the textarea in pixels
   // Note: This value should match the max-h-[200px] in the Textarea className below
   const MAX_TEXTAREA_HEIGHT = 200;
@@ -551,6 +554,29 @@ export default function ChatPage() {
       if (scrollTop < LOAD_MORE_THRESHOLD && hasMoreMessages && !isLoadingOlderMessages && !isLoadingHistory) {
         loadOlderMessages();
       }
+
+      // Detect scroll direction for input box visibility on mobile
+      // Only apply this behavior if not at the very bottom and has scrolled more than 50px
+      const scrollDelta = scrollTop - lastScrollTopRef.current;
+      
+      // Clear existing timeout
+      if (scrollDirectionTimeoutRef.current) {
+        clearTimeout(scrollDirectionTimeoutRef.current);
+      }
+
+      // Debounce scroll direction detection to avoid flickering
+      scrollDirectionTimeoutRef.current = setTimeout(() => {
+        if (Math.abs(scrollDelta) > 5) { // Minimum scroll threshold
+          if (scrollDelta > 0 && !atBottom && scrollTop > 100) {
+            // Scrolling down and not at bottom - hide input
+            setIsInputVisible(false);
+          } else if (scrollDelta < 0 || atBottom) {
+            // Scrolling up or at bottom - show input
+            setIsInputVisible(true);
+          }
+        }
+        lastScrollTopRef.current = scrollTop;
+      }, 50); // 50ms debounce
     }
   };
 
@@ -565,6 +591,11 @@ export default function ChatPage() {
         behavior: shouldScrollInstantly ? 'auto' : 'smooth'
       });
     }
+
+    // Always show input when new messages arrive
+    if (messages.length > 0) {
+      setIsInputVisible(true);
+    }
   }, [messages, shouldScrollInstantly]); // Only scroll when messages update
 
   // Cleanup scroll reset timeout on unmount
@@ -572,6 +603,9 @@ export default function ChatPage() {
     return () => {
       if (scrollResetTimeoutRef.current) {
         clearTimeout(scrollResetTimeoutRef.current);
+      }
+      if (scrollDirectionTimeoutRef.current) {
+        clearTimeout(scrollDirectionTimeoutRef.current);
       }
     };
   }, []);
@@ -935,7 +969,10 @@ export default function ChatPage() {
         </div>
 
         {/* Input Area */}
-        <div className="absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6">
+        <div className={cn(
+          "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6 transition-transform duration-300 ease-in-out",
+          !isInputVisible && "translate-y-full"
+        )}>
           <div className="max-w-5xl mx-auto px-4 sm:px-6">
             <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
               <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
@@ -944,6 +981,7 @@ export default function ChatPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
                   className="flex-1 min-h-[44px] max-h-[200px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 text-base overflow-y-auto"
                   disabled={isLoading || isLoadingHistory}
