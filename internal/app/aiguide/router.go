@@ -48,6 +48,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	api.GET("/auth/login/google", a.googleLoginHandler)
 	api.GET("/auth/callback/google", a.googleCallbackHandler)
 	api.POST("/auth/logout", a.logoutHandler)
+	api.POST("/auth/refresh", a.refreshTokenHandler)
 	api.GET("/auth/avatar/:userId", a.getAvatarHandler)
 
 	// 应用认证中间件到后续所有接口
@@ -84,7 +85,8 @@ func (a *AIGuide) googleLoginHandler(c *gin.Context) {
 	}
 
 	// 保存 state 到 cookie（用于 CSRF 保护）
-	c.SetCookie("oauth_state", state, 600, "/", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("oauth_state", state, 600, "/", "", secure, true)
 
 	// 获取 Google OAuth URL
 	url := a.authService.GetAuthURL(state)
@@ -109,7 +111,8 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 	}
 
 	// 清除 state cookie
-	c.SetCookie("oauth_state", "", -1, "/", "", false, true)
+	secure := a.secureCookie()
+	c.SetCookie("oauth_state", "", -1, "/", "", secure, true)
 
 	// 获取授权码
 	code := c.Query("code")
@@ -154,16 +157,18 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 		return
 	}
 
-	// 生成 JWT
-	jwtToken, err := a.authService.GenerateJWT(user)
+	// 生成访问令牌和刷新令牌
+	tokenPair, err := a.authService.GenerateTokenPair(user)
 	if err != nil {
-		slog.Error("failed to generate JWT", "err", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate JWT"})
+		slog.Error("failed to generate token pair", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate tokens"})
 		return
 	}
 
-	// 设置 JWT cookie
-	c.SetCookie("auth_token", jwtToken, 86400, "/", "", false, true)
+	// 设置访问令牌 cookie (15分钟)
+	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", secure, true)
+	// 设置刷新令牌 cookie (7天)，路径限制为 /api/auth 以减少暴露
+	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", secure, true)
 
 	// 重定向到前端
 	c.Redirect(http.StatusFound, frontendURL)
