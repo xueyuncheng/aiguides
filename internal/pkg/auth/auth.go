@@ -28,10 +28,18 @@ type GoogleUser struct {
 
 // Claims 表示 JWT token 中的声明
 type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
-	Name   string `json:"name"`
+	UserID    string `json:"user_id"`
+	Email     string `json:"email"`
+	Name      string `json:"name"`
+	TokenType string `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
+}
+
+// TokenPair 包含访问令牌和刷新令牌
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresIn    int64  `json:"expires_in"` // 访问令牌过期时间（秒）
 }
 
 // Config OAuth 配置
@@ -100,13 +108,38 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 	return &user, nil
 }
 
-// GenerateJWT 生成 JWT token
+// GenerateJWT 生成 JWT token (保持向后兼容，默认生成访问令牌)
 func (s *AuthService) GenerateJWT(user *GoogleUser) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
+	return s.GenerateAccessToken(user)
+}
+
+// GenerateTokenPair 生成访问令牌和刷新令牌对
+func (s *AuthService) GenerateTokenPair(user *GoogleUser) (*TokenPair, error) {
+	accessToken, err := s.GenerateAccessToken(user)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshToken, err := s.GenerateRefreshToken(user)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TokenPair{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		ExpiresIn:    int64((15 * time.Minute).Seconds()), // 访问令牌 15 分钟有效
+	}, nil
+}
+
+// GenerateAccessToken 生成访问令牌（短期有效）
+func (s *AuthService) GenerateAccessToken(user *GoogleUser) (string, error) {
+	expirationTime := time.Now().Add(15 * time.Minute) // 访问令牌 15 分钟有效
 	claims := &Claims{
-		UserID: user.ID,
-		Email:  user.Email,
-		Name:   user.Name,
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		TokenType: "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -116,14 +149,47 @@ func (s *AuthService) GenerateJWT(user *GoogleUser) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
 	if err != nil {
-		return "", fmt.Errorf("failed to sign token: %w", err)
+		return "", fmt.Errorf("failed to sign access token: %w", err)
 	}
 
 	return tokenString, nil
 }
 
-// ValidateJWT 验证 JWT token
+// GenerateRefreshToken 生成刷新令牌（长期有效）
+func (s *AuthService) GenerateRefreshToken(user *GoogleUser) (string, error) {
+	expirationTime := time.Now().Add(7 * 24 * time.Hour) // 刷新令牌 7 天有效
+	claims := &Claims{
+		UserID:    user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		TokenType: "refresh",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(s.config.JWTSecret))
+	if err != nil {
+		return "", fmt.Errorf("failed to sign refresh token: %w", err)
+	}
+
+	return tokenString, nil
+}
+
+// ValidateJWT 验证 JWT token（访问令牌）
 func (s *AuthService) ValidateJWT(tokenString string) (*Claims, error) {
+	return s.ValidateToken(tokenString, "access")
+}
+
+// ValidateRefreshToken 验证刷新令牌
+func (s *AuthService) ValidateRefreshToken(tokenString string) (*Claims, error) {
+	return s.ValidateToken(tokenString, "refresh")
+}
+
+// ValidateToken 验证 JWT token（通用方法）
+func (s *AuthService) ValidateToken(tokenString string, expectedType string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -138,6 +204,11 @@ func (s *AuthService) ValidateJWT(tokenString string) (*Claims, error) {
 
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
+	}
+
+	// 验证 token 类型
+	if claims.TokenType != expectedType {
+		return nil, fmt.Errorf("invalid token type: expected %s, got %s", expectedType, claims.TokenType)
 	}
 
 	return claims, nil

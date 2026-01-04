@@ -19,7 +19,58 @@ const (
 // logoutHandler 处理登出
 func (a *AIGuide) logoutHandler(c *gin.Context) {
 	c.SetCookie("auth_token", "", -1, "/", "", false, true)
+	c.SetCookie("refresh_token", "", -1, "/", "", false, true)
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+// refreshTokenHandler 处理刷新令牌请求
+func (a *AIGuide) refreshTokenHandler(c *gin.Context) {
+	// 从 Cookie 或请求体获取刷新令牌
+	refreshToken, err := c.Cookie("refresh_token")
+	if err != nil || refreshToken == "" {
+		// 尝试从请求体获取
+		var req struct {
+			RefreshToken string `json:"refresh_token"`
+		}
+		if err := c.ShouldBindJSON(&req); err != nil || req.RefreshToken == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "refresh token required"})
+			return
+		}
+		refreshToken = req.RefreshToken
+	}
+
+	// 验证刷新令牌
+	claims, err := a.authService.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		slog.Error("failed to validate refresh token", "err", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid refresh token"})
+		return
+	}
+
+	// 重建用户信息用于生成新令牌
+	user := &auth.GoogleUser{
+		ID:    claims.UserID,
+		Email: claims.Email,
+		Name:  claims.Name,
+	}
+
+	// 生成新的访问令牌
+	newAccessToken, err := a.authService.GenerateAccessToken(user)
+	if err != nil {
+		slog.Error("failed to generate new access token", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate access token"})
+		return
+	}
+
+	// 设置新的访问令牌 cookie (15分钟)
+	c.SetCookie("auth_token", newAccessToken, 900, "/", "", false, true)
+
+	// 返回新的访问令牌
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": newAccessToken,
+		"token_type":   "Bearer",
+		"expires_in":   900, // 15 分钟
+	})
 }
 
 // getUserHandler 获取当前用户信息
