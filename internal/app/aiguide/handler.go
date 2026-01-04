@@ -54,22 +54,25 @@ func (a *AIGuide) refreshTokenHandler(c *gin.Context) {
 		Name:  claims.Name,
 	}
 
-	// 生成新的访问令牌
-	newAccessToken, err := a.authService.GenerateAccessToken(user)
+	// 生成新的令牌对（包括新的刷新令牌，实现滑动过期）
+	tokenPair, err := a.authService.GenerateTokenPair(user)
 	if err != nil {
-		slog.Error("failed to generate new access token", "err", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate access token"})
+		slog.Error("failed to generate token pair", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate tokens"})
 		return
 	}
 
 	// 设置新的访问令牌 cookie (15分钟)
-	c.SetCookie("auth_token", newAccessToken, 900, "/", "", false, true)
+	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", false, true)
+	// 设置新的刷新令牌 cookie (7天) - 滑动过期机制
+	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/", "", false, true)
 
-	// 返回新的访问令牌
+	// 返回新的访问令牌和刷新令牌
 	c.JSON(http.StatusOK, gin.H{
-		"access_token": newAccessToken,
-		"token_type":   "Bearer",
-		"expires_in":   900, // 15 分钟
+		"access_token":  tokenPair.AccessToken,
+		"refresh_token": tokenPair.RefreshToken,
+		"token_type":    "Bearer",
+		"expires_in":    tokenPair.ExpiresIn,
 	})
 }
 

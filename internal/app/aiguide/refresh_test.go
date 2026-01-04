@@ -66,12 +66,30 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 			t.Error("Expected access_token in response")
 		}
 
+		// 验证返回新的刷新令牌（滑动过期）
+		if response["refresh_token"] == nil || response["refresh_token"] == "" {
+			t.Error("Expected refresh_token in response for sliding expiration")
+		}
+
 		if response["token_type"] != "Bearer" {
 			t.Errorf("Expected token_type 'Bearer', got %v", response["token_type"])
 		}
 
 		if response["expires_in"] != float64(900) {
 			t.Errorf("Expected expires_in 900, got %v", response["expires_in"])
+		}
+
+		// 验证 Cookie 中设置了新的刷新令牌
+		cookies := w.Result().Cookies()
+		var foundRefreshToken bool
+		for _, cookie := range cookies {
+			if cookie.Name == "refresh_token" && cookie.Value != "" {
+				foundRefreshToken = true
+				break
+			}
+		}
+		if !foundRefreshToken {
+			t.Error("Expected refresh_token cookie to be set")
 		}
 	})
 
@@ -99,6 +117,11 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 
 		if response["access_token"] == nil || response["access_token"] == "" {
 			t.Error("Expected access_token in response")
+		}
+
+		// 验证返回新的刷新令牌
+		if response["refresh_token"] == nil || response["refresh_token"] == "" {
+			t.Error("Expected refresh_token in response")
 		}
 	})
 
