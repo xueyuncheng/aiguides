@@ -387,6 +387,15 @@ export default function ChatPage() {
   // Scroll threshold (in pixels) to trigger loading older messages
   const LOAD_MORE_THRESHOLD = 100;
 
+  // Minimum scroll delta (in pixels) to detect scroll direction
+  const MIN_SCROLL_THRESHOLD = 5;
+
+  // Minimum scroll distance from top (in pixels) before hiding input
+  const MIN_SCROLL_DISTANCE = 100;
+
+  // Debounce delay (in milliseconds) for scroll direction detection
+  const SCROLL_DEBOUNCE_DELAY = 50;
+
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
@@ -556,8 +565,11 @@ export default function ChatPage() {
       }
 
       // Detect scroll direction for input box visibility on mobile
-      // Only apply this behavior if not at the very bottom and has scrolled more than 50px
+      // Only apply this behavior if not at the very bottom and has scrolled more than MIN_SCROLL_DISTANCE
       const scrollDelta = scrollTop - lastScrollTopRef.current;
+      
+      // Update scroll position immediately for accurate delta calculation
+      lastScrollTopRef.current = scrollTop;
       
       // Clear existing timeout
       if (scrollDirectionTimeoutRef.current) {
@@ -566,8 +578,8 @@ export default function ChatPage() {
 
       // Debounce scroll direction detection to avoid flickering
       scrollDirectionTimeoutRef.current = setTimeout(() => {
-        if (Math.abs(scrollDelta) > 5) { // Minimum scroll threshold
-          if (scrollDelta > 0 && !atBottom && scrollTop > 100) {
+        if (Math.abs(scrollDelta) > MIN_SCROLL_THRESHOLD) { // Minimum scroll threshold
+          if (scrollDelta > 0 && !atBottom && scrollTop > MIN_SCROLL_DISTANCE) {
             // Scrolling down and not at bottom - hide input
             setIsInputVisible(false);
           } else if (scrollDelta < 0 || atBottom) {
@@ -575,8 +587,7 @@ export default function ChatPage() {
             setIsInputVisible(true);
           }
         }
-        lastScrollTopRef.current = scrollTop;
-      }, 50); // 50ms debounce
+      }, SCROLL_DEBOUNCE_DELAY); // Debounce delay
     }
   };
 
@@ -592,8 +603,8 @@ export default function ChatPage() {
       });
     }
 
-    // Always show input when new messages arrive
-    if (messages.length > 0) {
+    // Show input when a new user message is added (not during streaming updates)
+    if (isNewUserMessage) {
       setIsInputVisible(true);
     }
   }, [messages, shouldScrollInstantly]); // Only scroll when messages update
