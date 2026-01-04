@@ -124,7 +124,7 @@ func TestGenerateTokenPair(t *testing.T) {
 	}
 
 	if tokenPair.ExpiresIn != int64((15 * time.Minute).Seconds()) {
-		t.Errorf("Expected ExpiresIn %d, got %d", int64((15*time.Minute).Seconds()), tokenPair.ExpiresIn)
+		t.Errorf("Expected ExpiresIn %d, got %d", int64((15 * time.Minute).Seconds()), tokenPair.ExpiresIn)
 	}
 
 	// 验证访问令牌
