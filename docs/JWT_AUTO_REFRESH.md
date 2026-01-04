@@ -216,6 +216,17 @@ setInterval(async () => {
 3. **短期访问令牌**: 访问令牌仅 15 分钟有效，减少令牌泄露的风险
 4. **刷新令牌轮换**: 可以考虑在未来实现刷新令牌轮换机制（每次刷新时发放新的刷新令牌）
 
+### 生产环境安全建议
+
+**重要**: 在生产环境中使用 HTTPS 时，应当设置 Cookie 的 Secure 标志。当前实现中 Cookie 的 secure 参数设置为 `false`，这在开发环境中便于测试，但在生产环境应当修改为 `true`。
+
+建议根据环境变量或配置来动态设置：
+
+```go
+secure := os.Getenv("ENV") == "production" // 或使用配置文件
+c.SetCookie("auth_token", token, maxAge, "/", "", secure, true)
+```
+
 ## 测试
 
 所有功能都有完整的单元测试和集成测试：
