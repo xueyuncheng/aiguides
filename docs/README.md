@@ -43,6 +43,13 @@ This directory contains detailed documentation for the AIGuide project.
   - Expected behaviors
   - Edge cases
 
+### Technical Articles
+- **[ECC_VS_RSA.md](./ECC_VS_RSA.md)** - ECC vs RSA 加密算法对比
+  - 数学本质的区别
+  - 点映射难题
+  - 设计初衷对比
+  - Go 语言实践建议
+
 ## Documentation Standards
 
 When adding new documentation:
