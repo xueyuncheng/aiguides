@@ -12,7 +12,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu, MessageCircle } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -564,30 +564,38 @@ export default function ChatPage() {
         loadOlderMessages();
       }
 
-      // Detect scroll direction for input box visibility on mobile
-      // Only apply this behavior if not at the very bottom and has scrolled more than MIN_SCROLL_DISTANCE
+      // Detect scroll direction for input box visibility
+      // 向上滚动（查看历史消息）时隐藏输入框，向下滚动时显示
       const scrollDelta = scrollTop - lastScrollTopRef.current;
-      
-      // Update scroll position immediately for accurate delta calculation
-      lastScrollTopRef.current = scrollTop;
-      
-      // Clear existing timeout
-      if (scrollDirectionTimeoutRef.current) {
-        clearTimeout(scrollDirectionTimeoutRef.current);
+
+      // 如果在底部，始终立即显示输入框
+      if (atBottom) {
+        setIsInputVisible(true);
+        lastScrollTopRef.current = scrollTop;
+        return;
       }
 
-      // Debounce scroll direction detection to avoid flickering
-      scrollDirectionTimeoutRef.current = setTimeout(() => {
-        if (Math.abs(scrollDelta) > MIN_SCROLL_THRESHOLD) { // Minimum scroll threshold
-          if (scrollDelta > 0 && !atBottom && scrollTop > MIN_SCROLL_DISTANCE) {
-            // Scrolling down and not at bottom - hide input
-            setIsInputVisible(false);
-          } else if (scrollDelta < 0 || atBottom) {
-            // Scrolling up or at bottom - show input
-            setIsInputVisible(true);
-          }
+      // 只在有明显滚动时才处理
+      if (Math.abs(scrollDelta) > MIN_SCROLL_THRESHOLD && scrollTop > MIN_SCROLL_DISTANCE) {
+        // Clear existing timeout
+        if (scrollDirectionTimeoutRef.current) {
+          clearTimeout(scrollDirectionTimeoutRef.current);
         }
-      }, SCROLL_DEBOUNCE_DELAY); // Debounce delay
+
+        // 立即响应滚动方向
+        if (scrollDelta < 0) {
+          // 向上滚动 - 立即隐藏输入框
+          setIsInputVisible(false);
+        } else if (scrollDelta > 0) {
+          // 向下滚动 - 短暂延迟后显示输入框（避免快速滚动时闪烁）
+          scrollDirectionTimeoutRef.current = setTimeout(() => {
+            setIsInputVisible(true);
+          }, 100);
+        }
+      }
+
+      // Update scroll position for next calculation
+      lastScrollTopRef.current = scrollTop;
     }
   };
 
@@ -978,6 +986,26 @@ export default function ChatPage() {
             </div>
           </div>
         </div>
+
+        {/* Floating button to show input when hidden */}
+        {!isInputVisible && (
+          <div className="fixed bottom-6 right-6 z-40 md:right-8 md:bottom-8">
+            <Button
+              size="icon"
+              onClick={() => {
+                setIsInputVisible(true);
+                // 滚动到底部
+                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                // 聚焦到输入框
+                setTimeout(() => textareaRef.current?.focus(), 300);
+              }}
+              className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-110"
+              title="显示输入框"
+            >
+              <MessageCircle className="h-6 w-6" />
+            </Button>
+          </div>
+        )}
 
         {/* Input Area */}
         <div className={cn(
