@@ -165,8 +165,8 @@ func (a *AIGuide) googleCallbackHandler(c *gin.Context) {
 
 	// 设置访问令牌 cookie (15分钟)
 	c.SetCookie("auth_token", tokenPair.AccessToken, 900, "/", "", false, true)
-	// 设置刷新令牌 cookie (7天)
-	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/", "", false, true)
+	// 设置刷新令牌 cookie (7天)，路径限制为 /api/auth 以减少暴露
+	c.SetCookie("refresh_token", tokenPair.RefreshToken, 604800, "/api/auth", "", false, true)
 
 	// 重定向到前端
 	c.Redirect(http.StatusFound, frontendURL)

@@ -169,46 +169,71 @@ Content-Type: application/json
 
 原有的 `GenerateJWT()` 方法仍然保留，内部调用 `GenerateAccessToken()`，确保现有代码继续工作。
 
-## 前端集成建议
+## 前端集成
 
-### 1. 自动刷新策略
+### ✅ 已实现自动刷新
 
-前端可以实现以下策略来自动刷新令牌：
+项目前端（`frontend/app/contexts/AuthContext.tsx`）已实现自动令牌刷新功能：
 
 ```typescript
-// 检测 401 错误并自动刷新
-async function authenticatedFetch(url: string, options?: RequestInit) {
-  let response = await fetch(url, {
-    ...options,
-    credentials: 'include'
+const authenticatedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const response = await fetch(input, {
+    ...init,
+    credentials: 'include',
   });
   
   // 如果收到 401，尝试刷新令牌
   if (response.status === 401) {
-    const refreshResponse = await fetch('/api/auth/refresh', {
-      method: 'POST',
-      credentials: 'include'
-    });
-    
-    if (refreshResponse.ok) {
-      // 刷新成功，重试原请求
-      response = await fetch(url, {
-        ...options,
-        credentials: 'include'
+    try {
+      const refreshResponse = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
       });
-    } else {
-      // 刷新失败，跳转到登录页
-      window.location.href = '/login';
+      
+      if (refreshResponse.ok) {
+        // 令牌刷新成功，重试原请求
+        const retryResponse = await fetch(input, {
+          ...init,
+          credentials: 'include',
+        });
+        return retryResponse;
+      } else {
+        // 刷新失败，跳转到登录页
+        handleUnauthorized();
+      }
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+      handleUnauthorized();
     }
   }
   
   return response;
+};
+```
+
+**使用方法：**
+
+在任何需要认证的组件中使用 `useAuth` hook：
+
+```typescript
+import { useAuth } from '@/app/contexts/AuthContext';
+
+function MyComponent() {
+  const { authenticatedFetch } = useAuth();
+  
+  // 使用 authenticatedFetch 发送请求，自动处理令牌刷新
+  const response = await authenticatedFetch('/api/some-endpoint', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 ```
 
-### 2. 主动刷新策略
+### 其他可选策略
 
-前端可以在访问令牌快过期时主动刷新：
+### 1. 主动刷新策略（可选）
+
+前端也可以在访问令牌快过期时主动刷新：
 
 ```typescript
 // 每 14 分钟刷新一次（访问令牌有效期 15 分钟）
@@ -231,6 +256,7 @@ setInterval(async () => {
 3. **短期访问令牌**: 访问令牌仅 15 分钟有效，减少令牌泄露的风险
 4. **滑动过期机制**: ✅ **已实现** - 每次刷新时同时发放新的刷新令牌，活跃用户无需重新登录
 5. **非活跃用户保护**: 7 天未访问的用户需要重新认证，平衡了便利性和安全性
+6. **Cookie 路径限制**: ✅ **已实现** - 刷新令牌 Cookie 路径设置为 `/api/auth`，仅在认证端点发送，大幅减少暴露风险
 
 ### 生产环境安全建议
 
