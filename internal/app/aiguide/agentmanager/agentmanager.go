@@ -3,6 +3,7 @@ package agentmanager
 import (
 	"aiguide/internal/app/aiguide/agentmanager/assistant"
 	"aiguide/internal/app/aiguide/agentmanager/emailsummary"
+	"aiguide/internal/app/aiguide/agentmanager/imagegen"
 	"aiguide/internal/app/aiguide/agentmanager/travelagent"
 	"aiguide/internal/app/aiguide/agentmanager/websummary"
 	"aiguide/internal/pkg/auth"
@@ -15,6 +16,7 @@ import (
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/session/database"
+	"google.golang.org/genai"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -26,16 +28,17 @@ type Config struct {
 }
 
 type AgentManager struct {
-	model   model.LLM
-	session session.Service
-	config  *Config
-	db      *gorm.DB
+	model       model.LLM
+	session     session.Service
+	config      *Config
+	db          *gorm.DB
+	genaiClient *genai.Client
 
 	runnerMap   map[constant.AppName]*runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
+func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client) (*AgentManager, error) {
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
@@ -54,10 +57,11 @@ func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
 	}
 
 	agentManager := &AgentManager{
-		model:     model,
-		session:   session,
-		db:        db,
-		runnerMap: make(map[constant.AppName]*runner.Runner, 16),
+		model:       model,
+		session:     session,
+		db:          db,
+		genaiClient: genaiClient,
+		runnerMap:   make(map[constant.AppName]*runner.Runner, 16),
 	}
 
 	if err := agentManager.addTravelAgentRunner(); err != nil {
@@ -74,6 +78,10 @@ func New(model model.LLM, db *gorm.DB) (*AgentManager, error) {
 
 	if err := agentManager.addEmailSummaryRunner(); err != nil {
 		return nil, fmt.Errorf("agentManager.addEmailSummaryRunner() error, err = %w", err)
+	}
+
+	if err := agentManager.addImageGenRunner(); err != nil {
+		return nil, fmt.Errorf("agentManager.addImageGenRunner() error, err = %w", err)
 	}
 
 	return agentManager, nil
@@ -168,5 +176,27 @@ func (a *AgentManager) addTravelAgentRunner() error {
 	}
 
 	a.runnerMap[constant.AppNameTravel] = travelAgentRunner
+	return nil
+}
+
+func (a *AgentManager) addImageGenRunner() error {
+	// 创建图片生成 Agent
+	imageGenAgent, err := imagegen.NewImageGenAgent(a.model, a.genaiClient)
+	if err != nil {
+		return fmt.Errorf("NewImageGenAgent() error, err = %w", err)
+	}
+
+	imageGenRunnerConfig := runner.Config{
+		AppName:        constant.AppNameImageGen.String(),
+		Agent:          imageGenAgent,
+		SessionService: a.session,
+	}
+	imageGenRunner, err := runner.New(imageGenRunnerConfig)
+	if err != nil {
+		slog.Error("runner.New() error", "err", err)
+		return fmt.Errorf("runner.New() error, err = %w", err)
+	}
+
+	a.runnerMap[constant.AppNameImageGen] = imageGenRunner
 	return nil
 }
