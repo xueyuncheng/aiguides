@@ -114,6 +114,69 @@ const UserAvatar = memo(({ user }: { user: { name: string; picture?: string } | 
 
 UserAvatar.displayName = 'UserAvatar';
 
+// Helper component for Code Block with syntax highlighting and copy button
+const CodeBlock = memo(({ className, children }: { className?: string; children: React.ReactNode }) => {
+  const match = /language-(\w+)/.exec(className || '');
+  const [codeCopied, setCodeCopied] = useState(false);
+  const codeString = String(children).replace(/\n$/, '');
+  
+  const handleCodeCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(codeString);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy code:', err);
+    }
+  };
+
+  return (
+    <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white relative group">
+      <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between items-center">
+        <span>{match?.[1] || 'code'}</span>
+        <button
+          onClick={handleCodeCopy}
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300 hover:text-white"
+          title={codeCopied ? "已复制" : "复制代码"}
+          aria-label={codeCopied ? "已复制" : "复制代码"}
+        >
+          {codeCopied ? (
+            <>
+              <Check className="h-3.5 w-3.5" />
+              <span className="text-xs">已复制</span>
+            </>
+          ) : (
+            <>
+              <Copy className="h-3.5 w-3.5" />
+              <span className="text-xs">复制</span>
+            </>
+          )}
+        </button>
+      </div>
+      <SyntaxHighlighter
+        language={match?.[1] || 'text'}
+        style={vscDarkPlus}
+        customStyle={{
+          margin: 0,
+          padding: '1rem',
+          background: 'transparent',
+          fontSize: '0.75rem',
+          lineHeight: '1.5',
+        }}
+        codeTagProps={{
+          style: {
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          }
+        }}
+      >
+        {codeString}
+      </SyntaxHighlighter>
+    </div>
+  );
+});
+
+CodeBlock.displayName = 'CodeBlock';
+
 // Feedback timeout duration in milliseconds
 const FEEDBACK_TIMEOUT_MS = 2000;
 
@@ -241,65 +304,14 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
                   const isInline = !match;
-                  const [codeCopied, setCodeCopied] = useState(false);
-                  const codeString = String(children).replace(/\n$/, '');
-                  
-                  const handleCodeCopy = async () => {
-                    try {
-                      await navigator.clipboard.writeText(codeString);
-                      setCodeCopied(true);
-                      setTimeout(() => setCodeCopied(false), 2000);
-                    } catch (err) {
-                      console.error('Failed to copy code:', err);
-                    }
-                  };
-
                   return isInline ? (
                     <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
                       {children}
                     </code>
                   ) : (
-                    <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white relative group">
-                      <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between items-center">
-                        <span>{match?.[1] || 'code'}</span>
-                        <button
-                          onClick={handleCodeCopy}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300 hover:text-white"
-                          title={codeCopied ? "已复制" : "复制代码"}
-                          aria-label={codeCopied ? "已复制" : "复制代码"}
-                        >
-                          {codeCopied ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" />
-                              <span className="text-xs">已复制</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="h-3.5 w-3.5" />
-                              <span className="text-xs">复制</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                      <SyntaxHighlighter
-                        language={match?.[1] || 'text'}
-                        style={vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: '1rem',
-                          background: 'transparent',
-                          fontSize: '0.75rem',
-                          lineHeight: '1.5',
-                        }}
-                        codeTagProps={{
-                          style: {
-                            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                          }
-                        }}
-                      >
-                        {codeString}
-                      </SyntaxHighlighter>
-                    </div>
+                    <CodeBlock className={className}>
+                      {children}
+                    </CodeBlock>
                   )
                 },
                 ul: ({ ...props }) => (
