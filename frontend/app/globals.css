@@ -127,4 +127,34 @@
   .tap-highlight-transparent {
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Word wrapping utilities for mobile text overflow prevention */
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+    word-wrap: anywhere;
+  }
+
+  /* Ensure prose content wraps properly on mobile */
+  .prose {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Prevent long words and URLs from overflowing */
+  .prose p, .prose li, .prose td, .prose th {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure inline code doesn't cause overflow */
+  .prose code {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* Ensure links wrap properly */
+  .prose a {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
 }

@@ -133,10 +133,10 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
   return (
     <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white relative group">
       <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between items-center">
-        <span>{match?.[1] || 'code'}</span>
+        <span className="break-words">{match?.[1] || 'code'}</span>
         <button
           onClick={handleCodeCopy}
-          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300 hover:text-white"
+          className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300 hover:text-white flex-shrink-0"
           title={codeCopied ? "已复制" : "复制代码"}
           aria-label={codeCopied ? "已复制" : "复制代码"}
         >
@@ -153,24 +153,26 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
           )}
         </button>
       </div>
-      <SyntaxHighlighter
-        language={match?.[1] || 'text'}
-        style={vscDarkPlus}
-        customStyle={{
-          margin: 0,
-          padding: '1rem',
-          background: 'transparent',
-          fontSize: '0.75rem',
-          lineHeight: '1.5',
-        }}
-        codeTagProps={{
-          style: {
-            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-          }
-        }}
-      >
-        {codeString}
-      </SyntaxHighlighter>
+      <div className="overflow-x-auto">
+        <SyntaxHighlighter
+          language={match?.[1] || 'text'}
+          style={vscDarkPlus}
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            background: 'transparent',
+            fontSize: '0.75rem',
+            lineHeight: '1.5',
+          }}
+          codeTagProps={{
+            style: {
+              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+            }
+          }}
+        >
+          {codeString}
+        </SyntaxHighlighter>
+      </div>
     </div>
   );
 });
@@ -266,7 +268,7 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
             "mt-2 overflow-hidden transition-all duration-300 ease-in-out",
             isThoughtExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
           )}>
-            <div className="text-xs text-muted-foreground/80 leading-relaxed pl-4 border-l-2 border-muted py-1 italic whitespace-pre-wrap">
+            <div className="text-xs text-muted-foreground/80 leading-relaxed pl-4 border-l-2 border-muted py-1 italic whitespace-pre-wrap break-words">
               {thought}
               {isStreaming && (
                 <span className="inline-block w-1 h-3 ml-1 bg-muted-foreground/40 animate-pulse align-middle" />
@@ -289,23 +291,23 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
           </div>
         )}
         {showRaw ? (
-          <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
+          <pre className="whitespace-pre-wrap break-words font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
+          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2 break-words overflow-wrap-anywhere">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeKatex]}
               components={{
                 a: ({ ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline break-words" />
                 ),
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
                   const isInline = !match;
                   return isInline ? (
-                    <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                    <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono break-words" {...props}>
                       {children}
                     </code>
                   ) : (
