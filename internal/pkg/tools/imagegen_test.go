@@ -92,14 +92,7 @@ func TestImageGenInput_Validation(t *testing.T) {
 			}
 			
 			if tt.input.AspectRatio != "" {
-				validRatios := map[string]bool{
-					"1:1":  true,
-					"3:4":  true,
-					"4:3":  true,
-					"9:16": true,
-					"16:9": true,
-				}
-				if !validRatios[tt.input.AspectRatio] && !tt.expectError {
+				if !ValidAspectRatios[tt.input.AspectRatio] && !tt.expectError {
 					t.Errorf("Invalid aspect ratio %s should cause error", tt.input.AspectRatio)
 				}
 			}

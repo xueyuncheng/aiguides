@@ -11,6 +11,18 @@ import (
 	"google.golang.org/genai"
 )
 
+// ValidAspectRatios 定义支持的宽高比
+var ValidAspectRatios = map[string]bool{
+	"1:1":  true,
+	"3:4":  true,
+	"4:3":  true,
+	"9:16": true,
+	"16:9": true,
+}
+
+// DefaultImageModel 定义默认使用的 Imagen 模型
+const DefaultImageModel = "imagen-3.0-generate-001"
+
 // ImageGenInput 定义图片生成工具的输入参数
 type ImageGenInput struct {
 	Prompt         string `json:"prompt" jsonschema:"图片描述，详细描述要生成的图片内容"`
@@ -69,14 +81,7 @@ func generateImage(ctx context.Context, client *genai.Client, input ImageGenInpu
 	}
 
 	// 验证宽高比
-	validAspectRatios := map[string]bool{
-		"1:1":  true,
-		"3:4":  true,
-		"4:3":  true,
-		"9:16": true,
-		"16:9": true,
-	}
-	if !validAspectRatios[aspectRatio] {
+	if !ValidAspectRatios[aspectRatio] {
 		slog.Error("无效的宽高比", "aspect_ratio", aspectRatio)
 		return &ImageGenOutput{
 			Success: false,
@@ -96,7 +101,7 @@ func generateImage(ctx context.Context, client *genai.Client, input ImageGenInpu
 	}
 
 	// 使用 Imagen 3 模型生成图片
-	model := "imagen-3.0-generate-001"
+	model := DefaultImageModel
 	slog.Info("开始生成图片", "model", model, "prompt", input.Prompt, "number", numberOfImages, "aspect_ratio", aspectRatio)
 
 	resp, err := client.Models.GenerateImages(ctx, model, input.Prompt, config)
