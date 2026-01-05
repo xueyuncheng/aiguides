@@ -12,7 +12,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu, MessageCircle } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -374,8 +374,8 @@ export default function ChatPage() {
   const scrollDirectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isInputVisible, setIsInputVisible] = useState(true);
   // Maximum height for the textarea in pixels
-  // Note: This value should match the max-h-[200px] in the Textarea className below
-  const MAX_TEXTAREA_HEIGHT = 200;
+  // Note: This value should match the max-h-[160px] in the Textarea className below
+  const MAX_TEXTAREA_HEIGHT = 160;
 
   // Delay before resetting scroll behavior to smooth after loading history
   // This ensures messages are fully rendered before enabling smooth scroll again
@@ -987,34 +987,14 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Floating button to show input when hidden */}
-        {!isInputVisible && (
-          <div className="fixed bottom-6 right-6 z-40 md:right-8 md:bottom-8">
-            <Button
-              size="icon"
-              onClick={() => {
-                setIsInputVisible(true);
-                // 滚动到底部
-                messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-                // 聚焦到输入框
-                setTimeout(() => textareaRef.current?.focus(), 300);
-              }}
-              className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 transition-all duration-200 hover:scale-110"
-              title="显示输入框"
-            >
-              <MessageCircle className="h-6 w-6" />
-            </Button>
-          </div>
-        )}
-
         {/* Input Area */}
         <div className={cn(
-          "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-10 pb-6 transition-transform duration-300 ease-in-out",
+          "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-6 pb-4 transition-transform duration-300 ease-in-out",
           !isInputVisible && "translate-y-full"
         )}>
-          <div className="max-w-5xl mx-auto px-4 sm:px-6">
-            <div className="relative flex items-center w-full bg-secondary/50 rounded-3xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
-              <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6">
+            <div className="relative flex items-center w-full bg-secondary/50 rounded-2xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
+              <form onSubmit={handleSubmit} className="w-full flex items-end p-1.5 gap-1.5">
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
@@ -1022,7 +1002,7 @@ export default function ChatPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
-                  className="flex-1 min-h-[44px] max-h-[200px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-4 py-3 text-base overflow-y-auto"
+                  className="flex-1 min-h-[36px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3 py-2 text-sm overflow-y-auto"
                   disabled={isLoading || isLoadingHistory}
                   autoComplete="off"
                   rows={1}
@@ -1032,10 +1012,10 @@ export default function ChatPage() {
                     type="button"
                     size="icon"
                     onClick={handleCancelMessage}
-                    className="h-8 w-8 mb-1 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg"
+                    className="h-7 w-7 mb-0.5 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg"
                     title="取消"
                   >
-                    <X className="h-4 w-4 stroke-[2.5]" />
+                    <X className="h-3.5 w-3.5 stroke-[2.5]" />
                   </Button>
                 ) : (
                   <Button
@@ -1043,16 +1023,16 @@ export default function ChatPage() {
                     size="icon"
                     disabled={!inputValue.trim()}
                     className={cn(
-                      "h-8 w-8 mb-1 rounded-full transition-all duration-200",
+                      "h-7 w-7 mb-0.5 rounded-full transition-all duration-200",
                       inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     )}
                   >
-                    <ArrowUp className="h-4 w-4" />
+                    <ArrowUp className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </form>
             </div>
-            <div className="text-center text-xs text-muted-foreground mt-3">
+            <div className="text-center text-xs text-muted-foreground mt-2">
               AI 可能会生成不准确的信息，请核查重要事实。
             </div>
           </div>
