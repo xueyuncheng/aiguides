@@ -296,9 +296,10 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
           </pre>
         ) : (
           <div className={cn(
-            "prose prose-sm prose-neutral dark:prose-invert max-w-none",
+            "prose prose-sm prose-neutral dark:prose-invert",
+            "max-w-none w-full",
             "prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2",
-            "break-words overflow-wrap-anywhere"
+            "break-words overflow-wrap-anywhere min-w-0"
           )}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
@@ -999,7 +1000,7 @@ export default function ChatPage() {
                       )}
                     >
                       <div className={cn(
-                        "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%]",
+                        "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%] min-w-0",
                         message.role === 'user' ? "flex-row-reverse" : "flex-row"
                       )}>
                         {message.role === 'assistant' ? (
@@ -1009,7 +1010,7 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-xs sm:text-sm w-full",
+                          "relative text-xs sm:text-sm min-w-0",
                           message.role === 'user'
                             ? "bg-secondary px-2.5 sm:px-3 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-2xl rounded-tr-sm self-end max-w-[95%] sm:max-w-[90%] md:max-w-[85%]"
                             : "leading-6 pt-1 flex-1"

@@ -144,5 +144,12 @@
   .prose th {
     word-wrap: break-word;
     overflow-wrap: break-word;
+    /* Critical: Allow flex children to shrink below content size */
+    min-width: 0;
+  }
+
+  /* Force all text content to wrap within container */
+  .prose * {
+    max-width: 100%;
   }
 }
