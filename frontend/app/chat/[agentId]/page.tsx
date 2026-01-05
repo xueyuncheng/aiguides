@@ -491,6 +491,7 @@ export default function ChatPage() {
     setTotalMessageCount(0);
     setIsLoadingHistory(true);
     setShouldScrollInstantly(true); // Enable instant scroll for history loading
+    setIsInputVisible(true); // Always show input when switching sessions
 
     // Clear any pending timeout from previous session switch
     if (scrollResetTimeoutRef.current) {
@@ -576,6 +577,7 @@ export default function ChatPage() {
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
+    setIsInputVisible(true); // Always show input for new sessions
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
@@ -674,6 +676,13 @@ export default function ChatPage() {
       setIsInputVisible(true);
     }
   }, [messages, shouldScrollInstantly]); // Only scroll when messages update
+
+  // Always show input when there are no messages (new/empty session)
+  useEffect(() => {
+    if (messages.length === 0 && !isLoadingHistory && !isInputVisible) {
+      setIsInputVisible(true);
+    }
+  }, [messages.length, isLoadingHistory, isInputVisible]);
 
   // Cleanup scroll reset timeout on unmount
   useEffect(() => {
