@@ -52,6 +52,21 @@
 - 估算旅游预算
 - **自动生成 Google Maps 地图链接，在地图上显示所有重点地点** 🗺️
 
+### 5. ImageGenAgent（AI 图片生成）⭐ 新功能
+专业的 AI 图片生成助手，使用 Google Imagen 3 模型根据文字描述生成高质量图片：
+- 根据详细的文字描述生成图片
+- 支持多种宽高比：1:1（正方形）、3:4（竖屏）、4:3（横屏）、9:16（手机竖屏）、16:9（宽屏）
+- 可一次生成 1-4 张图片
+- 支持指定不想出现的内容（negative prompt）
+- 自动优化提示词以获得更好的生成效果
+- 支持多种艺术风格：写实、卡通、油画、水彩等
+
+**使用示例：**
+- "生成一张可爱的小猫图片"
+- "生成一张日落时分的海滩风景照，要有温暖的色调，16:9 宽屏"
+- "生成 3 张卡通风格的龙的图片"
+
+
 ## 快速开始
 
 ### 前置要求
@@ -332,6 +347,39 @@ AI 助手会为您提供：
 - 支持单个地点或多个地点的路线规划
 - 可以在浏览器中直接打开地图查看位置
 
+### 图片生成助手使用示例
+
+与 ImageGenAgent 交互时，您可以这样描述：
+
+```
+生成一张可爱的小猫图片
+```
+
+```
+生成一张日落时分的海滩风景照，要有温暖的色调，使用 16:9 宽屏比例
+```
+
+```
+生成 3 张不同风格的龙的图片，包括写实风格、卡通风格和中国传统水墨风格
+```
+
+```
+生成一张未来科幻城市的夜景图，要有霓虹灯效果和飞行汽车，3:4 竖屏比例
+```
+
+AI 助手会：
+1. 理解您的图片需求
+2. 如果描述过于简单，会适当补充细节以生成更好的图片
+3. 调用 Google Imagen 3 模型生成高质量图片
+4. 返回生成的图片（支持 Base64 格式直接在浏览器中显示）
+5. 提供增强后的提示词供参考
+
+**支持的参数：**
+- **图片描述**：详细描述图片的主体、风格、颜色、光线、构图等
+- **宽高比**：1:1（正方形）、3:4（竖屏）、4:3（横屏）、9:16（手机竖屏）、16:9（宽屏）
+- **图片数量**：1-4 张
+- **负面提示词**（可选）：指定不想在图片中出现的内容
+
 ### 邮件总结
 
 在 Web UI 或 API 中与 EmailSummaryAgent 交互：
@@ -401,12 +449,13 @@ go fmt ./...
 
 ### 添加新的 Agent
 
-要添加新的 AI 助手，请参考现有的 agent 实现（如 `travelagent.go` 或 `emailsummary.go`），遵循以下步骤：
+要添加新的 AI 助手，请参考现有的 agent 实现（如 `imagegen/imagegen.go` 或 `travelagent/travelagent.go`），遵循以下步骤：
 
-1. 在 `internal/app/aiguide/` 目录下创建新的 agent 文件
-2. 实现 `NewXXXAgent(model model.LLM)` 函数
-3. 在 `aiguide.go` 的 `New()` 函数中注册新的 agent
-4. 将新 agent 添加到 `agent.NewMultiLoader()` 中
+1. 在 `internal/app/aiguide/agentmanager/` 目录下创建新的 agent 目录
+2. 实现 `NewXXXAgent(model model.LLM, ...)` 函数
+3. 在 `constant.go` 中添加新的 `AppName` 常量
+4. 在 `agentmanager.go` 中添加 `addXXXRunner()` 方法
+5. 在 `New()` 函数中调用 `addXXXRunner()`
 
 ### 添加新的工具
 
@@ -419,6 +468,7 @@ go fmt ./...
 - `webfetch.go` - 网页内容获取工具
 - `mailfetch.go` - Apple Mail 邮件读取工具
 - `googlemaps.go` - Google Maps 地图链接生成工具
+- `imagegen.go` - AI 图片生成工具（使用 Google Imagen 3）
 
 ### 前端开发
 
@@ -489,10 +539,10 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
   - Google ADK (Agent Development Kit) - AI Agent 框架
   - Gin - HTTP Web 框架（用于提供 REST API）
   - SQLite - 会话数据持久化存储
-- **AI 模型**：Google Gemini
+- **AI 模型**：Google Gemini, Google Imagen 3
 - **语言**：Go 1.25.5
 - **前端**：Next.js 16, React 19, TypeScript, Tailwind CSS
-- **工具**：GoogleSearch, 自定义工具（WebFetch、MailFetch、GoogleMaps）
+- **工具**：GoogleSearch, 自定义工具（WebFetch、MailFetch、GoogleMaps、ImageGen）
 
 ## API 接口
 
@@ -509,6 +559,7 @@ TravelAgent 会自动在生成旅游行程时调用 Google Maps 工具：
 - `websummary` - WebSummary Agent（网页内容分析）
 - `emailsummary` - EmailSummary Agent（邮件智能总结）
 - `travel` - Travel Agent（旅游规划助手）
+- `imagegen` - ImageGen Agent（AI 图片生成）⭐ 新增
 
 **请求示例：**
 ```bash
