@@ -911,12 +911,12 @@ export default function ChatPage() {
       {/* Main Content */}
       <div className="flex flex-col flex-1 h-full md:pl-[260px] relative transition-all duration-300">
         {/* Mobile Menu Button */}
-        <div className="md:hidden fixed top-4 left-4 z-30">
+        <div className="md:hidden fixed top-3 left-3 z-30">
           <Button
             onClick={() => setIsMobileSidebarOpen(true)}
             size="icon"
             variant="outline"
-            className="h-10 w-10 rounded-full bg-background shadow-md"
+            className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
             aria-label="打开菜单"
           >
             <Menu className="h-5 w-5" />
@@ -926,11 +926,11 @@ export default function ChatPage() {
         {/* Messages Area */}
         <div
           ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto no-scrollbar"
+          className="flex-1 overflow-y-auto no-scrollbar mobile-scroll"
           onScroll={handleScroll}
         >
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl px-4 sm:px-6 py-10 space-y-8">
+            <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10 space-y-6 sm:space-y-8">{/* Loading older messages indicator */}
               {/* Loading older messages indicator */}
               {isLoadingOlderMessages && (
                 <div className="flex justify-center py-4">
@@ -961,21 +961,21 @@ export default function ChatPage() {
                   <ChatSkeleton />
                 </div>
               ) : messages.length === 0 ? (
-                <div className="text-center py-20 animate-fade-in">
-                  <div className="flex justify-center mb-6">
-                    <div className="p-4 bg-secondary rounded-2xl">
-                      <span className="text-4xl">{agentInfo.icon}</span>
+                <div className="text-center py-12 sm:py-16 md:py-20 animate-fade-in px-4">
+                  <div className="flex justify-center mb-4 sm:mb-6">
+                    <div className="p-3 sm:p-4 bg-secondary rounded-xl sm:rounded-2xl">
+                      <span className="text-3xl sm:text-4xl">{agentInfo.icon}</span>
                     </div>
                   </div>
-                  <h2 className="text-2xl font-semibold mb-8">
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-6 sm:mb-8">
                     {agentInfo.name} 能够为您做什么？
                   </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 max-w-2xl mx-auto">
                     {agentInfo.examples.map((example, index) => (
                       <button
                         key={index}
                         onClick={() => handleExampleClick(example)}
-                        className="p-4 text-left border rounded-xl hover:bg-secondary/50 transition-colors text-sm text-balance"
+                        className="p-3 sm:p-4 text-left border rounded-lg sm:rounded-xl hover:bg-secondary/50 active:bg-secondary/70 transition-colors text-xs sm:text-sm text-balance tap-highlight-transparent min-h-[44px]"
                       >
                         {example}
                       </button>
@@ -983,7 +983,7 @@ export default function ChatPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-8 animate-fade-in">
+                <div className="space-y-6 sm:space-y-8 animate-fade-in">
                   {messages.map((message) => (
                     <div
                       key={message.id}
@@ -993,7 +993,7 @@ export default function ChatPage() {
                       )}
                     >
                       <div className={cn(
-                        "flex gap-2 sm:gap-4 max-w-[95%] sm:max-w-[85%]",
+                        "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%]",
                         message.role === 'user' ? "flex-row-reverse" : "flex-row"
                       )}>
                         {message.role === 'assistant' ? (
@@ -1003,9 +1003,9 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-sm w-full",
+                          "relative text-xs sm:text-sm w-full",
                           message.role === 'user'
-                            ? "bg-secondary px-3 sm:px-5 py-2.5 sm:py-3 rounded-2xl rounded-tr-sm self-end max-w-[95%] sm:max-w-[85%]"
+                            ? "bg-secondary px-2.5 sm:px-3 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-2xl rounded-tr-sm self-end max-w-[95%] sm:max-w-[90%] md:max-w-[85%]"
                             : "leading-6 pt-1 flex-1"
                         )}>
                           {message.role === 'assistant' ? (
@@ -1015,7 +1015,7 @@ export default function ChatPage() {
                               isStreaming={message.isStreaming}
                             />
                           ) : (
-                            <div className="whitespace-pre-wrap">{message.content}</div>
+                            <div className="whitespace-pre-wrap break-words">{message.content}</div>
                           )}
                         </div>
                       </div>
@@ -1047,11 +1047,11 @@ export default function ChatPage() {
 
         {/* Input Area */}
         <div className={cn(
-          "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-6 pb-4 transition-transform duration-300 ease-in-out",
+          "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-4 sm:pt-6 pb-3 sm:pb-4 transition-transform duration-300 ease-in-out",
           !isInputVisible && "translate-y-full"
         )}>
-          <div className="max-w-4xl mx-auto px-4 sm:px-6">
-            <div className="relative flex items-center w-full bg-secondary/50 rounded-2xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6">
+            <div className="relative flex items-center w-full bg-secondary/50 rounded-xl sm:rounded-2xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
               <form onSubmit={handleSubmit} className="w-full flex items-end p-1.5 gap-1.5">
                 <Textarea
                   ref={textareaRef}
@@ -1060,7 +1060,7 @@ export default function ChatPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
-                  className="flex-1 min-h-[36px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3 py-2 text-sm overflow-y-auto"
+                  className="flex-1 min-h-[36px] max-h-[120px] sm:max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-2.5 sm:px-3 py-2 text-xs sm:text-sm overflow-y-auto resize-none"
                   disabled={isLoading || isLoadingHistory}
                   autoComplete="off"
                   rows={1}
@@ -1070,10 +1070,10 @@ export default function ChatPage() {
                     type="button"
                     size="icon"
                     onClick={handleCancelMessage}
-                    className="h-7 w-7 mb-0.5 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg"
+                    className="h-8 w-8 sm:h-7 sm:w-7 mb-0.5 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px]"
                     title="取消"
                   >
-                    <X className="h-3.5 w-3.5 stroke-[2.5]" />
+                    <X className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5 stroke-[2.5]" />
                   </Button>
                 ) : (
                   <Button
@@ -1081,16 +1081,16 @@ export default function ChatPage() {
                     size="icon"
                     disabled={!inputValue.trim()}
                     className={cn(
-                      "h-7 w-7 mb-0.5 rounded-full transition-all duration-200",
+                      "h-8 w-8 sm:h-7 sm:w-7 mb-0.5 rounded-full transition-all duration-200 tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px]",
                       inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
                     )}
                   >
-                    <ArrowUp className="h-3.5 w-3.5" />
+                    <ArrowUp className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
                   </Button>
                 )}
               </form>
             </div>
-            <div className="text-center text-xs text-muted-foreground mt-2">
+            <div className="text-center text-[10px] sm:text-xs text-muted-foreground mt-1.5 sm:mt-2">
               AI 可能会生成不准确的信息，请核查重要事实。
             </div>
           </div>
