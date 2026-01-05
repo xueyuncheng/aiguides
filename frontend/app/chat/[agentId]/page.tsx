@@ -295,7 +295,11 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2 break-words overflow-wrap-anywhere">
+          <div className={cn(
+            "prose prose-sm prose-neutral dark:prose-invert max-w-none",
+            "prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2",
+            "break-words overflow-wrap-anywhere"
+          )}>
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeKatex]}

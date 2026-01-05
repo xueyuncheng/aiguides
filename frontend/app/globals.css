@@ -133,9 +133,15 @@
     overflow-wrap: anywhere;
   }
 
-  /* Ensure prose content and all its children wrap properly on mobile */
+  /* Ensure prose content wraps properly on mobile */
   .prose,
-  .prose * {
+  .prose p,
+  .prose span,
+  .prose a,
+  .prose code,
+  .prose li,
+  .prose td,
+  .prose th {
     word-wrap: break-word;
     overflow-wrap: break-word;
   }
