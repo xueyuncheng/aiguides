@@ -679,10 +679,10 @@ export default function ChatPage() {
 
   // Always show input when there are no messages (new/empty session)
   useEffect(() => {
-    if (messages.length === 0 && !isLoadingHistory) {
+    if (messages.length === 0 && !isLoadingHistory && !isInputVisible) {
       setIsInputVisible(true);
     }
-  }, [messages.length, isLoadingHistory]);
+  }, [messages.length, isLoadingHistory, isInputVisible]);
 
   // Cleanup scroll reset timeout on unmount
   useEffect(() => {
