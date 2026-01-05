@@ -675,12 +675,14 @@ export default function ChatPage() {
     if (isNewUserMessage) {
       setIsInputVisible(true);
     }
+  }, [messages, shouldScrollInstantly]); // Only scroll when messages update
 
-    // Always show input when there are no messages (new/empty session)
+  // Always show input when there are no messages (new/empty session)
+  useEffect(() => {
     if (messages.length === 0 && !isLoadingHistory) {
       setIsInputVisible(true);
     }
-  }, [messages, shouldScrollInstantly, isLoadingHistory]); // Only scroll when messages update
+  }, [messages.length, isLoadingHistory]);
 
   // Cleanup scroll reset timeout on unmount
   useEffect(() => {
