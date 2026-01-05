@@ -33,11 +33,11 @@ type ImageGenInput struct {
 
 // ImageGenOutput 定义图片生成工具的输出
 type ImageGenOutput struct {
-	Success       bool     `json:"success"`
-	Images        []string `json:"images,omitempty"`        // Base64编码的图片数据列表
-	Message       string   `json:"message,omitempty"`
-	Error         string   `json:"error,omitempty"`
-	EnhancedPrompt string  `json:"enhanced_prompt,omitempty"` // 增强后的提示词
+	Success        bool     `json:"success"`
+	Images         []string `json:"images,omitempty"` // Base64编码的图片数据列表
+	Message        string   `json:"message,omitempty"`
+	Error          string   `json:"error,omitempty"`
+	EnhancedPrompt string   `json:"enhanced_prompt,omitempty"` // 增强后的提示词
 }
 
 // NewImageGenTool 创建图片生成工具

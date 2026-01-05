@@ -68,14 +68,14 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	if config.BaseURL != "" {
 		genaiConfig.HTTPOptions.BaseURL = config.BaseURL
 	}
-	
+
 	// 创建 genai client，用于图片生成等功能
 	genaiClient, err := genai.NewClient(ctx, genaiConfig)
 	if err != nil {
 		slog.Error("genai.NewClient() error", "err", err)
 		return nil, fmt.Errorf("genai.NewClient() error, err = %w", err)
 	}
-	
+
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {
 		slog.Error("gemini.NewModel() error", "err", err)

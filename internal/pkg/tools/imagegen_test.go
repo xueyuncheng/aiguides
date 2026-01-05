@@ -20,10 +20,10 @@ func TestNewImageGenTool(t *testing.T) {
 
 func TestImageGenInput_Validation(t *testing.T) {
 	tests := []struct {
-		name           string
-		input          ImageGenInput
-		expectError    bool
-		errorContains  string
+		name          string
+		input         ImageGenInput
+		expectError   bool
+		errorContains string
 	}{
 		{
 			name: "empty prompt",
@@ -90,7 +90,7 @@ func TestImageGenInput_Validation(t *testing.T) {
 			if tt.input.Prompt == "" && !tt.expectError {
 				t.Error("Expected error for empty prompt")
 			}
-			
+
 			if tt.input.AspectRatio != "" {
 				if !ValidAspectRatios[tt.input.AspectRatio] && !tt.expectError {
 					t.Errorf("Invalid aspect ratio %s should cause error", tt.input.AspectRatio)
