@@ -18,20 +18,15 @@ gin_port: 8080
 # 4. 创建 OAuth 2.0 客户端 ID（Web 应用类型）
 # 5. 添加授权重定向 URI: http://localhost:8080/auth/google/callback
 # 6. 获取客户端 ID 和客户端密钥
+# 7. 生成 JWT Secret（使用以下命令）：
+#    openssl rand -base64 32
 
 # google_client_id: YOUR_GOOGLE_CLIENT_ID
 # google_client_secret: YOUR_GOOGLE_CLIENT_SECRET
 # google_redirect_url: http://localhost:8080/auth/google/callback
-
-# JWT Secret 配置
-# jwt_secret 用于签名 JWT token，确保用户登录状态持久化
-# 如果不配置，系统会在首次启动时自动生成一个安全的随机密钥
-# 自动生成的密钥会保存到此配置文件中，确保服务器重启后用户无需重新登录
-# jwt_secret: (留空则自动生成)
+# jwt_secret: YOUR_RANDOM_JWT_SECRET
 
 # 注意事项：
-# - JWT Secret 会在首次启动时自动生成（如果未配置）
-# - 生成后的 JWT Secret 会自动保存到配置文件
-# - 不要随意修改已生成的 JWT Secret，否则现有用户的登录令牌将失效
+# - JWT Secret 应该是一个强随机字符串，至少 32 字符
 # - 生产环境应使用 HTTPS 和相应的重定向 URL
 # - 保护好 Client Secret 和 JWT Secret，不要提交到版本控制系统
