@@ -44,11 +44,11 @@ func TestSaveAndLoadConfig(t *testing.T) {
 
 	// Create a test config
 	testConfig := &aiguide.Config{
-		APIKey:       "test_api_key",
-		ModelName:    "test_model",
-		UseGin:       true,
-		GinPort:      "8080",
-		JWTSecret:    "test_jwt_secret_12345678901234567890",
+		APIKey:        "test_api_key",
+		ModelName:     "test_model",
+		UseGin:        true,
+		GinPort:       "8080",
+		JWTSecret:     "test_jwt_secret_12345678901234567890",
 		AllowedEmails: []string{"test@example.com"},
 	}
 
@@ -97,10 +97,10 @@ func TestAutoGenerateJWTSecret(t *testing.T) {
 
 	// Write a config without JWT secret
 	initialConfig := &aiguide.Config{
-		APIKey:    "test_api_key",
-		ModelName: "test_model",
-		UseGin:    true,
-		GinPort:   "8080",
+		APIKey:        "test_api_key",
+		ModelName:     "test_model",
+		UseGin:        true,
+		GinPort:       "8080",
 		AllowedEmails: []string{"test@example.com"},
 	}
 
