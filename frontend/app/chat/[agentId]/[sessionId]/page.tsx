@@ -485,8 +485,8 @@ export default function ChatPage() {
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
 
-    // Update URL with the new session ID
-    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
+    // Update URL with the new session ID using shallow routing to avoid remounting
+    window.history.pushState(null, '', `/chat/${agentId}/${newSessionId}`);
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps

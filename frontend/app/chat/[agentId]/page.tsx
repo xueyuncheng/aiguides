@@ -741,8 +741,9 @@ export default function ChatPage() {
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
     
     // Update URL with session ID after sending the first message
+    // Use window.history.replaceState to avoid page reload/remount
     if (isFirstMessage && sessionId) {
-      router.replace(`/chat/${agentId}/${sessionId}`);
+      window.history.replaceState(null, '', `/chat/${agentId}/${sessionId}`);
     }
     
     // Only poll for session title on the first message in this session
