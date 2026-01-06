@@ -34,18 +34,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const authenticatedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const response = await fetch(input, {
+      ...init,
+      credentials: 'include',
+    });
+
+    // If we get 401, try to refresh the token
+    if (response.status === 401) {
+      try {
+        const refreshResponse = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (refreshResponse.ok) {
+          // Token refreshed successfully, retry the original request
+          const retryResponse = await fetch(input, {
+            ...init,
+            credentials: 'include',
+          });
+          return retryResponse;
+        } else {
+          // Refresh failed, redirect to login
+          handleUnauthorized();
+        }
+      } catch (error) {
+        console.error('Failed to refresh token:', error);
+        handleUnauthorized();
+      }
+    }
+
+    return response;
+  };
+
   const checkAuth = async () => {
+    setLoading(true);
+
     try {
-      const response = await fetch('/api/auth/user', {
-        credentials: 'include',
-      });
+      const response = await authenticatedFetch('/api/auth/user');
 
       if (response.ok) {
         const userData = await response.json();
         setUser(userData);
-      } else {
-        handleUnauthorized();
+        return;
       }
+
+      // If the token could not be refreshed, fall back to the standard unauthorized handler
+      handleUnauthorized();
     } catch (error) {
       console.error('Failed to check auth:', error);
       handleUnauthorized();
@@ -82,40 +118,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Failed to logout:', error);
     }
-  };
-
-  const authenticatedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const response = await fetch(input, {
-      ...init,
-      credentials: 'include',
-    });
-    
-    // If we get 401, try to refresh the token
-    if (response.status === 401) {
-      try {
-        const refreshResponse = await fetch('/api/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-        });
-        
-        if (refreshResponse.ok) {
-          // Token refreshed successfully, retry the original request
-          const retryResponse = await fetch(input, {
-            ...init,
-            credentials: 'include',
-          });
-          return retryResponse;
-        } else {
-          // Refresh failed, redirect to login
-          handleUnauthorized();
-        }
-      } catch (error) {
-        console.error('Failed to refresh token:', error);
-        handleUnauthorized();
-      }
-    }
-    
-    return response;
   };
 
   useEffect(() => {
