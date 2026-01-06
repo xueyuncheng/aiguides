@@ -459,8 +459,13 @@ export default function ChatPage() {
   // Debounce delay (in milliseconds) for scroll direction detection
   const SCROLL_DEBOUNCE_DELAY = 50;
 
+  // Helper function to generate a new session ID
+  const generateSessionId = useCallback(() => {
+    return `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  }, []);
+
   // Helper function to construct session URL
-  const getSessionUrl = useCallback((sessionId: string) => {
+  const buildSessionUrl = useCallback((sessionId: string) => {
     return `/chat/${agentId}/${sessionId}`;
   }, [agentId]);
 
@@ -495,7 +500,7 @@ export default function ChatPage() {
     if (newSessionId === sessionId) return;
 
     // Update URL with new sessionId
-    router.push(getSessionUrl(newSessionId), { scroll: false });
+    router.push(buildSessionUrl(newSessionId), { scroll: false });
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
@@ -537,7 +542,7 @@ export default function ChatPage() {
         scrollResetTimeoutRef.current = null;
       }, SCROLL_RESET_DELAY);
     }
-  }, [sessionId, agentId, user?.user_id, authenticatedFetch, getSessionUrl, router, MESSAGES_PER_PAGE, SCROLL_RESET_DELAY]);
+  }, [sessionId, user?.user_id, authenticatedFetch, buildSessionUrl, router, MESSAGES_PER_PAGE, SCROLL_RESET_DELAY]);
 
   const loadOlderMessages = async () => {
     if (isLoadingOlderMessages || !hasMoreMessages || !sessionId) return;
@@ -585,17 +590,17 @@ export default function ChatPage() {
   };
 
   const handleNewSession = useCallback(async () => {
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    const newSessionId = generateSessionId();
     
     // Update URL with new sessionId
-    router.push(getSessionUrl(newSessionId), { scroll: false });
+    router.push(buildSessionUrl(newSessionId), { scroll: false });
     
     setSessionId(newSessionId);
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
     setIsInputVisible(true); // Always show input for new sessions
-  }, [agentId, router, getSessionUrl]);
+  }, [router, buildSessionUrl, generateSessionId]);
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
     try {
