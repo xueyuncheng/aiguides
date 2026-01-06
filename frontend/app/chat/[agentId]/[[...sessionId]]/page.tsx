@@ -407,6 +407,11 @@ export default function ChatPage() {
   const { user, loading, authenticatedFetch } = useAuth();
   const agentId = params.agentId as string;
   const agentInfo = agentInfoMap[agentId];
+  
+  // Extract sessionId from URL params - it's an array in catch-all routes
+  const sessionIdFromUrl = Array.isArray(params.sessionId) && params.sessionId.length > 0 
+    ? params.sessionId[0] 
+    : undefined;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
@@ -483,6 +488,9 @@ export default function ChatPage() {
 
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
+
+    // Update URL with new sessionId
+    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
@@ -573,6 +581,10 @@ export default function ChatPage() {
 
   const handleNewSession = async () => {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
+    // Update URL with new sessionId
+    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
+    
     setSessionId(newSessionId);
     setMessages([]);
     setHasMoreMessages(false);
@@ -607,10 +619,18 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-    if (!sessionId) {
+    
+    // Handle session initialization based on URL
+    if (sessionIdFromUrl) {
+      // If we have a sessionId in URL but not in state, load it
+      if (!sessionId || sessionId !== sessionIdFromUrl) {
+        handleSessionSelect(sessionIdFromUrl);
+      }
+    } else if (!sessionId) {
+      // No sessionId in URL and no current session - create new one
       handleNewSession();
     }
-  }, [agentId, agentInfo, router, user]);
+  }, [agentId, agentInfo, router, user, loading, sessionIdFromUrl]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
