@@ -406,12 +406,13 @@ export default function ChatPage() {
   const router = useRouter();
   const { user, loading, authenticatedFetch } = useAuth();
   const agentId = params.agentId as string;
+  const urlSessionId = params.sessionId as string;
   const agentInfo = agentInfoMap[agentId];
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>(urlSessionId || '');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -483,6 +484,9 @@ export default function ChatPage() {
 
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
+
+    // Update URL with the new session ID
+    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
@@ -573,6 +577,10 @@ export default function ChatPage() {
 
   const handleNewSession = async () => {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    
+    // Update URL with the new session ID
+    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
+    
     setSessionId(newSessionId);
     setMessages([]);
     setHasMoreMessages(false);
@@ -608,12 +616,11 @@ export default function ChatPage() {
       return;
     }
 
-    // For base route without sessionId, automatically create and redirect to new session
-    if (!sessionId) {
-      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      router.replace(`/chat/${agentId}/${newSessionId}`);
+    // Load session history if we have a URL session ID
+    if (urlSessionId && urlSessionId !== sessionId) {
+      handleSessionSelect(urlSessionId);
     }
-  }, [agentId, agentInfo, router, user, loading, sessionId]);
+  }, [agentId, agentInfo, router, user, loading, urlSessionId]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
