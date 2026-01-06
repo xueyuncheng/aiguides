@@ -148,7 +148,7 @@ enable_authentication: true
 google_client_id: YOUR_GOOGLE_CLIENT_ID
 google_client_secret: YOUR_GOOGLE_CLIENT_SECRET
 google_redirect_url: http://localhost:8080/auth/google/callback
-jwt_secret: your_random_jwt_secret_here  # 建议使用 32 字符以上的随机字符串
+# jwt_secret 会在首次启动时自动生成（可选）
 ```
 
 **配置说明：**
@@ -157,9 +157,11 @@ jwt_secret: your_random_jwt_secret_here  # 建议使用 32 字符以上的随机
 - `google_client_id`: 从 Google Cloud Console 获取的客户端 ID
 - `google_client_secret`: 从 Google Cloud Console 获取的客户端密钥
 - `google_redirect_url`: OAuth 回调 URL，需与 Google Console 中配置的一致
-- `jwt_secret`: 用于签名 JWT token 的密钥，建议使用强随机字符串
+- `jwt_secret`: 用于签名 JWT token 的密钥
+  - **自动生成**：如果未配置，系统会在首次启动时自动生成一个安全的随机密钥，并保存到配置文件中
+  - **手动配置**：也可以手动生成并配置（见下方示例）
 
-**生成 JWT Secret 示例：**
+**手动生成 JWT Secret（可选）：**
 
 ```bash
 # 使用 openssl 生成随机字符串
@@ -168,6 +170,11 @@ openssl rand -base64 32
 # 或使用 Python
 python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
+
+**重要说明：**
+- JWT secret 在首次启动后会自动保存到配置文件，确保用户登录状态在服务器重启后仍然有效
+- 已生成的 JWT secret 不要随意修改，否则现有用户的登录令牌将失效
+- 如需重新生成，删除配置文件中的 `jwt_secret` 字段并重启服务即可
 
 #### 3. 启动服务
 

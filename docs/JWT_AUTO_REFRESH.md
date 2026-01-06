@@ -297,7 +297,25 @@ JWT 密钥通过配置文件设置：
 jwt_secret: "your-secret-key-here"
 ```
 
-**重要**: 生产环境中请使用强随机密钥，并妥善保管。
+**自动生成 JWT Secret（推荐）**：
+- 如果配置文件中没有设置 `jwt_secret`，系统会在首次启动时自动生成一个安全的随机密钥
+- 自动生成的密钥会保存到配置文件中，确保服务器重启后用户无需重新登录
+- 密钥使用 32 字节随机数据，经过 Base64 URL 编码，安全性高
+
+**手动配置（可选）**：
+你也可以手动生成并配置 JWT secret：
+
+```bash
+# 使用 openssl 生成
+openssl rand -base64 32
+
+# 或使用 Python
+python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**重要**: 
+- 生产环境中请保护好 JWT secret，不要提交到版本控制系统
+- 已生成的 JWT secret 不要随意修改，否则现有用户的登录令牌将失效
 
 ## 迁移指南
 
