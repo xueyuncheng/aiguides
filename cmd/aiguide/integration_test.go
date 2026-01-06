@@ -25,7 +25,8 @@ allowed_emails:
   - test@example.com
 `
 
-	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+	// Use secure permissions (0600) to match production behavior
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0600); err != nil {
 		t.Fatalf("Failed to write initial config: %v", err)
 	}
 
@@ -69,7 +70,8 @@ allowed_emails:
 		t.Fatalf("Failed to marshal config: %v", err)
 	}
 
-	if err := os.WriteFile(configPath, savedData, 0644); err != nil {
+	// Use secure permissions (0600) to match production behavior
+	if err := os.WriteFile(configPath, savedData, 0600); err != nil {
 		t.Fatalf("Failed to write config: %v", err)
 	}
 
@@ -148,7 +150,8 @@ allowed_emails:
   - test@example.com
 `
 
-	if err := os.WriteFile(configPath, []byte(initialConfig), 0644); err != nil {
+	// Use secure permissions (0600) to match production behavior
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0600); err != nil {
 		t.Fatalf("Failed to write initial config: %v", err)
 	}
 

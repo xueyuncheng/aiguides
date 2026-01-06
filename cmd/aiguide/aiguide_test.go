@@ -52,7 +52,7 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		AllowedEmails: []string{"test@example.com"},
 	}
 
-	// Save the config
+	// Save the config using the production saveConfig function
 	if err := saveConfig(tmpFile.Name(), testConfig); err != nil {
 		t.Fatalf("saveConfig() failed: %v", err)
 	}
@@ -109,7 +109,8 @@ func TestAutoGenerateJWTSecret(t *testing.T) {
 		t.Fatalf("failed to marshal initial config: %v", err)
 	}
 
-	if err := os.WriteFile(tmpFile.Name(), data, 0644); err != nil {
+	// Use secure permissions (0600) to match production behavior
+	if err := os.WriteFile(tmpFile.Name(), data, 0600); err != nil {
 		t.Fatalf("failed to write initial config: %v", err)
 	}
 
