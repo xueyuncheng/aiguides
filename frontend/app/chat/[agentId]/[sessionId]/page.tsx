@@ -576,16 +576,9 @@ export default function ChatPage() {
   };
 
   const handleNewSession = async () => {
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    
-    // Update URL with the new session ID
-    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
-    
-    setSessionId(newSessionId);
-    setMessages([]);
-    setHasMoreMessages(false);
-    setTotalMessageCount(0);
-    setIsInputVisible(true); // Always show input for new sessions
+    // Navigate to base route without session ID
+    // Session ID will be added to URL after first message is sent
+    router.push(`/chat/${agentId}`, { scroll: false });
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {

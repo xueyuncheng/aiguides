@@ -608,10 +608,11 @@ export default function ChatPage() {
       return;
     }
 
-    // For base route without sessionId, automatically create and redirect to new session
+    // For base route without sessionId, create one but don't update URL yet
+    // URL will be updated after the first message is sent
     if (!sessionId) {
       const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      router.replace(`/chat/${agentId}/${newSessionId}`);
+      setSessionId(newSessionId);
     }
   }, [agentId, agentInfo, router, user, loading, sessionId]);
 
@@ -736,9 +737,15 @@ export default function ChatPage() {
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
 
-    // Only poll for session title on the first message in this session
     // Check if this is the first user message (before adding the new one, we had 0 user messages)
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
+    
+    // Update URL with session ID after sending the first message
+    if (isFirstMessage && sessionId) {
+      router.replace(`/chat/${agentId}/${sessionId}`);
+    }
+    
+    // Only poll for session title on the first message in this session
     if (isFirstMessage) {
       let pollCount = 0;
       const maxPolls = 30; // Poll up to 30 times
