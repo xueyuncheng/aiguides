@@ -57,6 +57,19 @@ func TestSaveAndLoadConfig(t *testing.T) {
 		t.Fatalf("saveConfig() failed: %v", err)
 	}
 
+	// Check file permissions
+	fileInfo, err := os.Stat(tmpFile.Name())
+	if err != nil {
+		t.Fatalf("failed to stat config file: %v", err)
+	}
+
+	// Verify permissions are 0600 (rw-------)
+	expectedPerms := os.FileMode(0600)
+	if fileInfo.Mode().Perm() != expectedPerms {
+		t.Errorf("config file has incorrect permissions: expected %o, got %o",
+			expectedPerms, fileInfo.Mode().Perm())
+	}
+
 	// Read the config back
 	data, err := os.ReadFile(tmpFile.Name())
 	if err != nil {

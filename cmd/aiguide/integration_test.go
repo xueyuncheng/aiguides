@@ -126,6 +126,9 @@ allowed_emails:
 }
 
 // TestIntegrationWithApplication tests the full application flow
+// Note: This test uses a simple process management approach with time.Sleep and Kill.
+// In a production scenario, consider using more robust process management with context
+// cancellation or proper shutdown signals.
 func TestIntegrationWithApplication(t *testing.T) {
 	// Skip if not in integration test mode
 	if os.Getenv("RUN_INTEGRATION_TESTS") != "1" {

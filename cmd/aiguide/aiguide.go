@@ -93,8 +93,9 @@ func saveConfig(file string, config *aiguide.Config) error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	// Write to file with appropriate permissions (0644 = rw-r--r--)
-	if err := os.WriteFile(file, data, 0644); err != nil {
+	// Write to file with restrictive permissions (0600 = rw-------)
+	// Only the owner can read/write the file to protect the JWT secret
+	if err := os.WriteFile(file, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
