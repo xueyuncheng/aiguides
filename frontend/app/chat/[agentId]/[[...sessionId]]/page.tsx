@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
@@ -459,6 +459,11 @@ export default function ChatPage() {
   // Debounce delay (in milliseconds) for scroll direction detection
   const SCROLL_DEBOUNCE_DELAY = 50;
 
+  // Helper function to construct session URL
+  const getSessionUrl = useCallback((sessionId: string) => {
+    return `/chat/${agentId}/${sessionId}`;
+  }, [agentId]);
+
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
@@ -486,11 +491,11 @@ export default function ChatPage() {
     }
   }, [agentId, user?.user_id]);
 
-  const handleSessionSelect = async (newSessionId: string) => {
+  const handleSessionSelect = useCallback(async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
 
     // Update URL with new sessionId
-    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
+    router.push(getSessionUrl(newSessionId), { scroll: false });
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
@@ -532,7 +537,7 @@ export default function ChatPage() {
         scrollResetTimeoutRef.current = null;
       }, SCROLL_RESET_DELAY);
     }
-  };
+  }, [sessionId, agentId, user?.user_id, authenticatedFetch, getSessionUrl, router, MESSAGES_PER_PAGE, SCROLL_RESET_DELAY]);
 
   const loadOlderMessages = async () => {
     if (isLoadingOlderMessages || !hasMoreMessages || !sessionId) return;
@@ -579,18 +584,18 @@ export default function ChatPage() {
     }
   };
 
-  const handleNewSession = async () => {
+  const handleNewSession = useCallback(async () => {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     
     // Update URL with new sessionId
-    router.push(`/chat/${agentId}/${newSessionId}`, { scroll: false });
+    router.push(getSessionUrl(newSessionId), { scroll: false });
     
     setSessionId(newSessionId);
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
     setIsInputVisible(true); // Always show input for new sessions
-  };
+  }, [agentId, router, getSessionUrl]);
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
     try {
@@ -630,7 +635,7 @@ export default function ChatPage() {
       // No sessionId in URL and no current session - create new one
       handleNewSession();
     }
-  }, [agentId, agentInfo, router, user, loading, sessionIdFromUrl]);
+  }, [agentId, agentInfo, router, user, loading, sessionIdFromUrl, sessionId, handleSessionSelect, handleNewSession]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
