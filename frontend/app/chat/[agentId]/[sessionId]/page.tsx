@@ -406,12 +406,13 @@ export default function ChatPage() {
   const router = useRouter();
   const { user, loading, authenticatedFetch } = useAuth();
   const agentId = params.agentId as string;
+  const urlSessionId = params.sessionId as string;
   const agentInfo = agentInfoMap[agentId];
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>(urlSessionId || '');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isLoadingOlderMessages, setIsLoadingOlderMessages] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -483,6 +484,9 @@ export default function ChatPage() {
 
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
+
+    // Update URL with the new session ID using shallow routing to avoid remounting
+    window.history.pushState(null, '', `/chat/${agentId}/${newSessionId}`);
 
     setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
@@ -572,12 +576,9 @@ export default function ChatPage() {
   };
 
   const handleNewSession = async () => {
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-    setSessionId(newSessionId);
-    setMessages([]);
-    setHasMoreMessages(false);
-    setTotalMessageCount(0);
-    setIsInputVisible(true); // Always show input for new sessions
+    // Navigate to base route without session ID
+    // Session ID will be added to URL after first message is sent
+    router.push(`/chat/${agentId}`, { scroll: false });
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
@@ -608,13 +609,11 @@ export default function ChatPage() {
       return;
     }
 
-    // For base route without sessionId, create one but don't update URL yet
-    // URL will be updated after the first message is sent
-    if (!sessionId) {
-      const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-      setSessionId(newSessionId);
+    // Load session history if we have a URL session ID
+    if (urlSessionId && urlSessionId !== sessionId) {
+      handleSessionSelect(urlSessionId);
     }
-  }, [agentId, agentInfo, router, user, loading, sessionId]);
+  }, [agentId, agentInfo, router, user, loading, urlSessionId]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -737,16 +736,9 @@ export default function ChatPage() {
     // Create a new AbortController for this request
     abortControllerRef.current = new AbortController();
 
+    // Only poll for session title on the first message in this session
     // Check if this is the first user message (before adding the new one, we had 0 user messages)
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
-    
-    // Update URL with session ID after sending the first message
-    // Use window.history.replaceState to avoid page reload/remount
-    if (isFirstMessage && sessionId) {
-      window.history.replaceState(null, '', `/chat/${agentId}/${sessionId}`);
-    }
-    
-    // Only poll for session title on the first message in this session
     if (isFirstMessage) {
       let pollCount = 0;
       const maxPolls = 30; // Poll up to 30 times
