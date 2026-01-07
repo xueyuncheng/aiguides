@@ -47,6 +47,13 @@ const agents: Agent[] = [
     icon: '✈️',
     color: 'bg-orange-500',
   },
+  {
+    id: 'imagegen',
+    name: 'ImageGen Agent',
+    description: 'AI 图片生成助手，使用 Google Imagen 3 根据文字描述生成高质量图片',
+    icon: '🎨',
+    color: 'bg-pink-500',
+  },
 ];
 
 export default function Home() {
@@ -249,7 +256,7 @@ export default function Home() {
               </CardHeader>
               <CardContent>
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  集成 Google Search、网页抓取、地图生成等多种实用工具
+                  集成 Google Search、网页抓取、地图生成、图片生成等多种实用工具
                 </p>
               </CardContent>
             </Card>
@@ -263,7 +270,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground text-center sm:text-left">
             <div>
               <p>基于 Google ADK (Agent Development Kit) 构建</p>
-              <p className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">Powered by Google Gemini 2.0</p>
+              <p className="text-[10px] sm:text-xs mt-0.5 sm:mt-1">Powered by Google Gemini 2.0 & Imagen 3</p>
             </div>
           </div>
         </div>

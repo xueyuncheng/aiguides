@@ -85,6 +85,18 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '帮我规划一个巴黎7日游，我对艺术和美食特别感兴趣',
     ],
   },
+  imagegen: {
+    id: 'imagegen',
+    name: 'ImageGen Agent',
+    description: 'AI 图片生成',
+    icon: '🎨',
+    color: 'bg-pink-500',
+    examples: [
+      '生成一张可爱的小猫图片',
+      '生成一张日落时分的海滩风景照，16:9 宽屏',
+      '生成3张不同风格的龙的图片',
+    ],
+  },
 };
 
 // Helper component for AI Avatar
@@ -300,6 +312,9 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
               components={{
                 a: ({ ...props }) => (
                   <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                ),
+                img: ({ ...props }) => (
+                  <img {...props} className="max-w-full h-auto rounded-lg my-4" loading="lazy" />
                 ),
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
