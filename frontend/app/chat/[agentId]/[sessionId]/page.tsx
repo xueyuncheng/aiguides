@@ -25,6 +25,7 @@ interface Message {
   timestamp: Date;
   author?: string;
   isStreaming?: boolean;
+  images?: string[];
 }
 
 interface AgentInfo {
@@ -85,6 +86,18 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '帮我规划一个巴黎7日游，我对艺术和美食特别感兴趣',
     ],
   },
+  imagegen: {
+    id: 'imagegen',
+    name: 'ImageGen Agent',
+    description: 'AI 图片生成',
+    icon: '🎨',
+    color: 'bg-pink-500',
+    examples: [
+      '生成一张可爱的小猫图片',
+      '生成一张日落时分的海滩风景照，16:9 宽屏',
+      '生成3张不同风格的龙的图片',
+    ],
+  },
 };
 
 // Helper component for AI Avatar
@@ -119,7 +132,7 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
   const match = /language-(\w+)/.exec(className || '');
   const [codeCopied, setCodeCopied] = useState(false);
   const codeString = String(children).replace(/\n$/, '');
-  
+
   const handleCodeCopy = async () => {
     try {
       await navigator.clipboard.writeText(codeString);
@@ -181,7 +194,7 @@ CodeBlock.displayName = 'CodeBlock';
 const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
-const AIMessageContent = memo(({ content, thought, isStreaming }: { content: string; thought?: string; isStreaming?: boolean }) => {
+const AIMessageContent = memo(({ content, thought, isStreaming, images }: { content: string; thought?: string; isStreaming?: boolean; images?: string[] }) => {
   const [showRaw, setShowRaw] = useState(false);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(false);
 
@@ -278,6 +291,20 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
 
       {/* Content display */}
       <div className="relative">
+        {/* Display images if present */}
+        {images && images.length > 0 && (
+          <div className="mb-4 space-y-3">
+            {images.map((imageData, index) => (
+              <img
+                key={index}
+                src={imageData}
+                alt={`Generated image ${index + 1}`}
+                className="max-w-full h-auto rounded-lg border shadow-sm"
+                loading="lazy"
+              />
+            ))}
+          </div>
+        )}
         {!content && isStreaming && thought && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground py-2 animate-pulse">
             <div className="flex space-x-1">
@@ -300,6 +327,9 @@ const AIMessageContent = memo(({ content, thought, isStreaming }: { content: str
               components={{
                 a: ({ ...props }) => (
                   <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                ),
+                img: ({ ...props }) => (
+                  <img {...props} className="max-w-full h-auto rounded-lg my-4" loading="lazy" />
                 ),
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
@@ -482,13 +512,13 @@ export default function ChatPage() {
     }
   }, [agentId, user?.user_id]);
 
-  const handleSessionSelect = async (newSessionId: string) => {
-    if (newSessionId === sessionId) return;
+  const loadSessionHistory = async (targetSessionId: string, updateUrl: boolean = true) => {
+    // Update URL if needed (for session switching)
+    if (updateUrl && targetSessionId !== sessionId) {
+      window.history.pushState(null, '', `/chat/${agentId}/${targetSessionId}`);
+      setSessionId(targetSessionId);
+    }
 
-    // Update URL with the new session ID using shallow routing to avoid remounting
-    window.history.pushState(null, '', `/chat/${agentId}/${newSessionId}`);
-
-    setSessionId(newSessionId);
     // Clear messages immediately to show skeleton and avoid layout jumps
     setMessages([]);
     setHasMoreMessages(false);
@@ -504,7 +534,7 @@ export default function ChatPage() {
 
     try {
       // Load only the most recent messages (pagination)
-      const response = await authenticatedFetch(`/api/${agentId}/sessions/${newSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${targetSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
       if (response.ok) {
         const data = await response.json();
         const historyMessages = data.messages.map((msg: any) => ({
@@ -513,6 +543,7 @@ export default function ChatPage() {
           content: msg.content,
           thought: msg.thought,
           timestamp: new Date(msg.timestamp),
+          images: msg.images || [],
         }));
         setMessages(historyMessages);
         setHasMoreMessages(data.has_more || false);
@@ -528,6 +559,11 @@ export default function ChatPage() {
         scrollResetTimeoutRef.current = null;
       }, SCROLL_RESET_DELAY);
     }
+  };
+
+  const handleSessionSelect = async (newSessionId: string) => {
+    if (newSessionId === sessionId) return;
+    await loadSessionHistory(newSessionId, true);
   };
 
   const loadOlderMessages = async () => {
@@ -552,6 +588,7 @@ export default function ChatPage() {
           content: msg.content,
           thought: msg.thought,
           timestamp: new Date(msg.timestamp),
+          images: msg.images || [],
         }));
 
         // Prepend older messages to the beginning
@@ -576,9 +613,24 @@ export default function ChatPage() {
   };
 
   const handleNewSession = async () => {
-    // Navigate to base route without session ID
-    // Session ID will be added to URL after first message is sent
-    router.push(`/chat/${agentId}`, { scroll: false });
+    // Generate a new session ID
+    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Update URL without causing a full page reload
+    window.history.pushState(null, '', `/chat/${agentId}/${newSessionId}`);
+
+    // Update state to show empty chat
+    setSessionId(newSessionId);
+    setMessages([]);
+    setHasMoreMessages(false);
+    setTotalMessageCount(0);
+    setIsInputVisible(true);
+
+    // Clear input
+    setInputValue('');
+
+    // Refresh sessions list to include the new session (will be created when first message is sent)
+    // No need to reload sessions here as the session doesn't exist yet
   };
 
   const handleDeleteSession = async (sessionIdToDelete: string) => {
@@ -598,6 +650,7 @@ export default function ChatPage() {
     }
   };
 
+  // Handle authentication and routing
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
@@ -608,12 +661,17 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
+  }, [agentId, agentInfo, router, user, loading]);
 
-    // Load session history if we have a URL session ID
-    if (urlSessionId && urlSessionId !== sessionId) {
-      handleSessionSelect(urlSessionId);
+  // Load session history when component mounts or URL session changes
+  useEffect(() => {
+    if (!user?.user_id || !urlSessionId) return;
+
+    // Load history if messages are empty (initial load or page refresh)
+    if (messages.length === 0 && !isLoadingHistory) {
+      loadSessionHistory(urlSessionId, false);
     }
-  }, [agentId, agentInfo, router, user, loading, urlSessionId]);
+  }, [urlSessionId, user?.user_id]);
 
   const handleScroll = () => {
     if (scrollContainerRef.current) {
@@ -780,6 +838,7 @@ export default function ChatPage() {
       let currentAuthor = '';
       let assistantContent = '';
       let assistantThought = '';
+      let assistantImages: string[] = [];
 
       if (reader) {
         let buffer = '';
@@ -802,6 +861,25 @@ export default function ChatPage() {
 
                 const data = JSON.parse(jsonStr);
 
+                // Handle images data
+                if (data.images && Array.isArray(data.images)) {
+                  assistantImages = [...assistantImages, ...data.images];
+
+                  // Update last message with images
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastIndex = newMessages.length - 1;
+                    if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
+                      newMessages[lastIndex] = {
+                        ...newMessages[lastIndex],
+                        images: assistantImages,
+                        isStreaming: true,
+                      };
+                    }
+                    return newMessages;
+                  });
+                }
+
                 if (data.content) {
                   // Check if this is a duplicate complete message (identical to accumulated content)
                   const isCompleteDuplicate = !data.is_thought && data.content === assistantContent;
@@ -812,6 +890,7 @@ export default function ChatPage() {
                       currentAuthor = data.author;
                       assistantContent = data.is_thought ? '' : data.content;
                       assistantThought = data.is_thought ? data.content : '';
+                      assistantImages = [];
 
                       // Create new message for new author
                       const newMessage: Message = {
@@ -822,6 +901,7 @@ export default function ChatPage() {
                         timestamp: new Date(),
                         author: currentAuthor,
                         isStreaming: true,
+                        images: [],
                       };
                       setMessages((prev) => [...prev, newMessage]);
                     } else {
@@ -840,6 +920,7 @@ export default function ChatPage() {
                             ...newMessages[lastIndex],
                             content: assistantContent,
                             thought: assistantThought,
+                            images: assistantImages,
                             isStreaming: true,
                           };
                         }
@@ -1025,6 +1106,7 @@ export default function ChatPage() {
                               content={message.content}
                               thought={message.thought}
                               isStreaming={message.isStreaming}
+                              images={message.images}
                             />
                           ) : (
                             <div className="whitespace-pre-wrap break-words">{message.content}</div>

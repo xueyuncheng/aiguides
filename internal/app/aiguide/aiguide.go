@@ -20,20 +20,21 @@ import (
 )
 
 type Config struct {
-	DBFile             string   `yaml:"db_file"`
-	APIKey             string   `yaml:"api_key"`
-	ModelName          string   `yaml:"model_name"`
-	BaseURL            string   `yaml:"base_url"`
-	Proxy              string   `yaml:"proxy"`
-	UseGin             bool     `yaml:"use_gin"`
-	GinPort            string   `yaml:"gin_port"`
-	GoogleClientID     string   `yaml:"google_client_id"`
-	GoogleClientSecret string   `yaml:"google_client_secret"`
-	GoogleRedirectURL  string   `yaml:"google_redirect_url"`
-	JWTSecret          string   `yaml:"jwt_secret"`
-	FrontendURL        string   `yaml:"frontend_url"`
-	AllowedEmails      []string `yaml:"allowed_emails"`
-	SecureCookie       *bool    `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
+	DBFile              string   `yaml:"db_file"`
+	APIKey              string   `yaml:"api_key"`
+	ModelName           string   `yaml:"model_name"`
+	BaseURL             string   `yaml:"base_url"`
+	Proxy               string   `yaml:"proxy"`
+	UseGin              bool     `yaml:"use_gin"`
+	GinPort             string   `yaml:"gin_port"`
+	GoogleClientID      string   `yaml:"google_client_id"`
+	GoogleClientSecret  string   `yaml:"google_client_secret"`
+	GoogleRedirectURL   string   `yaml:"google_redirect_url"`
+	JWTSecret           string   `yaml:"jwt_secret"`
+	FrontendURL         string   `yaml:"frontend_url"`
+	AllowedEmails       []string `yaml:"allowed_emails"`
+	SecureCookie        *bool    `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
+	MockImageGeneration bool     `yaml:"mock_image_generation"`
 }
 
 type AIGuide struct {
@@ -68,6 +69,14 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	if config.BaseURL != "" {
 		genaiConfig.HTTPOptions.BaseURL = config.BaseURL
 	}
+
+	// 创建 genai client，用于图片生成等功能
+	genaiClient, err := genai.NewClient(ctx, genaiConfig)
+	if err != nil {
+		slog.Error("genai.NewClient() error", "err", err)
+		return nil, fmt.Errorf("genai.NewClient() error, err = %w", err)
+	}
+
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {
 		slog.Error("gemini.NewModel() error", "err", err)
@@ -90,7 +99,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	migrator := migration.New(db)
 
-	agentManager, err := agentmanager.New(model, db)
+	agentManager, err := agentmanager.New(model, db, genaiClient, config.MockImageGeneration)
 	if err != nil {
 		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
 	}

@@ -93,7 +93,7 @@ const SessionSidebar = memo(({
           onClick={onMobileToggle}
         />
       )}
-      
+
       {/* Sidebar */}
       <div className={cn(
         "fixed left-0 top-0 h-full w-[260px] bg-[#171717] flex flex-col z-50 transition-transform duration-300",
@@ -142,76 +142,76 @@ const SessionSidebar = memo(({
           </div>
         </div>
 
-      {/* Sessions List */}
-      <div className="flex-1 overflow-y-auto px-3">
-        {isLoading ? (
-          <div className="p-4 text-center text-[#8e8e8e] text-sm">
-            加载中...
-          </div>
-        ) : filteredSessions.length === 0 ? (
-          <div className="p-4 text-center text-[#8e8e8e] text-sm">
-            暂无会话历史
-          </div>
-        ) : (
-          <div className="space-y-1">
-            <h3 className="px-3 py-2 text-xs font-semibold text-[#8e8e8e]">最近</h3>
-            {filteredSessions.map((session) => (
-              <div
-                key={session.session_id}
-                onClick={() => handleSessionClick(session.session_id)}
-                className={cn(
-                  "group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm",
-                  session.session_id === currentSessionId
-                    ? "bg-[#2c2c2c] text-[#ececec]"
-                    : "text-[#ececec] hover:bg-[#212121]"
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate flex-1">
-                    {session.title || session.first_message || '新对话'}
-                  </span>
+        {/* Sessions List */}
+        <div className="flex-1 overflow-y-auto px-3">
+          {isLoading ? (
+            <div className="p-4 text-center text-[#8e8e8e] text-sm">
+              加载中...
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="p-4 text-center text-[#8e8e8e] text-sm">
+              暂无会话历史
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <h3 className="px-3 py-2 text-xs font-semibold text-[#8e8e8e]">最近</h3>
+              {filteredSessions.map((session) => (
+                <div
+                  key={session.session_id}
+                  onClick={() => handleSessionClick(session.session_id)}
+                  className={cn(
+                    "group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm",
+                    session.session_id === currentSessionId
+                      ? "bg-[#2c2c2c] text-[#ececec]"
+                      : "text-[#ececec] hover:bg-[#212121]"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate flex-1">
+                      {session.title || session.first_message || '新对话'}
+                    </span>
 
-                  {/* Delete button only visible on hover */}
-                  <div className={cn(
-                    "flex items-center opacity-0 group-hover:opacity-100",
-                    session.session_id === currentSessionId && "opacity-100"
-                  )}>
-                    {/* Shadow gradient to cover text */}
-                    <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#171717] to-transparent pointer-events-none group-hover:from-[#212121] group-hover:via-[#212121]"></div>
-                    {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#2c2c2c] to-transparent pointer-events-none"></div>}
+                    {/* Delete button only visible on hover */}
+                    <div className={cn(
+                      "flex items-center opacity-0 group-hover:opacity-100",
+                      session.session_id === currentSessionId && "opacity-100"
+                    )}>
+                      {/* Shadow gradient to cover text */}
+                      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#171717] to-transparent pointer-events-none group-hover:from-[#212121] group-hover:via-[#212121]"></div>
+                      {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#2c2c2c] to-transparent pointer-events-none"></div>}
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="relative z-10 h-6 w-6 text-[#8e8e8e] hover:text-white"
-                          aria-label="删除选项"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
-                        <DropdownMenuItem
-                          className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteSession(session.session_id);
-                          }}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          <span>确认删除</span>
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="relative z-10 h-6 w-6 text-[#8e8e8e] hover:text-white"
+                            aria-label="删除选项"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
+                          <DropdownMenuItem
+                            className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteSession(session.session_id);
+                            }}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>确认删除</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

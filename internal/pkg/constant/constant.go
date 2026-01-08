@@ -11,4 +11,5 @@ const (
 	AppNameWebSummary   AppName = "web_summary"
 	AppNameEmailSummary AppName = "email_summary"
 	AppNameAssistant    AppName = "assistant"
+	AppNameImageGen     AppName = "imagegen"
 )

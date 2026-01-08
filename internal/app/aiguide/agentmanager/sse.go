@@ -3,7 +3,9 @@ package agentmanager
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/tools"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -124,6 +126,10 @@ func (a *AgentManager) streamAgentEvents(
 	message *genai.Content,
 	runConfig agent.RunConfig,
 ) {
+	// 追踪当前的 agent author，用于 FunctionResponse
+	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
+	var currentAgentAuthor string
+
 	for event, err := range runner.Run(ctx, userID, sessionID, message, runConfig) {
 		// 检查客户端是否断开连接
 		select {
@@ -145,11 +151,16 @@ func (a *AgentManager) streamAgentEvents(
 			continue
 		}
 
-		// 提取事件中的文本内容
+		// 更新当前 agent author（非 "user" 的才是真正的 agent）
+		if event.Author != "" && event.Author != "user" {
+			currentAgentAuthor = event.Author
+		}
+
+		// 提取事件中的文本内容和图片数据
 		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
 			for _, part := range event.LLMResponse.Content.Parts {
+				// 处理文本内容
 				if part.Text != "" {
-					// 发送数据事件
 					data := gin.H{
 						"author":     event.Author,
 						"content":    part.Text,
@@ -157,6 +168,29 @@ func (a *AgentManager) streamAgentEvents(
 					}
 					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
+				}
+
+				// 处理 FunctionResponse 中的图片数据
+				if part.FunctionResponse != nil {
+					response := part.FunctionResponse.Response
+					// 将 map[string]any 转换为 ImageGenOutput
+					var output tools.ImageGenOutput
+					if jsonData, err := json.Marshal(response); err == nil {
+						if err := json.Unmarshal(jsonData, &output); err == nil && output.Success && len(output.Images) > 0 {
+							// FunctionResponse 的 event.Author 是 "user"（GenAI 协议）
+							// 使用追踪的 currentAgentAuthor 作为图片数据的作者
+							author := currentAgentAuthor
+							if author == "" {
+								author = "model" // 降级方案
+							}
+							data := gin.H{
+								"author": author,
+								"images": output.Images,
+							}
+							ctx.SSEvent("data", data)
+							ctx.Writer.Flush()
+						}
+					}
 				}
 			}
 		}

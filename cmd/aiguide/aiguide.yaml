@@ -4,6 +4,10 @@ model_name: gemini-2.0-flash-exp
 use_gin: true
 gin_port: 8080
 
+# 图片生成模拟模式（开发用，避免调用真实 API 花费费用）
+# 设置为 true 时，imagegen 将返回模拟图片数据而不调用实际的 Gemini API
+mock_image_generation: false
+
 # Frontend URL (用于 OAuth 回调后的重定向)
 # frontend_url: http://localhost:3000
 

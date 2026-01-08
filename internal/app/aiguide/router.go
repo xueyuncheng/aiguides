@@ -62,6 +62,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	api.POST("/web_summary/chats/:id", a.agentManager.WebSummaryChatHandler)
 	api.POST("/assistant/chats/:id", a.agentManager.AssistantChatHandler)
 	api.POST("/email_summary/chats/:id", a.agentManager.EmailSummaryChatHandler)
+	api.POST("/imagegen/chats/:id", a.agentManager.ImageGenChatHandler)
 
 	// 会话管理路由
 	agentGroup := api.Group("/:agentId/sessions")
