@@ -134,7 +134,7 @@ func (s *AuthService) GenerateTokenPair(user *GoogleUser) (*TokenPair, error) {
 
 // GenerateAccessToken 生成访问令牌（短期有效）
 func (s *AuthService) GenerateAccessToken(user *GoogleUser) (string, error) {
-	expirationTime := time.Now().Add(15 * time.Minute) // 访问令牌 15 分钟有效
+	expirationTime := time.Now().Add(15 * time.Hour) // 访问令牌 15 分钟有效
 	claims := &Claims{
 		UserID:    user.ID,
 		Email:     user.Email,
