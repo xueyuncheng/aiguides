@@ -85,6 +85,18 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '帮我规划一个巴黎7日游，我对艺术和美食特别感兴趣',
     ],
   },
+  imagegen: {
+    id: 'imagegen',
+    name: 'ImageGen Agent',
+    description: 'AI 图片生成',
+    icon: '🎨',
+    color: 'bg-pink-500',
+    examples: [
+      '生成一张可爱的小猫图片',
+      '生成一张日落时分的海滩风景照，16:9 宽屏',
+      '生成3张不同风格的龙的图片',
+    ],
+  },
 };
 
 // Helper component for AI Avatar
@@ -119,7 +131,7 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
   const match = /language-(\w+)/.exec(className || '');
   const [codeCopied, setCodeCopied] = useState(false);
   const codeString = String(children).replace(/\n$/, '');
-  
+
   const handleCodeCopy = async () => {
     try {
       await navigator.clipboard.writeText(codeString);
@@ -739,13 +751,13 @@ export default function ChatPage() {
 
     // Check if this is the first user message (before adding the new one, we had 0 user messages)
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
-    
+
     // Update URL with session ID after sending the first message
     // Use window.history.replaceState to avoid page reload/remount
     if (isFirstMessage && sessionId) {
       window.history.replaceState(null, '', `/chat/${agentId}/${sessionId}`);
     }
-    
+
     // Only poll for session title on the first message in this session
     if (isFirstMessage) {
       let pollCount = 0;

@@ -8,7 +8,7 @@ func TestNewImageGenTool(t *testing.T) {
 	// This test just verifies that the tool can be created
 	// without errors when a nil client is passed (basic structure test)
 	// We can't test the actual image generation without a real API key
-	tool, err := NewImageGenTool(nil)
+	tool, err := NewImageGenTool(nil, false)
 	if err != nil {
 		t.Fatalf("NewImageGenTool() error = %v", err)
 	}

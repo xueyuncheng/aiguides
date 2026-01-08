@@ -43,6 +43,7 @@ type MessageEvent struct {
 	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
 	Thought   string    `json:"thought,omitempty"`
+	Images    []string  `json:"images,omitempty"` // Base64编码的图片数据列表
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -181,21 +182,43 @@ func (a *AgentManager) GetSessionHistoryHandler(ctx *gin.Context) {
 
 			content := ""
 			thought := ""
+			var images []string
+			// 如果本条消息包含 FunctionResponse，则将其视为 assistant 输出进行展示
+			hasFunctionResponse := false
 			for _, part := range event.Content.Parts {
 				if part.Thought {
 					thought += part.Text
 				} else if part.Text != "" {
 					content += part.Text
 				}
+
+				// 处理 FunctionResponse 中的图片数据
+				if part.FunctionResponse != nil {
+					hasFunctionResponse = true
+					response := part.FunctionResponse.Response
+					if imageList, ok := response["images"].([]any); ok {
+						for _, img := range imageList {
+							if imgStr, ok := img.(string); ok {
+								images = append(images, imgStr)
+							}
+						}
+					}
+				}
 			}
 
-			if content != "" || thought != "" {
+			// GenAI 协议中工具响应以 user 角色回传，但前端展示应归为 assistant
+			if hasFunctionResponse {
+				role = "assistant"
+			}
+
+			if content != "" || thought != "" || len(images) > 0 {
 				allMessages = append(allMessages, MessageEvent{
 					ID:        event.ID,
 					Timestamp: event.Timestamp,
 					Role:      role,
 					Content:   content,
 					Thought:   thought,
+					Images:    images,
 				})
 			}
 		}

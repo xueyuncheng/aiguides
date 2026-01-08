@@ -23,3 +23,7 @@ func (a *AgentManager) AssistantChatHandler(ctx *gin.Context) {
 func (a *AgentManager) EmailSummaryChatHandler(ctx *gin.Context) {
 	a.HandleAgentChat(ctx, constant.AppNameEmailSummary)
 }
+
+func (a *AgentManager) ImageGenChatHandler(ctx *gin.Context) {
+	a.HandleAgentChat(ctx, constant.AppNameImageGen)
+}

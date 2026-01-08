@@ -22,15 +22,9 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-type Config struct {
-	GoogleClientID     string
-	GoogleClientSecret string
-}
-
 type AgentManager struct {
 	model       model.LLM
 	session     session.Service
-	config      *Config
 	db          *gorm.DB
 	genaiClient *genai.Client
 
@@ -38,7 +32,7 @@ type AgentManager struct {
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client) (*AgentManager, error) {
+func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneratioin bool) (*AgentManager, error) {
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
@@ -180,7 +174,7 @@ func (a *AgentManager) addTravelAgentRunner() error {
 }
 
 func (a *AgentManager) addImageGenRunner() error {
-	// 创建图片生成 Agent
+	// 创建图片生成 Agent，传入模拟模式标志
 	imageGenAgent, err := imagegen.NewImageGenAgent(a.model, a.genaiClient)
 	if err != nil {
 		return fmt.Errorf("NewImageGenAgent() error, err = %w", err)

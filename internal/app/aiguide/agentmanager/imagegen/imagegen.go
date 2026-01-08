@@ -38,11 +38,13 @@ const imageGenAgentInstruction = `你是一个专业的 AI 图片生成助手。
 - 如果用户的描述过于简单，可以适当补充细节
 - 生成后要简单描述图片的特点
 - 如果生成失败，要友好地告知用户原因
+- 调用 generate_image 工具时，不要在用户可见的回复中输出任何 JSON、action 或工具调用细节
 `
 
 // NewImageGenAgent 创建图片生成 Agent
+// mockMode 参数用于在开发时使用模拟数据而不调用真实 API
 func NewImageGenAgent(model model.LLM, genaiClient *genai.Client) (agent.Agent, error) {
-	imageGenTool, err := tools.NewImageGenTool(genaiClient)
+	imageGenTool, err := tools.NewImageGenTool(genaiClient, true)
 	if err != nil {
 		slog.Error("tools.NewImageGenTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewImageGenTool() error, err = %w", err)

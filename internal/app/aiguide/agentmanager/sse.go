@@ -3,7 +3,9 @@ package agentmanager
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/tools"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -145,11 +147,11 @@ func (a *AgentManager) streamAgentEvents(
 			continue
 		}
 
-		// 提取事件中的文本内容
+		// 提取事件中的文本内容和图片数据
 		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
 			for _, part := range event.LLMResponse.Content.Parts {
+				// 处理文本内容
 				if part.Text != "" {
-					// 发送数据事件
 					data := gin.H{
 						"author":     event.Author,
 						"content":    part.Text,
@@ -157,6 +159,23 @@ func (a *AgentManager) streamAgentEvents(
 					}
 					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
+				}
+
+				// 处理 FunctionResponse 中的图片数据
+				if part.FunctionResponse != nil {
+					response := part.FunctionResponse.Response
+					// 将 map[string]any 转换为 ImageGenOutput
+					var output tools.ImageGenOutput
+					if jsonData, err := json.Marshal(response); err == nil {
+						if err := json.Unmarshal(jsonData, &output); err == nil && output.Success && len(output.Images) > 0 {
+							data := gin.H{
+								"author": "model",
+								"images": output.Images,
+							}
+							ctx.SSEvent("data", data)
+							ctx.Writer.Flush()
+						}
+					}
 				}
 			}
 		}
