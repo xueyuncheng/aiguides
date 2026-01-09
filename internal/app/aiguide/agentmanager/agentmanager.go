@@ -87,7 +87,7 @@ func (a *AgentManager) Run(ctx context.Context) error {
 
 func (a *AgentManager) addAssistantRunner() error {
 	// 创建信息检索和事实核查的 Agent
-	assistantAgent, err := assistant.NewAssistantAgent(a.model)
+	assistantAgent, err := assistant.NewAssistantAgent(a.model, a.genaiClient)
 	if err != nil {
 		return fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}
