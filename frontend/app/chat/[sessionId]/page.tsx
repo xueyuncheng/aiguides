@@ -628,6 +628,11 @@ export default function ChatPage() {
     // Clear input
     setInputValue('');
 
+    // Focus input
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+
     // Refresh sessions list to include the new session (will be created when first message is sent)
     // No need to reload sessions here as the session doesn't exist yet
   };
@@ -739,8 +744,12 @@ export default function ChatPage() {
 
   // Always show input when there are no messages (new/empty session)
   useEffect(() => {
-    if (messages.length === 0 && !isLoadingHistory && !isInputVisible) {
-      setIsInputVisible(true);
+    if (messages.length === 0 && !isLoadingHistory) {
+      if (!isInputVisible) {
+        setIsInputVisible(true);
+      }
+      // Auto-focus on new session
+      textareaRef.current?.focus();
     }
   }, [messages.length, isLoadingHistory, isInputVisible]);
 
