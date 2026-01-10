@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useMemo, memo } from 'react';
-import Link from 'next/link';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, Home } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import {
   DropdownMenu,
@@ -124,14 +123,7 @@ const SessionSidebar = memo(({
             </Button>
           </div>
           <div className="space-y-2">
-            <Link href="/" className="block">
-              <Button
-                className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
-              >
-                <Home className="h-4 w-4" />
-                <span className="text-sm">返回首页</span>
-              </Button>
-            </Link>
+
             <Button
               onClick={handleNewSessionClick}
               className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
