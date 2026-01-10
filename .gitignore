@@ -2,6 +2,7 @@
 __debug_*
 /aiguide
 *.db
+*.png
 
 # Docker artifacts
 *.tar

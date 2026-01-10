@@ -231,7 +231,14 @@ func generateMockImages(numberOfImages int32, aspectRatio string) (*ImageGenOutp
 			continue
 		}
 
-		base64Image := base64.StdEncoding.EncodeToString(buf.Bytes())
+		data, err := os.ReadFile("/Users/yuncheng/Documents/github/aiguides/cmd/aiguide/image1.png")
+		if err != nil {
+			slog.Error("os.ReadFile() error", "err", err)
+			continue
+		}
+
+		// base64Image := base64.StdEncoding.EncodeToString(buf.Bytes())
+		base64Image := base64.StdEncoding.EncodeToString(data)
 		imageDataURI := fmt.Sprintf("data:image/png;base64,%s", base64Image)
 		images = append(images, imageDataURI)
 	}

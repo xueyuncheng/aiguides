@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"aiguide/internal/pkg/tools"
 	"fmt"
 	"log/slog"
 
@@ -10,16 +11,27 @@ import (
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/geminitool"
+	"google.golang.org/genai"
 )
 
-const searchAgentInstruction = `你是一个专业的信息检索助手。使用 GoogleSearch 工具查找信息，并以简洁、直接的方式回答。
+const searchAgentInstruction = `你是一个专业的信息检索助手。使用 GoogleSearch 工具查找信息，并以简洁、直接的方式回答。你还可以使用 generate_image 工具生成图片。
 
 **核心要求：**
-1. 使用搜索工具获取准确、最新的信息
+1. 使用 GoogleSearch 工具获取准确、最新的信息
 2. 回答简洁明了，直击要点
 3. 只提供关键信息，避免冗长解释
 4. 附上重要来源链接（包含网址）
 5. **重点：确保建议具有充分的可行性和可操作性**
+6. **图片生成**：当用户明确要求生成、创建、画出图片时，使用 generate_image 工具；否则只提供文字回答
+7. 调用 generate_image 工具时，不要在回复中输出任何 JSON、action 或工具调用细节
+
+**图片生成指南：**
+- **触发条件**：用户使用"生成图片"、"画一张"、"创建图片"、"帮我画"等明确的图片生成请求
+- **非触发条件**：用户只是询问、描述或讨论某个主题时，不要生成图片，只提供文字回答
+- 详细描述图片的主体、风格、颜色、光线、构图等元素
+- 可以指定艺术风格，如：写实风格、卡通风格、油画风格、水彩风格等
+- 支持的宽高比：1:1（正方形）、3:4（竖屏）、4:3（横屏）、9:16（手机竖屏）、16:9（宽屏）
+- 一次可以生成 1-4 张图片
 
 **可行性与详细说明要求：**
 - **可行性优先**：提供的建议、方案或步骤必须真正可执行，考虑现实约束
@@ -50,8 +62,8 @@ const searchAgentInstruction = `你是一个专业的信息检索助手。使用
    - 人名、地名：直接使用中文，无需特殊标记
 `
 
-func NewAssistantAgent(model model.LLM) (agent.Agent, error) {
-	searchAgent, err := NewSearchAgent(model)
+func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
+	searchAgent, err := NewSearchAgent(model, genaiClient, mockImageGeneration)
 	if err != nil {
 		return nil, fmt.Errorf("NewSearchAgent() error, err = %w", err)
 	}
@@ -59,7 +71,7 @@ func NewAssistantAgent(model model.LLM) (agent.Agent, error) {
 	cfg := sequentialagent.Config{
 		AgentConfig: agent.Config{
 			Name:        "AI assistant",
-			Description: "一个 AI 助手，专门用于信息检索和事实核查",
+			Description: "一个 AI 助手，专门用于信息检索、事实核查和图片生成",
 			SubAgents:   []agent.Agent{searchAgent},
 		},
 	}
@@ -72,14 +84,22 @@ func NewAssistantAgent(model model.LLM) (agent.Agent, error) {
 	return assistent, nil
 }
 
-func NewSearchAgent(model model.LLM) (agent.Agent, error) {
+func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
+	// 创建图片生成工具
+	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
+	if err != nil {
+		slog.Error("tools.NewImageGenTool() error", "err", err)
+		return nil, fmt.Errorf("tools.NewImageGenTool() error, err = %w", err)
+	}
+
 	searchAgentConfig := llmagent.Config{
 		Name:        "SearchAgent",
 		Model:       model,
-		Description: "专业的信息检索助手，擅长通过搜索获取准确、全面的信息并提供详细解答",
+		Description: "专业的信息检索助手，擅长通过搜索获取准确、全面的信息并提供详细解答，也可以生成图片",
 		Instruction: searchAgentInstruction,
 		Tools: []tool.Tool{
 			geminitool.GoogleSearch{},
+			imageGenTool,
 		},
 	}
 	agent, err := llmagent.New(searchAgentConfig)

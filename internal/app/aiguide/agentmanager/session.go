@@ -80,6 +80,22 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 		return
 	}
 
+	// 批量获取所有会话的元数据，避免 N+1 查询问题
+	sessionIDs := make([]string, 0, len(listResp.Sessions))
+	for _, sess := range listResp.Sessions {
+		sessionIDs = append(sessionIDs, sess.ID())
+	}
+
+	metadataMap := make(map[string]string) // sessionID -> title
+	if len(sessionIDs) > 0 {
+		var metadataList []table.SessionMeta
+		if err := a.db.Where("session_id IN ?", sessionIDs).Find(&metadataList).Error; err == nil {
+			for _, meta := range metadataList {
+				metadataMap[meta.SessionID] = meta.Title
+			}
+		}
+	}
+
 	// 将会话转换为响应格式
 	sessions := make([]SessionInfo, 0, len(listResp.Sessions))
 	for _, sess := range listResp.Sessions {
@@ -106,13 +122,6 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 			}
 		}
 
-		// 从数据库中获取标题
-		var meta table.SessionMeta
-		title := ""
-		if err := a.db.Where("session_id = ?", sess.ID()).First(&meta).Error; err == nil {
-			title = meta.Title
-		}
-
 		sessions = append(sessions, SessionInfo{
 			SessionID:      sess.ID(),
 			AppName:        sess.AppName(),
@@ -120,7 +129,7 @@ func (a *AgentManager) ListSessionsHandler(ctx *gin.Context) {
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
 			FirstMessage:   firstMessage,
-			Title:          title,
+			Title:          metadataMap[sess.ID()],
 		})
 	}
 
