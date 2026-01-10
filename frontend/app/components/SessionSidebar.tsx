@@ -2,8 +2,10 @@
 
 import { useState, useMemo, memo } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
+import { useAuth } from '@/app/contexts/AuthContext';
+import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +44,7 @@ const SessionSidebar = memo(({
   isMobileOpen = false,
   onMobileToggle,
 }: SessionSidebarProps) => {
+  const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   // Memoize filtered sessions to avoid redundant filtering
@@ -70,15 +73,23 @@ const SessionSidebar = memo(({
   if (isCollapsed) {
     return (
       <div className="hidden md:flex fixed left-0 top-0 h-full bg-[#171717] border-r border-[#2c2c2c] z-50 flex-col items-center py-4">
-        <Button
-          onClick={() => setIsCollapsed(false)}
-          variant="ghost"
-          size="icon"
-          className="text-[#ececec] hover:bg-[#2c2c2c]"
-          aria-label="展开侧边栏"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </Button>
+        <div className="mt-auto flex flex-col items-center gap-4 pb-4">
+          <Button
+            onClick={() => setIsCollapsed(false)}
+            variant="ghost"
+            size="icon"
+            className="text-[#8e8e8e] hover:text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8"
+            aria-label="展开侧边栏"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </Button>
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={user?.picture} alt={user?.name} />
+            <AvatarFallback className="bg-blue-500 text-white text-xs">
+              {user?.name?.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
       </div>
     );
   }
@@ -108,16 +119,6 @@ const SessionSidebar = memo(({
               size="icon"
               className="md:hidden text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8"
               aria-label="关闭侧边栏"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-            {/* Desktop collapse button */}
-            <Button
-              onClick={() => setIsCollapsed(true)}
-              variant="ghost"
-              size="icon"
-              className="hidden md:block text-[#ececec] hover:bg-[#2c2c2c] ml-auto h-8 w-8"
-              aria-label="收起侧边栏"
             >
               <ChevronLeft className="h-5 w-5" />
             </Button>
@@ -203,6 +204,49 @@ const SessionSidebar = memo(({
               ))}
             </div>
           )}
+        </div>
+
+        {/* User Profile */}
+        <div className="p-3 border-t border-[#2c2c2c] flex items-center gap-2">
+          <div className="flex-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="w-full flex items-center gap-3 px-2 py-6 hover:bg-[#2c2c2c] text-[#ececec] justify-start"
+                >
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={user?.picture} alt={user?.name} />
+                    <AvatarFallback className="bg-blue-500 text-white text-sm">
+                      {user?.name?.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 text-left truncate">
+                    <div className="text-sm font-medium truncate">{user?.name}</div>
+                    <div className="text-xs text-[#8e8e8e] truncate">{user?.email}</div>
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-56 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
+                <DropdownMenuItem
+                  className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
+                  onClick={logout}
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>退出登录</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <Button
+            onClick={() => setIsCollapsed(true)}
+            variant="ghost"
+            size="icon"
+            className="hidden md:flex text-[#8e8e8e] hover:text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8 flex-shrink-0"
+            aria-label="收起侧边栏"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
         </div>
       </div>
     </>
