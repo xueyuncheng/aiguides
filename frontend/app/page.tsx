@@ -17,8 +17,8 @@ export default function Home() {
         // 未登录，跳转到登录页
         router.push('/login');
       } else {
-        // 已登录，直接跳转到 assistant 聊天页面
-        router.push('/chat/assistant');
+        // 已登录，直接跳转到聊天页面
+        router.push('/chat');
       }
     }
   }, [user, loading, router]);
