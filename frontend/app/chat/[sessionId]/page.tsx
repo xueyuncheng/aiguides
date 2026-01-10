@@ -850,6 +850,7 @@ export default function ChatPage() {
 
       if (reader) {
         let buffer = '';
+        let currentEventType = 'data'; // Track the current SSE event type
 
         while (true) {
           const { done, value } = await reader.read();
@@ -862,12 +863,41 @@ export default function ChatPage() {
 
           for (const line of lines) {
             const trimmedLine = line.trim();
+            
+            // Handle SSE event type line (e.g., "event: error", "event: data", "event: stop")
+            if (trimmedLine.startsWith('event:')) {
+              currentEventType = trimmedLine.substring(6).trim();
+              continue;
+            }
+            
             if (trimmedLine.startsWith('data:')) {
               try {
                 const jsonStr = trimmedLine.substring(5).trim();
                 if (!jsonStr) continue;
 
                 const data = JSON.parse(jsonStr);
+                
+                // Handle error events
+                if (currentEventType === 'error') {
+                  const errorMessage: Message = {
+                    id: `msg-${Date.now()}-error`,
+                    role: 'assistant',
+                    content: `❌ **错误**: ${data.error || '发生未知错误，请稍后重试。'}`,
+                    timestamp: new Date(),
+                  };
+                  setMessages((prev) => [...prev, errorMessage]);
+                  setIsLoading(false);
+                  // Reset event type back to data for next event
+                  currentEventType = 'data';
+                  continue;
+                }
+                
+                // Handle stop events
+                if (currentEventType === 'stop') {
+                  // Reset event type back to data for next event
+                  currentEventType = 'data';
+                  continue;
+                }
 
                 // Handle images data
                 if (data.images && Array.isArray(data.images)) {
