@@ -237,7 +237,7 @@ const SessionSidebar = memo(({
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="w-full flex items-center gap-3 px-2 py-6 hover:bg-[#2c2c2c] text-[#ececec] justify-start"
+                  className="flex items-center justify-center h-10 w-10 p-0 hover:bg-[#2c2c2c] text-[#ececec] rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user?.picture} alt={user?.name} />
@@ -245,10 +245,6 @@ const SessionSidebar = memo(({
                       {user?.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 text-left truncate">
-                    <div className="text-sm font-medium truncate">{user?.name}</div>
-                    <div className="text-xs text-[#8e8e8e] truncate">{user?.email}</div>
-                  </div>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" className="w-56 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
