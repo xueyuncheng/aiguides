@@ -433,8 +433,9 @@ export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
   const { user, loading, authenticatedFetch } = useAuth();
-  const agentId = params.agentId as string;
   const urlSessionId = params.sessionId as string;
+  // 固定使用 assistant agent
+  const agentId = 'assistant';
   const agentInfo = agentInfoMap[agentId];
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -508,12 +509,12 @@ export default function ChatPage() {
     if (user?.user_id) {
       loadSessions();
     }
-  }, [agentId, user?.user_id]);
+  }, [user?.user_id]);
 
   const loadSessionHistory = async (targetSessionId: string, updateUrl: boolean = true) => {
     // Update URL if needed (for session switching)
     if (updateUrl && targetSessionId !== sessionId) {
-      window.history.pushState(null, '', `/chat/${agentId}/${targetSessionId}`);
+      window.history.pushState(null, '', `/chat/${targetSessionId}`);
       setSessionId(targetSessionId);
     }
 
@@ -615,7 +616,7 @@ export default function ChatPage() {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
     // Update URL without causing a full page reload
-    window.history.pushState(null, '', `/chat/${agentId}/${newSessionId}`);
+    window.history.pushState(null, '', `/chat/${newSessionId}`);
 
     // Update state to show empty chat
     setSessionId(newSessionId);
@@ -659,7 +660,7 @@ export default function ChatPage() {
       router.push('/');
       return;
     }
-  }, [agentId, agentInfo, router, user, loading]);
+  }, [agentInfo, router, user, loading]);
 
   // Load session history when component mounts or URL session changes
   useEffect(() => {
