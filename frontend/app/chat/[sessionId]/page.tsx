@@ -302,7 +302,7 @@ const AIMessageContent = memo(({ content, thought, isStreaming, images }: { cont
             ))}
           </div>
         )}
-        {!content && isStreaming && thought && (
+        {!content && isStreaming && !thought && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground py-2 animate-pulse">
             <div className="flex space-x-1">
               <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
