@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
@@ -69,6 +69,25 @@ const SessionSidebar = memo(({
     }
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K: New Session
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        handleNewSessionClick();
+      }
+      // Cmd/Ctrl + B: Toggle Sidebar
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        setIsCollapsed(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onNewSession, isMobileOpen, onMobileToggle]);
+
   // Desktop collapsed state
   if (isCollapsed) {
     return (
@@ -127,10 +146,15 @@ const SessionSidebar = memo(({
 
             <Button
               onClick={handleNewSessionClick}
-              className="w-full gap-2 justify-start border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg"
+              className="w-full gap-2 justify-between border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg group/btn"
             >
-              <Plus className="h-4 w-4" />
-              <span className="text-sm">新建对话</span>
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="text-sm">新建对话</span>
+              </div>
+              <kbd className="hidden md:inline-flex h-5 select-none items-center gap-1 rounded border border-[#424242] bg-[#212121] px-1.5 font-mono text-[10px] font-medium text-[#8e8e8e] opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200">
+                <span className="text-xs">⌘</span>K
+              </kbd>
             </Button>
           </div>
         </div>
