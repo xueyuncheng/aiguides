@@ -7,9 +7,5 @@ func (a AppName) String() string {
 }
 
 const (
-	AppNameTravel       AppName = "travel"
-	AppNameWebSummary   AppName = "web_summary"
-	AppNameEmailSummary AppName = "email_summary"
-	AppNameAssistant    AppName = "assistant"
-	AppNameImageGen     AppName = "imagegen"
+	AppNameAssistant AppName = "assistant"
 )

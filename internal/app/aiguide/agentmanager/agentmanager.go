@@ -2,10 +2,6 @@ package agentmanager
 
 import (
 	"aiguide/internal/app/aiguide/agentmanager/assistant"
-	"aiguide/internal/app/aiguide/agentmanager/emailsummary"
-	"aiguide/internal/app/aiguide/agentmanager/imagegen"
-	"aiguide/internal/app/aiguide/agentmanager/travelagent"
-	"aiguide/internal/app/aiguide/agentmanager/websummary"
 	"aiguide/internal/pkg/auth"
 	"aiguide/internal/pkg/constant"
 	"context"
@@ -60,24 +56,8 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 		runnerMap:           make(map[constant.AppName]*runner.Runner, 16),
 	}
 
-	if err := agentManager.addTravelAgentRunner(); err != nil {
-		return nil, fmt.Errorf("agentManager.addTravelAgentRunner() error, err = %w", err)
-	}
-
-	if err := agentManager.addWebSummaryRunner(); err != nil {
-		return nil, fmt.Errorf("agentManager.addWebSummaryRunner() error, err = %w", err)
-	}
-
 	if err := agentManager.addAssistantRunner(); err != nil {
 		return nil, fmt.Errorf("agentManager.addAssistantRunner() error, err = %w", err)
-	}
-
-	if err := agentManager.addEmailSummaryRunner(); err != nil {
-		return nil, fmt.Errorf("agentManager.addEmailSummaryRunner() error, err = %w", err)
-	}
-
-	if err := agentManager.addImageGenRunner(); err != nil {
-		return nil, fmt.Errorf("agentManager.addImageGenRunner() error, err = %w", err)
 	}
 
 	return agentManager, nil
@@ -106,93 +86,5 @@ func (a *AgentManager) addAssistantRunner() error {
 	}
 
 	a.runnerMap[constant.AppNameAssistant] = assistantRunner
-	return nil
-}
-
-func (a *AgentManager) addWebSummaryRunner() error {
-	// 创建网页总结 Agent
-	webSummaryAgent, err := websummary.NewWebSummaryAgent(a.model)
-	if err != nil {
-		return fmt.Errorf("NewWebSummaryAgent() error, err = %w", err)
-	}
-
-	webSummaryConfig := runner.Config{
-		AppName:        constant.AppNameWebSummary.String(),
-		Agent:          webSummaryAgent,
-		SessionService: a.session,
-	}
-	webSummaryRunner, err := runner.New(webSummaryConfig)
-	if err != nil {
-		slog.Error("runner.New() error", "err", err)
-		return fmt.Errorf("runner.New() error, err = %w", err)
-	}
-
-	a.runnerMap[constant.AppNameWebSummary] = webSummaryRunner
-	return nil
-}
-
-func (a *AgentManager) addEmailSummaryRunner() error {
-	// 创建邮件总结 Agent
-	emailSummaryAgent, err := emailsummary.NewEmailSummaryAgent(a.model)
-	if err != nil {
-		return fmt.Errorf("NewEmailSummaryAgent() error, err = %w", err)
-	}
-
-	emailSummaryRunnerConfig := &runner.Config{
-		AppName:        constant.AppNameEmailSummary.String(),
-		Agent:          emailSummaryAgent,
-		SessionService: a.session,
-	}
-	emailSummaryRunner, err := runner.New(*emailSummaryRunnerConfig)
-	if err != nil {
-		slog.Error("runner.New() error", "err", err)
-		return fmt.Errorf("runner.New() error, err = %w", err)
-	}
-
-	a.runnerMap[constant.AppNameEmailSummary] = emailSummaryRunner
-	return nil
-}
-
-func (a *AgentManager) addTravelAgentRunner() error {
-	// 创建旅游推荐 Agent
-	travelAgent, err := travelagent.NewTravelAgent(a.model)
-	if err != nil {
-		return fmt.Errorf("NewTravelAgent() error, err = %w", err)
-	}
-
-	travelAgentRunnerConfig := runner.Config{
-		AppName:        constant.AppNameTravel.String(),
-		Agent:          travelAgent,
-		SessionService: a.session,
-	}
-	travelAgentRunner, err := runner.New(travelAgentRunnerConfig)
-	if err != nil {
-		slog.Error("runner.New() error", "err", err)
-		return fmt.Errorf("runner.New() error, err = %w", err)
-	}
-
-	a.runnerMap[constant.AppNameTravel] = travelAgentRunner
-	return nil
-}
-
-func (a *AgentManager) addImageGenRunner() error {
-	// 创建图片生成 Agent，传入模拟模式标志
-	imageGenAgent, err := imagegen.NewImageGenAgent(a.model, a.genaiClient)
-	if err != nil {
-		return fmt.Errorf("NewImageGenAgent() error, err = %w", err)
-	}
-
-	imageGenRunnerConfig := runner.Config{
-		AppName:        constant.AppNameImageGen.String(),
-		Agent:          imageGenAgent,
-		SessionService: a.session,
-	}
-	imageGenRunner, err := runner.New(imageGenRunnerConfig)
-	if err != nil {
-		slog.Error("runner.New() error", "err", err)
-		return fmt.Errorf("runner.New() error, err = %w", err)
-	}
-
-	a.runnerMap[constant.AppNameImageGen] = imageGenRunner
 	return nil
 }
