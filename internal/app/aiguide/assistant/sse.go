@@ -1,4 +1,4 @@
-package agentmanager
+package assistant
 
 import (
 	"aiguide/internal/app/aiguide/table"
@@ -27,17 +27,10 @@ type ChatRequest struct {
 	Message   string `json:"message"`
 }
 
-// HandleAgentChat 处理通用的 agent 聊天请求，支持 SSE 流式响应
+// Chat 处理通用的 agent 聊天请求，支持 SSE 流式响应
 // appName: 应用名称（如 "travel", "email" 等）
 // runnerName: runner 的名称（用于从 runnerMap 中获取）
-func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppName) {
-	runner, ok := a.runnerMap[appName]
-	if !ok {
-		slog.Error("runner name not found", "runner name", appName)
-		ctx.JSON(500, gin.H{"error": appName + " runner not found"})
-		return
-	}
-
+func (a *Assistant) Chat(ctx *gin.Context) {
 	var req ChatRequest
 	if err := ctx.BindJSON(&req); err != nil {
 		slog.Error("ctx.BindJSON() error", "err", err)
@@ -50,7 +43,7 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 	message := genai.NewContentFromText(req.Message, genai.RoleUser)
 
 	// 检查或创建 session
-	if err := a.ensureSession(ctx, appName.String(), userID, sessionID); err != nil {
+	if err := a.ensureSession(ctx, userID, sessionID); err != nil {
 		ctx.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
@@ -76,7 +69,7 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 	const maxRetries = 3
 	var lastErr error
 	for attempt := range maxRetries {
-		if err := a.streamAgentEvents(ctx, runner, userID, sessionID, message, runConfig); err != nil {
+		if err := a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig); err != nil {
 			lastErr = err
 			slog.Warn("streamAgentEvents failed, retrying", "attempt", attempt+1, "err", err)
 			if attempt < maxRetries-1 {
@@ -92,9 +85,9 @@ func (a *AgentManager) HandleAgentChat(ctx *gin.Context, appName constant.AppNam
 }
 
 // ensureSession 确保 session 存在，不存在则创建
-func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionID string) error {
+func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) error {
 	sessionGetReq := &session.GetRequest{
-		AppName:   appName,
+		AppName:   constant.AppNameSearch.String(),
 		UserID:    userID,
 		SessionID: sessionID,
 	}
@@ -107,7 +100,7 @@ func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionI
 
 		// Session 不存在，创建新的 session
 		sessionCreateReq := &session.CreateRequest{
-			AppName:   appName,
+			AppName:   constant.AppNameSearch.String(),
 			UserID:    userID,
 			SessionID: sessionID,
 			State:     map[string]any{},
@@ -121,7 +114,7 @@ func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionI
 		// 创建后验证 session 是否成功保存
 		// 这有助于捕捉数据库同步或创建失败的情况
 		if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
-			slog.Error("session.Get() after create error", "err", err, "appName", appName, "userID", userID, "sessionID", sessionID)
+			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameSearch.String(), "userID", userID, "sessionID", sessionID)
 			return fmt.Errorf("session.Get() after create error, err = %w", err)
 		}
 	}
@@ -130,7 +123,7 @@ func (a *AgentManager) ensureSession(ctx *gin.Context, appName, userID, sessionI
 }
 
 // setupSSEResponse 设置 SSE 响应头
-func (a *AgentManager) setupSSEResponse(ctx *gin.Context) {
+func (a *Assistant) setupSSEResponse(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "text/event-stream")
 	ctx.Writer.Header().Set("Cache-Control", "no-cache")
 	ctx.Writer.Header().Set("Connection", "keep-alive")
@@ -142,7 +135,7 @@ func (a *AgentManager) setupSSEResponse(ctx *gin.Context) {
 }
 
 // streamAgentEvents 处理 agent 的流式事件并发送给客户端
-func (a *AgentManager) streamAgentEvents(
+func (a *Assistant) streamAgentEvents(
 	ctx *gin.Context,
 	runner *runner.Runner,
 	userID, sessionID string,
@@ -238,7 +231,7 @@ Rules:
 4. Output only the title text.`
 
 // generateTitle 生成会话标题
-func (a *AgentManager) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
+func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
 	// 1. 检查数据库中是否已有标题
 	var meta table.SessionMeta
 	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {

@@ -44,7 +44,7 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 
 	// 创建测试路由
 	router := gin.New()
-	router.POST("/api/auth/refresh", aiGuide.refreshTokenHandler)
+	router.POST("/api/auth/refresh", aiGuide.RefreshToken)
 
 	// 测试场景 1: 使用 Cookie 中的刷新令牌
 	t.Run("refresh with cookie", func(t *testing.T) {
@@ -194,7 +194,7 @@ func TestLogoutHandlerClearsBothCookies(t *testing.T) {
 	}
 
 	router := gin.New()
-	router.POST("/api/auth/logout", aiGuide.logoutHandler)
+	router.POST("/api/auth/logout", aiGuide.Logout)
 
 	req, _ := http.NewRequest("POST", "/api/auth/logout", nil)
 	w := httptest.NewRecorder()

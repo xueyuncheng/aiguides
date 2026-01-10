@@ -1,7 +1,7 @@
 package aiguide
 
 import (
-	"aiguide/internal/app/aiguide/agentmanager"
+	"aiguide/internal/app/aiguide/assistant"
 	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
 	"context"
@@ -40,10 +40,10 @@ type Config struct {
 type AIGuide struct {
 	config *Config
 
-	migrator     *migration.Migrator
-	db           *gorm.DB
-	agentManager *agentmanager.AgentManager
-	authService  *auth.AuthService
+	migrator    *migration.Migrator
+	db          *gorm.DB
+	assistant   *assistant.Assistant
+	authService *auth.AuthService
 }
 
 // secureCookie 返回 cookie 的 secure 标志值，默认为 true（生产环境）
@@ -99,9 +99,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	migrator := migration.New(db)
 
-	agentManager, err := agentmanager.New(model, db, genaiClient, config.MockImageGeneration)
+	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration)
 	if err != nil {
-		return nil, fmt.Errorf("agentmanager.New() error, err = %w", err)
+		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
 	}
 
 	authConfig := &auth.Config{
@@ -113,11 +113,11 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	authService := auth.NewAuthService(authConfig)
 
 	guide := &AIGuide{
-		config:       config,
-		db:           db,
-		migrator:     migrator,
-		agentManager: agentManager,
-		authService:  authService,
+		config:      config,
+		db:          db,
+		migrator:    migrator,
+		assistant:   assistant,
+		authService: authService,
 	}
 
 	return guide, nil
@@ -147,7 +147,7 @@ func (a *AIGuide) Run(ctx context.Context) error {
 		return fmt.Errorf("a.migrator.Run() error, err = %w", err)
 	}
 
-	if err := a.agentManager.Run(ctx); err != nil {
+	if err := a.assistant.Run(ctx); err != nil {
 		return fmt.Errorf("a.agentManager.Run() error, err = %w", err)
 	}
 
