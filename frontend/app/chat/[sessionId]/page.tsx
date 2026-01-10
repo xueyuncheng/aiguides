@@ -1055,8 +1055,8 @@ export default function ChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Submit on Enter without Shift
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Submit on Enter without Shift, but NOT while composing (IME)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       sendMessage(inputValue);
     }
