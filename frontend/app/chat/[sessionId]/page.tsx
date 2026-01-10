@@ -14,7 +14,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu, RotateCcw } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -26,6 +26,7 @@ interface Message {
   author?: string;
   isStreaming?: boolean;
   images?: string[];
+  isError?: boolean;
 }
 
 interface AgentInfo {
@@ -194,7 +195,21 @@ CodeBlock.displayName = 'CodeBlock';
 const FEEDBACK_TIMEOUT_MS = 2000;
 
 // Helper component for AI Message with raw markdown toggle
-const AIMessageContent = memo(({ content, thought, isStreaming, images }: { content: string; thought?: string; isStreaming?: boolean; images?: string[] }) => {
+const AIMessageContent = memo(({
+  content,
+  thought,
+  isStreaming,
+  images,
+  isError,
+  onRetry
+}: {
+  content: string;
+  thought?: string;
+  isStreaming?: boolean;
+  images?: string[];
+  isError?: boolean;
+  onRetry?: () => void;
+}) => {
   const [showRaw, setShowRaw] = useState(false);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(false);
 
@@ -355,39 +370,59 @@ const AIMessageContent = memo(({ content, thought, isStreaming, images }: { cont
           </div>
         )}
 
-        {/* Toggle and Copy buttons - below content with icons only */}
+        {/* Action buttons - below content */}
         {!isStreaming && (
-          <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-200">
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => setShowRaw(!showRaw)}
-              className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-              title={showRaw ? "显示渲染效果" : "显示原始内容"}
-              aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
-            >
-              {showRaw ? (
-                <Eye className="h-3.5 w-3.5" />
-              ) : (
-                <Code2 className="h-3.5 w-3.5" />
-              )}
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={handleCopy}
-              className="h-6 w-6 p-0 bg-background/80 backdrop-blur-sm border hover:bg-background"
-              title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-              aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
-            >
-              {copyError ? (
-                <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
-              ) : copied ? (
-                <Check className="h-3.5 w-3.5 text-green-600" />
-              ) : (
-                <Copy className="h-3.5 w-3.5" />
-              )}
-            </Button>
+          <div className={cn(
+            "flex gap-1 mt-2 transition-opacity duration-200",
+            isError ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+          )}>
+            {isError ? (
+              onRetry && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={onRetry}
+                  className="h-6 w-6 p-0 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  title="重试"
+                  aria-label="重试"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+              )
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowRaw(!showRaw)}
+                  className="h-6 w-6 p-0 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  title={showRaw ? "显示渲染效果" : "显示原始内容"}
+                  aria-label={showRaw ? "显示渲染效果" : "显示原始内容"}
+                >
+                  {showRaw ? (
+                    <Eye className="h-3.5 w-3.5" />
+                  ) : (
+                    <Code2 className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCopy}
+                  className="h-6 w-6 p-0 hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  title={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+                  aria-label={copyError ? "复制失败" : (copied ? "已复制" : "复制原始内容")}
+                >
+                  {copyError ? (
+                    <X className="h-3.5 w-3.5 text-red-500" aria-hidden="true" />
+                  ) : copied ? (
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" />
+                  )}
+                </Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -786,17 +821,31 @@ export default function ChatPage() {
   };
 
   const sendMessage = async (content: string) => {
-    if (!content.trim() || isLoading) return;
+    if (isLoading) return;
 
-    const userMessage: Message = {
-      id: `msg-${Date.now()}`,
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date(),
-    };
+    const isRetry = !content.trim();
+    if (isRetry && messages.length === 0) return;
 
-    setMessages((prev) => [...prev, userMessage]);
-    setInputValue('');
+    if (isRetry) {
+      // 如果是重试且最后一条是错误消息，先将其移除，避免界面堆积错误信息
+      setMessages((prev) => {
+        if (prev.length > 0 && prev[prev.length - 1].isError) {
+          return prev.slice(0, -1);
+        }
+        return prev;
+      });
+    } else {
+      // 正常发送新消息
+      const userMessage: Message = {
+        id: `msg-${Date.now()}`,
+        role: 'user',
+        content: content.trim(),
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, userMessage]);
+      setInputValue('');
+    }
+
     setIsLoading(true);
 
     // Create a new AbortController for this request
@@ -850,6 +899,7 @@ export default function ChatPage() {
 
       if (reader) {
         let buffer = '';
+        let currentEventType = 'data'; // Track the current SSE event type
 
         while (true) {
           const { done, value } = await reader.read();
@@ -862,12 +912,42 @@ export default function ChatPage() {
 
           for (const line of lines) {
             const trimmedLine = line.trim();
+
+            // Handle SSE event type line (e.g., "event: error", "event: data", "event: stop")
+            if (trimmedLine.startsWith('event:')) {
+              currentEventType = trimmedLine.substring(6).trim();
+              continue;
+            }
+
             if (trimmedLine.startsWith('data:')) {
               try {
                 const jsonStr = trimmedLine.substring(5).trim();
                 if (!jsonStr) continue;
 
                 const data = JSON.parse(jsonStr);
+
+                // Handle error events
+                if (currentEventType === 'error') {
+                  const errorMessage: Message = {
+                    id: `msg-${Date.now()}-error`,
+                    role: 'assistant',
+                    content: `❌ **错误**: ${data.error || '发生未知错误，请稍后重试。'}`,
+                    timestamp: new Date(),
+                    isError: true,
+                  };
+                  setMessages((prev) => [...prev, errorMessage]);
+                  setIsLoading(false);
+                  // Reset event type back to data for next event
+                  currentEventType = 'data';
+                  continue;
+                }
+
+                // Handle stop events
+                if (currentEventType === 'stop') {
+                  // Reset event type back to data for next event
+                  currentEventType = 'data';
+                  continue;
+                }
 
                 // Handle images data
                 if (data.images && Array.isArray(data.images)) {
@@ -959,6 +1039,7 @@ export default function ChatPage() {
           role: 'assistant',
           content: '抱歉，发生了错误。请确保后端服务正在运行，并稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
           timestamp: new Date(),
+          isError: true,
         };
         setMessages((prev) => [...prev, errorMessage]);
       }
@@ -974,8 +1055,8 @@ export default function ChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // Submit on Enter without Shift
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // Submit on Enter without Shift, but NOT while composing (IME)
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       sendMessage(inputValue);
     }
@@ -1115,6 +1196,8 @@ export default function ChatPage() {
                               thought={message.thought}
                               isStreaming={message.isStreaming}
                               images={message.images}
+                              isError={message.isError}
+                              onRetry={() => sendMessage("")}
                             />
                           ) : (
                             <div className="whitespace-pre-wrap break-words">{message.content}</div>
