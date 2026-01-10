@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"context"
 	"testing"
 
 	"github.com/emersion/go-imap/v2"
@@ -67,7 +68,7 @@ func TestEmailQueryInput_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := queryEmails(nil, tt.input)
+			output, err := queryEmails(context.Background(), tt.input)
 			if err != nil {
 				t.Fatalf("queryEmails() unexpected error: %v", err)
 			}

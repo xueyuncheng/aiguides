@@ -64,102 +64,160 @@ func NewEmailQueryTool() (tool.Tool, error) {
 
 // queryEmails 查询邮件
 func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
-	// 验证必填参数
-	if input.Server == "" {
-		slog.Error("IMAP 服务器地址不能为空")
+	// 检查 context 是否已被取消
+	select {
+	case <-ctx.Done():
 		return &EmailQueryOutput{
 			Success: false,
-			Error:   "IMAP 服务器地址不能为空",
-		}, nil
+			Error:   "操作已取消",
+		}, ctx.Err()
+	default:
 	}
 
-	if input.Username == "" {
-		slog.Error("邮箱账号不能为空")
+	// 验证并标准化输入
+	input, err := validateAndNormalizeInput(input)
+	if err != nil {
+		slog.Error(err.Error())
 		return &EmailQueryOutput{
 			Success: false,
-			Error:   "邮箱账号不能为空",
+			Error:   err.Error(),
 		}, nil
-	}
-
-	if input.Password == "" {
-		slog.Error("邮箱密码不能为空")
-		return &EmailQueryOutput{
-			Success: false,
-			Error:   "邮箱密码不能为空",
-		}, nil
-	}
-
-	// 设置默认值
-	mailbox := input.Mailbox
-	if mailbox == "" {
-		mailbox = "INBOX"
-	}
-
-	limit := input.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	if limit > 50 {
-		limit = 50
 	}
 
 	slog.Info("开始查询邮件",
 		"server", input.Server,
 		"username", input.Username,
-		"mailbox", mailbox,
-		"limit", limit,
+		"mailbox", input.Mailbox,
+		"limit", input.Limit,
 		"unseen", input.Unseen)
 
 	// 连接到 IMAP 服务器
-	options := &imapclient.Options{
-		TLSConfig: &tls.Config{
-			ServerName: parseServerName(input.Server),
-		},
-	}
-
-	client, err := imapclient.DialTLS(input.Server, options)
+	client, err := connectToIMAP(input.Server, input.Username, input.Password)
 	if err != nil {
-		slog.Error("连接 IMAP 服务器失败", "err", err)
+		slog.Error("连接或登录 IMAP 服务器失败", "err", err)
 		return &EmailQueryOutput{
 			Success: false,
-			Error:   fmt.Sprintf("连接 IMAP 服务器失败: %v", err),
+			Error:   err.Error(),
 		}, nil
 	}
 	defer client.Close()
 
-	// 登录
-	if err := client.Login(input.Username, input.Password).Wait(); err != nil {
-		slog.Error("IMAP 登录失败", "err", err)
-		return &EmailQueryOutput{
-			Success: false,
-			Error:   fmt.Sprintf("IMAP 登录失败: %v", err),
-		}, nil
-	}
-	defer client.Logout().Wait()
-
 	// 选择邮箱文件夹
-	selectData, err := client.Select(mailbox, nil).Wait()
+	selectData, err := client.Select(input.Mailbox, nil).Wait()
 	if err != nil {
-		slog.Error("选择邮箱文件夹失败", "err", err, "mailbox", mailbox)
+		slog.Error("选择邮箱文件夹失败", "err", err, "mailbox", input.Mailbox)
 		return &EmailQueryOutput{
 			Success: false,
 			Error:   fmt.Sprintf("选择邮箱文件夹失败: %v", err),
 		}, nil
 	}
 
-	numMessages := selectData.NumMessages
-	if numMessages == 0 {
+	if selectData.NumMessages == 0 {
+		slog.Info("邮箱中没有邮件", "mailbox", input.Mailbox)
 		return &EmailQueryOutput{
 			Success:  true,
 			Messages: []EmailMessage{},
 			Count:    0,
-			Message:  fmt.Sprintf("邮箱 %s 中没有邮件", mailbox),
+			Message:  fmt.Sprintf("邮箱 %s 中没有邮件", input.Mailbox),
 		}, nil
 	}
 
-	// 构建搜索条件
+	// 搜索并获取 UID
+	uids, err := searchLatestUIDs(client, input.Unseen, input.Limit)
+	if err != nil {
+		slog.Error("搜索邮件失败", "err", err)
+		return &EmailQueryOutput{
+			Success: false,
+			Error:   fmt.Sprintf("搜索邮件失败: %v", err),
+		}, nil
+	}
+
+	if len(uids) == 0 {
+		return &EmailQueryOutput{
+			Success:  true,
+			Messages: []EmailMessage{},
+			Count:    0,
+			Message:  "没有找到符合条件的邮件",
+		}, nil
+	}
+
+	// 获取邮件详情
+	messages, skippedCount, err := fetchEmails(client, uids)
+	if err != nil {
+		slog.Error("获取邮件详情失败", "err", err)
+		return &EmailQueryOutput{
+			Success: false,
+			Error:   fmt.Sprintf("获取邮件详情失败: %v", err),
+		}, nil
+	}
+
+	var message string
+	if skippedCount > 0 {
+		message = fmt.Sprintf("成功查询到 %d 封邮件（%d 封邮件获取失败）", len(messages), skippedCount)
+	} else {
+		message = fmt.Sprintf("成功查询到 %d 封邮件", len(messages))
+	}
+	slog.Info(message)
+
+	return &EmailQueryOutput{
+		Success:  true,
+		Messages: messages,
+		Count:    len(messages),
+		Message:  message,
+	}, nil
+}
+
+// validateAndNormalizeInput 验证必填参数并设置默认值
+func validateAndNormalizeInput(input EmailQueryInput) (EmailQueryInput, error) {
+	if input.Server == "" {
+		return input, fmt.Errorf("IMAP 服务器地址不能为空")
+	}
+	if input.Username == "" {
+		return input, fmt.Errorf("邮箱账号不能为空")
+	}
+	if input.Password == "" {
+		return input, fmt.Errorf("邮箱密码不能为空")
+	}
+
+	if input.Mailbox == "" {
+		input.Mailbox = "INBOX"
+	}
+
+	if input.Limit <= 0 {
+		input.Limit = 10
+	}
+	if input.Limit > 50 {
+		input.Limit = 50
+	}
+
+	return input, nil
+}
+
+// connectToIMAP 连接并登录 IMAP 服务器
+func connectToIMAP(server, username, password string) (*imapclient.Client, error) {
+	options := &imapclient.Options{
+		TLSConfig: &tls.Config{
+			ServerName: parseServerName(server),
+		},
+	}
+
+	client, err := imapclient.DialTLS(server, options)
+	if err != nil {
+		return nil, fmt.Errorf("连接 IMAP 服务器失败: %v", err)
+	}
+
+	if err := client.Login(username, password).Wait(); err != nil {
+		client.Close()
+		return nil, fmt.Errorf("IMAP 登录失败: %v", err)
+	}
+
+	return client, nil
+}
+
+// searchLatestUIDs 搜索邮件并返回最新的 UID 列表
+func searchLatestUIDs(client *imapclient.Client, unseen bool, limit int) ([]imap.UID, error) {
 	var searchCriteria *imap.SearchCriteria
-	if input.Unseen {
+	if unseen {
 		searchCriteria = &imap.SearchCriteria{
 			Not: []imap.SearchCriteria{
 				{Flag: []imap.Flag{imap.FlagSeen}},
@@ -169,44 +227,41 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 		searchCriteria = &imap.SearchCriteria{} // 查询所有邮件
 	}
 
-	// 搜索邮件
-	searchData, err := client.Search(searchCriteria, nil).Wait()
+	searchData, err := client.UIDSearch(searchCriteria, nil).Wait()
 	if err != nil {
-		slog.Error("搜索邮件失败", "err", err)
-		return &EmailQueryOutput{
-			Success: false,
-			Error:   fmt.Sprintf("搜索邮件失败: %v", err),
-		}, nil
+		return nil, err
 	}
 
-	if len(searchData.AllUIDs()) == 0 {
-		return &EmailQueryOutput{
-			Success:  true,
-			Messages: []EmailMessage{},
-			Count:    0,
-			Message:  fmt.Sprintf("没有找到符合条件的邮件"),
-		}, nil
+	uids := searchData.AllUIDs()
+	if len(uids) == 0 {
+		return []imap.UID{}, nil
 	}
 
 	// 限制获取的邮件数量
-	uids := searchData.AllUIDs()
 	if len(uids) > limit {
 		// 取最新的 limit 条
+		// uids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+		// limit: 5
+		// uids: [6, 7, 8, 9, 10]
 		uids = uids[len(uids)-limit:]
 	}
 
-	// 创建 UID 集合
+	return uids, nil
+}
+
+// fetchEmails 根据 UID 获取邮件详情
+func fetchEmails(client *imapclient.Client, uids []imap.UID) ([]EmailMessage, int, error) {
 	uidSet := imap.UIDSet{}
 	uidSet.AddNum(uids...)
 
-	// 获取邮件详情
 	fetchOptions := &imap.FetchOptions{
 		Envelope:    true,
 		Flags:       true,
 		BodySection: []*imap.FetchItemBodySection{{}},
 	}
 
-	messages := []EmailMessage{}
+	var messages []EmailMessage
+	skippedCount := 0
 	fetchCmd := client.Fetch(uidSet, fetchOptions)
 	defer fetchCmd.Close()
 
@@ -220,53 +275,47 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 		buf, err := msg.Collect()
 		if err != nil {
 			slog.Error("收集邮件数据失败", "err", err)
+			skippedCount++
 			continue
 		}
 
-		emailMsg := EmailMessage{
-			UID:  uint32(buf.UID),
-			Seen: hasSeenFlag(buf.Flags),
-		}
-
-		// 获取信封信息
-		if buf.Envelope != nil {
-			emailMsg.Subject = buf.Envelope.Subject
-			emailMsg.Date = buf.Envelope.Date
-			if len(buf.Envelope.From) > 0 {
-				emailMsg.From = formatAddress(&buf.Envelope.From[0])
-			}
-			if len(buf.Envelope.To) > 0 {
-				emailMsg.To = formatAddress(&buf.Envelope.To[0])
-			}
-		}
-
-		// 获取邮件正文
-		for _, section := range buf.BodySection {
-			if section.Section.Specifier == imap.PartSpecifierNone {
-				emailMsg.BodyText = extractTextFromBody(string(section.Bytes))
-			}
-		}
-
-		messages = append(messages, emailMsg)
+		messages = append(messages, parseEmailMessage(buf))
 	}
 
 	if err := fetchCmd.Close(); err != nil {
-		slog.Error("获取邮件详情失败", "err", err)
-		return &EmailQueryOutput{
-			Success: false,
-			Error:   fmt.Sprintf("获取邮件详情失败: %v", err),
-		}, nil
+		return messages, skippedCount, err
 	}
 
-	message := fmt.Sprintf("成功查询到 %d 封邮件", len(messages))
-	slog.Info(message)
+	return messages, skippedCount, nil
+}
 
-	return &EmailQueryOutput{
-		Success:  true,
-		Messages: messages,
-		Count:    len(messages),
-		Message:  message,
-	}, nil
+// parseEmailMessage 解析邮件消息
+func parseEmailMessage(buf *imapclient.FetchMessageBuffer) EmailMessage {
+	emailMsg := EmailMessage{
+		UID:  uint32(buf.UID),
+		Seen: hasSeenFlag(buf.Flags),
+	}
+
+	// 获取信封信息
+	if buf.Envelope != nil {
+		emailMsg.Subject = buf.Envelope.Subject
+		emailMsg.Date = buf.Envelope.Date
+		if len(buf.Envelope.From) > 0 {
+			emailMsg.From = formatAddress(&buf.Envelope.From[0])
+		}
+		if len(buf.Envelope.To) > 0 {
+			emailMsg.To = formatAddress(&buf.Envelope.To[0])
+		}
+	}
+
+	// 获取邮件正文
+	for _, section := range buf.BodySection {
+		if section.Section.Specifier == imap.PartSpecifierNone {
+			emailMsg.BodyText = extractTextFromBody(string(section.Bytes))
+		}
+	}
+
+	return emailMsg
 }
 
 // parseServerName 从服务器地址中解析主机名
