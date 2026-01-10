@@ -1,4 +1,4 @@
-package agentmanager
+package assistant
 
 import (
 	"testing"

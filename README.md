@@ -15,7 +15,7 @@
 
 ### AI Assistant（信息检索、事实核查和图片生成）
 专门用于信息检索、事实核查和图片生成的通用 AI 助手：
-- **SearchAgent**：专业的信息检索助手，使用 GoogleSearch 工具获取准确、全面的信息
+- **SearchAgent**：专业的信息检索助手，使用 google_search 工具获取准确、全面的信息
 - **图片生成**：当用户明确要求生成图片时，自动调用图片生成工具创建高质量图片
 - **智能切换**：根据用户需求自动选择合适的功能（搜索或图片生成）
 - **多功能一体**：在一个对话中完成所有任务
@@ -443,7 +443,7 @@ go fmt ./...
 - **AI 模型**：Google Gemini, Google Imagen 3
 - **语言**：Go 1.25.5
 - **前端**：Next.js 16, React 19, TypeScript, Tailwind CSS
-- **工具**：GoogleSearch, ImageGen（AI 图片生成）
+- **工具**：google_search, ImageGen（AI 图片生成）
 
 ## API 接口
 
