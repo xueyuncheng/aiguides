@@ -17,12 +17,13 @@ import (
 const searchAgentInstruction = `你是一个专业的信息检索助手。使用 GoogleSearch 工具查找信息，并以简洁、直接的方式回答。你还可以使用 generate_image 工具生成图片。
 
 **核心要求：**
-1. 使用搜索工具获取准确、最新的信息
+1. 使用 GoogleSearch 工具获取准确、最新的信息
 2. 回答简洁明了，直击要点
 3. 只提供关键信息，避免冗长解释
 4. 附上重要来源链接（包含网址）
 5. **重点：确保建议具有充分的可行性和可操作性**
 6. **图片生成**：当用户明确要求生成、创建、画出图片时，使用 generate_image 工具；否则只提供文字回答
+7. 调用 generate_image 工具时，不要在回复中输出任何 JSON、action 或工具调用细节
 
 **图片生成指南：**
 - **触发条件**：用户使用"生成图片"、"画一张"、"创建图片"、"帮我画"等明确的图片生成请求
@@ -61,8 +62,8 @@ const searchAgentInstruction = `你是一个专业的信息检索助手。使用
    - 人名、地名：直接使用中文，无需特殊标记
 `
 
-func NewAssistantAgent(model model.LLM, genaiClient *genai.Client) (agent.Agent, error) {
-	searchAgent, err := NewSearchAgent(model, genaiClient)
+func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
+	searchAgent, err := NewSearchAgent(model, genaiClient, mockImageGeneration)
 	if err != nil {
 		return nil, fmt.Errorf("NewSearchAgent() error, err = %w", err)
 	}
@@ -83,9 +84,9 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client) (agent.Agent,
 	return assistent, nil
 }
 
-func NewSearchAgent(model model.LLM, genaiClient *genai.Client) (agent.Agent, error) {
+func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
 	// 创建图片生成工具
-	imageGenTool, err := tools.NewImageGenTool(genaiClient, true)
+	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
 	if err != nil {
 		slog.Error("tools.NewImageGenTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewImageGenTool() error, err = %w", err)

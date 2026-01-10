@@ -198,18 +198,8 @@ const AIMessageContent = memo(({ content, thought, isStreaming, images }: { cont
   const [showRaw, setShowRaw] = useState(false);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(false);
 
-  // Handle auto-expand/collapse of thought process during streaming
-  useEffect(() => {
-    if (isStreaming) {
-      if (thought && !content) {
-        // Expand when thought is streaming but content hasn't started
-        setIsThoughtExpanded(true);
-      } else if (content) {
-        // Collapse when main content starts appearing
-        setIsThoughtExpanded(false);
-      }
-    }
-  }, [isStreaming, !!thought, !!content]);
+  // Keep thought process collapsed by default, even during streaming
+  // Users can manually expand it if they want to see the thinking process
 
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
@@ -272,7 +262,14 @@ const AIMessageContent = memo(({ content, thought, isStreaming, images }: { cont
             ) : (
               <ChevronRight className="h-3 w-3" />
             )}
-            <span>思考过程</span>
+            <span>{isStreaming && !content ? '正在思考' : '思考过程'}</span>
+            {isStreaming && !content && (
+              <div className="flex space-x-0.5 ml-1">
+                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"></div>
+              </div>
+            )}
           </button>
 
           <div className={cn(
@@ -328,9 +325,10 @@ const AIMessageContent = memo(({ content, thought, isStreaming, images }: { cont
                 a: ({ ...props }) => (
                   <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
                 ),
-                img: ({ ...props }) => (
-                  <img {...props} className="max-w-full h-auto rounded-lg my-4" loading="lazy" />
-                ),
+                img: ({ src, ...props }) => {
+                  if (!src) return null;
+                  return <img src={src} {...props} className="max-w-full h-auto rounded-lg my-4" loading="lazy" />;
+                },
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
                   const isInline = !match;

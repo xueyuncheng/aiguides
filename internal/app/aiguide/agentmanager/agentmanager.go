@@ -23,16 +23,17 @@ import (
 )
 
 type AgentManager struct {
-	model       model.LLM
-	session     session.Service
-	db          *gorm.DB
-	genaiClient *genai.Client
+	mockImageGeneration bool
+	model               model.LLM
+	session             session.Service
+	db                  *gorm.DB
+	genaiClient         *genai.Client
 
 	runnerMap   map[constant.AppName]*runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneratioin bool) (*AgentManager, error) {
+func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool) (*AgentManager, error) {
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
@@ -51,11 +52,12 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 	}
 
 	agentManager := &AgentManager{
-		model:       model,
-		session:     session,
-		db:          db,
-		genaiClient: genaiClient,
-		runnerMap:   make(map[constant.AppName]*runner.Runner, 16),
+		mockImageGeneration: mockImageGeneration,
+		model:               model,
+		session:             session,
+		db:                  db,
+		genaiClient:         genaiClient,
+		runnerMap:           make(map[constant.AppName]*runner.Runner, 16),
 	}
 
 	if err := agentManager.addTravelAgentRunner(); err != nil {
@@ -87,7 +89,7 @@ func (a *AgentManager) Run(ctx context.Context) error {
 
 func (a *AgentManager) addAssistantRunner() error {
 	// 创建信息检索和事实核查的 Agent
-	assistantAgent, err := assistant.NewAssistantAgent(a.model, a.genaiClient)
+	assistantAgent, err := assistant.NewAssistantAgent(a.model, a.genaiClient, a.mockImageGeneration)
 	if err != nil {
 		return fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}

@@ -10,7 +10,7 @@ func TestNewAssistantAgent(t *testing.T) {
 	// This test verifies that the assistant agent can be created
 	// without errors when a nil genaiClient is passed (basic structure test)
 	// We can't test the actual functionality without a real API key and model
-	agent, err := NewAssistantAgent(nil, nil)
+	agent, err := NewAssistantAgent(nil, nil, true)
 	if err != nil {
 		t.Fatalf("NewAssistantAgent() error = %v", err)
 	}
@@ -23,7 +23,7 @@ func TestNewAssistantAgent(t *testing.T) {
 func TestNewSearchAgent(t *testing.T) {
 	// This test verifies that the search agent can be created
 	// without errors when a nil genaiClient is passed (basic structure test)
-	agent, err := NewSearchAgent(nil, nil)
+	agent, err := NewSearchAgent(nil, nil, true)
 	if err != nil {
 		t.Fatalf("NewSearchAgent() error = %v", err)
 	}
@@ -36,7 +36,7 @@ func TestNewSearchAgent(t *testing.T) {
 func TestNewAssistantAgentWithModel(t *testing.T) {
 	// Test with a mock model to verify the structure
 	// In a real scenario, you would use a proper mock model
-	agent, err := NewAssistantAgent(model.LLM(nil), nil)
+	agent, err := NewAssistantAgent(model.LLM(nil), nil, true)
 	if err != nil {
 		t.Fatalf("NewAssistantAgent() with model error = %v", err)
 	}
