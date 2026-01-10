@@ -7,5 +7,5 @@ func (a AppName) String() string {
 }
 
 const (
-	AppNameSearch AppName = "search"
+	AppNameAssistant AppName = "assistant"
 )

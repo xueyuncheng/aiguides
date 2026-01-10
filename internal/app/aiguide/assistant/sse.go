@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
@@ -53,7 +52,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		// 创建一个新的 context，因为 request context 会被取消
 		bgCtx := context.Background()
 		if err := a.generateTitle(bgCtx, sessionID, req.Message); err != nil {
-			slog.Error("generateTitle failed", "err", err)
+			slog.Error("a.generateTitle failed", "err", err)
 		}
 	}()
 
@@ -65,29 +64,13 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	// 设置 SSE 响应
 	a.setupSSEResponse(ctx)
 
-	// 处理流式事件，失败时重试 3 次
-	const maxRetries = 3
-	var lastErr error
-	for attempt := range maxRetries {
-		if err := a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig); err != nil {
-			lastErr = err
-			slog.Warn("streamAgentEvents failed, retrying", "attempt", attempt+1, "err", err)
-			if attempt < maxRetries-1 {
-				time.Sleep(time.Second * time.Duration(attempt+1))
-			}
-			continue
-		}
-		return
-	}
-	if lastErr != nil {
-		slog.Error("streamAgentEvents failed after retries", "err", lastErr)
-	}
+	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
 // ensureSession 确保 session 存在，不存在则创建
 func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) error {
 	sessionGetReq := &session.GetRequest{
-		AppName:   constant.AppNameSearch.String(),
+		AppName:   constant.AppNameAssistant.String(),
 		UserID:    userID,
 		SessionID: sessionID,
 	}
@@ -100,7 +83,7 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 
 		// Session 不存在，创建新的 session
 		sessionCreateReq := &session.CreateRequest{
-			AppName:   constant.AppNameSearch.String(),
+			AppName:   constant.AppNameAssistant.String(),
 			UserID:    userID,
 			SessionID: sessionID,
 			State:     map[string]any{},
@@ -114,7 +97,7 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 		// 创建后验证 session 是否成功保存
 		// 这有助于捕捉数据库同步或创建失败的情况
 		if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
-			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameSearch.String(), "userID", userID, "sessionID", sessionID)
+			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameAssistant.String(), "userID", userID, "sessionID", sessionID)
 			return fmt.Errorf("session.Get() after create error, err = %w", err)
 		}
 	}
@@ -141,7 +124,7 @@ func (a *Assistant) streamAgentEvents(
 	userID, sessionID string,
 	message *genai.Content,
 	runConfig agent.RunConfig,
-) error {
+) {
 	// 追踪当前的 agent author，用于 FunctionResponse
 	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
 	var currentAgentAuthor string
@@ -151,7 +134,7 @@ func (a *Assistant) streamAgentEvents(
 		select {
 		case <-ctx.Request.Context().Done():
 			slog.Info("client abort connection", "err", ctx.Request.Context().Err())
-			return nil // 客户端断开，停止处理
+			return // 客户端断开，停止处理
 		default:
 		}
 
@@ -164,7 +147,7 @@ func (a *Assistant) streamAgentEvents(
 			}
 			ctx.SSEvent("error", gin.H{"error": errorMsg})
 			ctx.Writer.Flush()
-			return fmt.Errorf("runner.Run() error, err = %w", err)
+			return
 		}
 
 		if event == nil {
@@ -219,8 +202,6 @@ func (a *Assistant) streamAgentEvents(
 	// 循环结束后，发送结束标记
 	ctx.SSEvent("stop", gin.H{"status": "done"})
 	ctx.Writer.Flush()
-
-	return nil
 }
 
 const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s". 

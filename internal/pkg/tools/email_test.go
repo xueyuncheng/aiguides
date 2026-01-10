@@ -1,0 +1,229 @@
+package tools
+
+import (
+	"context"
+	"testing"
+
+	"github.com/emersion/go-imap/v2"
+)
+
+func TestNewEmailQueryTool(t *testing.T) {
+	tool, err := NewEmailQueryTool()
+	if err != nil {
+		t.Fatalf("NewEmailQueryTool() failed: %v", err)
+	}
+
+	if tool == nil {
+		t.Fatal("NewEmailQueryTool() returned nil tool")
+	}
+}
+
+func TestEmailQueryInput_Validation(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       EmailQueryInput
+		expectError bool
+		errorMsg    string
+	}{
+		{
+			name: "missing server",
+			input: EmailQueryInput{
+				Server:   "",
+				Username: "test@example.com",
+				Password: "password",
+			},
+			expectError: true,
+			errorMsg:    "IMAP 服务器地址不能为空",
+		},
+		{
+			name: "missing username",
+			input: EmailQueryInput{
+				Server:   "imap.example.com:993",
+				Username: "",
+				Password: "password",
+			},
+			expectError: true,
+			errorMsg:    "邮箱账号不能为空",
+		},
+		{
+			name: "missing password",
+			input: EmailQueryInput{
+				Server:   "imap.example.com:993",
+				Username: "test@example.com",
+				Password: "",
+			},
+			expectError: true,
+			errorMsg:    "邮箱密码不能为空",
+		},
+		{
+			name: "valid input with defaults",
+			input: EmailQueryInput{
+				Server:   "imap.example.com:993",
+				Username: "test@example.com",
+				Password: "password",
+			},
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output, err := queryEmails(context.Background(), tt.input)
+			if err != nil {
+				t.Fatalf("queryEmails() unexpected error: %v", err)
+			}
+
+			if tt.expectError {
+				if output.Success {
+					t.Errorf("Expected error but got success")
+				}
+				if output.Error != tt.errorMsg {
+					t.Errorf("Expected error message %q, got %q", tt.errorMsg, output.Error)
+				}
+			}
+		})
+	}
+}
+
+func TestParseServerName(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"imap.gmail.com:993", "imap.gmail.com"},
+		{"imap.gmail.com", "imap.gmail.com"},
+		{"localhost:143", "localhost"},
+		{"mail.example.com:993", "mail.example.com"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := parseServerName(tt.input)
+			if result != tt.expected {
+				t.Errorf("parseServerName(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestFormatAddress(t *testing.T) {
+	tests := []struct {
+		name     string
+		addr     *imap.Address
+		expected string
+	}{
+		{
+			name:     "nil address",
+			addr:     nil,
+			expected: "",
+		},
+		{
+			name: "with name",
+			addr: &imap.Address{
+				Name:    "John Doe",
+				Mailbox: "john",
+				Host:    "example.com",
+			},
+			expected: "John Doe <john@example.com>",
+		},
+		{
+			name: "without name",
+			addr: &imap.Address{
+				Name:    "",
+				Mailbox: "jane",
+				Host:    "example.com",
+			},
+			expected: "jane@example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatAddress(tt.addr)
+			if result != tt.expected {
+				t.Errorf("formatAddress() = %q, want %q", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestHasSeenFlag(t *testing.T) {
+	tests := []struct {
+		name     string
+		flags    []imap.Flag
+		expected bool
+	}{
+		{
+			name:     "empty flags",
+			flags:    []imap.Flag{},
+			expected: false,
+		},
+		{
+			name:     "has seen flag",
+			flags:    []imap.Flag{imap.FlagSeen},
+			expected: true,
+		},
+		{
+			name:     "has seen flag with others",
+			flags:    []imap.Flag{imap.FlagAnswered, imap.FlagSeen, imap.FlagFlagged},
+			expected: true,
+		},
+		{
+			name:     "no seen flag",
+			flags:    []imap.Flag{imap.FlagAnswered, imap.FlagFlagged},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := hasSeenFlag(tt.flags)
+			if result != tt.expected {
+				t.Errorf("hasSeenFlag() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestExtractTextFromBody(t *testing.T) {
+	tests := []struct {
+		name     string
+		body     string
+		contains string
+	}{
+		{
+			name: "simple email",
+			body: `From: sender@example.com
+To: recipient@example.com
+Subject: Test
+
+This is a test email.
+`,
+			contains: "This is a test email.",
+		},
+		{
+			name: "email with extra newlines",
+			body: `From: sender@example.com
+To: recipient@example.com
+Subject: Test
+
+
+Hello
+
+
+World
+
+`,
+			contains: "Hello",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractTextFromBody(tt.body)
+			if result == "" {
+				t.Error("extractTextFromBody() returned empty string")
+			}
+		})
+	}
+}

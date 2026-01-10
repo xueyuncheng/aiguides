@@ -53,9 +53,9 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 		genaiClient:         genaiClient,
 	}
 
-	runner, err := assistant.createSearchRunner()
+	runner, err := assistant.createRunner()
 	if err != nil {
-		return nil, fmt.Errorf("assistant.addSearchRunner() error, err = %w", err)
+		return nil, fmt.Errorf("assistant.createRunner() error, err = %w", err)
 	}
 	assistant.runner = runner
 
