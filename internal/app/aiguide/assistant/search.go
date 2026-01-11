@@ -12,13 +12,12 @@ import (
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/geminitool"
 	"google.golang.org/genai"
-	"gorm.io/gorm"
 )
 
 //go:embed search_prompt.md
 var searchAgentInstruction string
 
-func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, db *gorm.DB, frontendURL string) (agent.Agent, error) {
+func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string) (agent.Agent, error) {
 	// 创建图片生成工具
 	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
 	if err != nil {
@@ -27,7 +26,7 @@ func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGenerat
 	}
 
 	// 创建邮件查询工具
-	emailQueryTool, err := tools.NewEmailQueryTool(db, frontendURL)
+	emailQueryTool, err := tools.NewEmailQueryTool(frontendURL)
 	if err != nil {
 		slog.Error("tools.NewEmailQueryTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewEmailQueryTool() error, err = %w", err)
