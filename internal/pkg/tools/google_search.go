@@ -31,9 +31,7 @@ func NewGoogleSearchTool(model model.LLM) (tool.Tool, error) {
 
 	// 使用 agenttool 将该 Agent 封装成一个工具
 	// 这样主 Agent 看到的将是一个名为 google_search 的普通工具
-	googleSearchTool := agenttool.New(searchAgent, &agenttool.Config{
-		SkipSummarization: true, // 搜索结果直接返回，不需要子 Agent 特外总结
-	})
+	googleSearchTool := agenttool.New(searchAgent, nil)
 
 	return googleSearchTool, nil
 }
