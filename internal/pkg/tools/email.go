@@ -18,9 +18,9 @@ import (
 
 // EmailQueryInput 定义邮件查询工具的输入参数
 type EmailQueryInput struct {
-	Server   string `json:"server" jsonschema:"IMAP 服务器地址，例如: imap.gmail.com:993"`
-	Username string `json:"username" jsonschema:"邮箱账号"`
-	Password string `json:"password" jsonschema:"邮箱密码或应用专用密码"`
+	Server   string `json:"server" jsonschema:"required,IMAP 服务器地址，例如: imap.gmail.com:993"`
+	Username string `json:"username" jsonschema:"required,邮箱账号"`
+	Password string `json:"password" jsonschema:"required,邮箱密码或应用专用密码"`
 	Mailbox  string `json:"mailbox,omitempty" jsonschema:"邮箱文件夹名称，默认为 INBOX"`
 	Limit    int    `json:"limit,omitempty" jsonschema:"返回的邮件数量限制，默认为 10，最多 50"`
 	Unseen   bool   `json:"unseen,omitempty" jsonschema:"是否只查询未读邮件，默认为 false"`
@@ -39,31 +39,34 @@ type EmailMessage struct {
 
 // EmailQueryOutput 定义邮件查询工具的输出
 type EmailQueryOutput struct {
-	Success  bool           `json:"success"`
-	Messages []EmailMessage `json:"messages,omitempty"`
-	Count    int            `json:"count"`
-	Message  string         `json:"message,omitempty"`
-	Error    string         `json:"error,omitempty"`
+	Success     bool           `json:"success"`
+	Messages    []EmailMessage `json:"messages,omitempty"`
+	Count       int            `json:"count"`
+	Message     string         `json:"message,omitempty"`
+	Error       string         `json:"error,omitempty"`
+	ConfigURL   string         `json:"config_url,omitempty"`   // 配置页面URL
+	NeedsConfig bool           `json:"needs_config,omitempty"` // 是否需要配置
 }
 
 // NewEmailQueryTool 创建邮件查询工具
 //
 // 该工具使用 IMAP 协议连接邮件服务器并查询邮件
-func NewEmailQueryTool() (tool.Tool, error) {
+// 当未提供服务器凭据时，将返回配置页面链接
+func NewEmailQueryTool(frontendURL string) (tool.Tool, error) {
 	config := functiontool.Config{
 		Name:        "query_emails",
-		Description: "查询邮箱中的邮件。支持通过 IMAP 协议连接邮件服务器，查询指定邮箱文件夹中的邮件列表。可以查询所有邮件或仅查询未读邮件，并可限制返回的邮件数量。",
+		Description: "查询邮箱中的邮件。需要提供 IMAP 服务器地址、用户名和密码。支持通过 IMAP 协议连接邮件服务器，查询指定邮箱文件夹中的邮件列表。可以查询所有邮件或仅查询未读邮件，并可限制返回的邮件数量。",
 	}
 
 	handler := func(ctx tool.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
-		return queryEmails(ctx, input)
+		return queryEmails(ctx, input, frontendURL)
 	}
 
 	return functiontool.New(config, handler)
 }
 
 // queryEmails 查询邮件
-func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
+func queryEmails(ctx context.Context, input EmailQueryInput, frontendURL string) (*EmailQueryOutput, error) {
 	// 检查 context 是否已被取消
 	select {
 	case <-ctx.Done():
@@ -74,6 +77,24 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 	default:
 	}
 
+	// 如果没有提供服务器配置，返回配置页面链接
+	if input.Server == "" || input.Username == "" || input.Password == "" {
+		configURL := frontendURL + "/settings/email-servers"
+		return &EmailQueryOutput{
+			Success:     false,
+			NeedsConfig: true,
+			ConfigURL:   configURL,
+			Error:       "邮件服务器配置未提供",
+			Message:     fmt.Sprintf("您尚未提供邮件服务器配置信息。请前往 %s 配置您的邮件服务器信息（服务器地址、用户名、密码）后重试。", configURL),
+		}, nil
+	}
+
+	// 使用提供的配置查询单个服务器
+	return querySingleServer(ctx, input)
+}
+
+// querySingleServer 查询单个邮件服务器
+func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
 	// 验证并标准化输入
 	input, err := validateAndNormalizeInput(input)
 	if err != nil {
@@ -102,6 +123,11 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 	}
 	defer client.Close()
 
+	return fetchEmailsFromClient(ctx, client, input)
+}
+
+// fetchEmailsFromClient 从 IMAP 客户端获取邮件
+func fetchEmailsFromClient(ctx context.Context, client *imapclient.Client, input EmailQueryInput) (*EmailQueryOutput, error) {
 	// 选择邮箱文件夹
 	selectData, err := client.Select(input.Mailbox, nil).Wait()
 	if err != nil {
@@ -169,6 +195,7 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 
 // validateAndNormalizeInput 验证必填参数并设置默认值
 func validateAndNormalizeInput(input EmailQueryInput) (EmailQueryInput, error) {
+	// 所有参数都必须提供（不从数据库获取）
 	if input.Server == "" {
 		return input, fmt.Errorf("IMAP 服务器地址不能为空")
 	}
