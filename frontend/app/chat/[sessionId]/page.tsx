@@ -51,54 +51,6 @@ const agentInfoMap: Record<string, AgentInfo> = {
       '核查一下这个新闻是否准确...',
     ],
   },
-  web_summary: {
-    id: 'web_summary',
-    name: 'WebSummary Agent',
-    description: '网页内容分析',
-    icon: '🌐',
-    color: 'bg-green-500',
-    examples: [
-      '请帮我总结这个网页：https://example.com',
-      '分析这篇文章的主要内容',
-      '提取网页的关键信息',
-    ],
-  },
-  email_summary: {
-    id: 'email_summary',
-    name: 'EmailSummary Agent',
-    description: '邮件智能总结',
-    icon: '📧',
-    color: 'bg-purple-500',
-    examples: [
-      '请帮我总结收件箱中的重要邮件',
-      '获取最近20封邮件并总结',
-      '分析哪些邮件需要优先处理',
-    ],
-  },
-  travel: {
-    id: 'travel',
-    name: 'Travel Agent',
-    description: '旅游规划助手',
-    icon: '✈️',
-    color: 'bg-orange-500',
-    examples: [
-      '我计划去日本东京旅游5天，请帮我制定详细的旅游计划',
-      '想在泰国曼谷玩3天，预算有限，请推荐经济实惠的行程',
-      '帮我规划一个巴黎7日游，我对艺术和美食特别感兴趣',
-    ],
-  },
-  imagegen: {
-    id: 'imagegen',
-    name: 'ImageGen Agent',
-    description: 'AI 图片生成',
-    icon: '🎨',
-    color: 'bg-pink-500',
-    examples: [
-      '生成一张可爱的小猫图片',
-      '生成一张日落时分的海滩风景照，16:9 宽屏',
-      '生成3张不同风格的龙的图片',
-    ],
-  },
 };
 
 // Helper component for AI Avatar
@@ -1157,7 +1109,7 @@ export default function ChatPage() {
                       <button
                         key={index}
                         onClick={() => handleExampleClick(example)}
-                        className="p-3 sm:p-4 text-left border rounded-lg sm:rounded-xl hover:bg-secondary/50 active:bg-secondary/70 transition-colors text-xs sm:text-sm text-balance tap-highlight-transparent min-h-[44px]"
+                        className="p-3 sm:p-4 text-left border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg sm:rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-white dark:hover:bg-zinc-900 active:bg-zinc-100 dark:active:bg-zinc-800 shadow-sm hover:shadow-md transition-all duration-200 text-xs sm:text-sm text-balance tap-highlight-transparent min-h-[44px]"
                       >
                         {example}
                       </button>
@@ -1236,8 +1188,8 @@ export default function ChatPage() {
           !isInputVisible && "translate-y-full"
         )}>
           <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="relative flex items-center w-full bg-background rounded-xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
-              <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
+            <div className="relative flex items-center w-full bg-zinc-50/50 dark:bg-zinc-900/30 backdrop-blur-xl rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-within:border-zinc-300 dark:focus-within:border-zinc-600 focus-within:ring-4 focus-within:ring-zinc-900/5 dark:focus-within:ring-zinc-100/5 transition-all duration-300 overflow-hidden">
+              <form onSubmit={handleSubmit} className="w-full flex items-center p-2 gap-2">
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
@@ -1245,7 +1197,7 @@ export default function ChatPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
-                  className="flex-1 min-h-[40px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3 py-2.5 text-sm overflow-y-auto resize-none"
+                  className="flex-1 min-h-[44px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3.5 py-3 text-base sm:text-sm overflow-y-auto resize-none placeholder:text-zinc-500/60 dark:placeholder:text-zinc-400/50 no-scrollbar leading-relaxed transition-colors"
                   disabled={isLoading || isLoadingHistory}
                   autoComplete="off"
                   rows={1}
@@ -1255,7 +1207,7 @@ export default function ChatPage() {
                     type="button"
                     size="icon"
                     onClick={handleCancelMessage}
-                    className="h-8 w-8 sm:h-7 sm:w-7 mb-0.5 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px]"
+                    className="h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-200 bg-gradient-to-br from-orange-500 to-red-500 text-white hover:from-orange-600 hover:to-red-600 shadow-md hover:shadow-lg tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px]"
                     title="取消"
                   >
                     <X className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5 stroke-[2.5]" />
@@ -1266,17 +1218,16 @@ export default function ChatPage() {
                     size="icon"
                     disabled={!inputValue.trim()}
                     className={cn(
-                      "h-8 w-8 sm:h-7 sm:w-7 mb-0.5 rounded-full transition-all duration-200 tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px]",
-                      inputValue.trim() ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                      "h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-300 tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center",
+                      inputValue.trim()
+                        ? "bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-sm"
+                        : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 opacity-50"
                     )}
                   >
-                    <ArrowUp className="h-3.5 w-3.5 sm:h-3.5 sm:w-3.5" />
+                    <ArrowUp className="h-4 w-4 sm:h-3.5 sm:w-3.5 stroke-[2.5]" />
                   </Button>
                 )}
               </form>
-            </div>
-            <div className="text-center text-[10px] sm:text-xs text-muted-foreground mt-1.5 sm:mt-2">
-              AI 可能会生成不准确的信息，请核查重要事实。
             </div>
           </div>
         </div>
