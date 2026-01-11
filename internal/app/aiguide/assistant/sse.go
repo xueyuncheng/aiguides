@@ -163,7 +163,10 @@ func (a *Assistant) streamAgentEvents(
 		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
 			for _, part := range event.LLMResponse.Content.Parts {
 				// 处理文本内容
-				if part.Text != "" {
+				if part.Text != "" && event.Partial {
+					// 这里只返回 partial 的文本内容。
+					// LLM 通常会先返回 partial 的文本内容，然后再返回这些 partial 组合而成的完整内容。
+					// 所以我们只需要返回一份就可以了，因为 partial 更快生成，所以我们返回 partial 内容。
 					data := gin.H{
 						"author":     event.Author,
 						"content":    part.Text,

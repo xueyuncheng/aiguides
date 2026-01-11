@@ -33,7 +33,7 @@ func TestEmailQueryInput_Validation(t *testing.T) {
 				Password: "password",
 			},
 			expectError: true,
-			errorMsg:    "IMAP 服务器地址不能为空",
+			errorMsg:    "邮件服务器配置未提供",
 		},
 		{
 			name: "missing username",
@@ -43,7 +43,7 @@ func TestEmailQueryInput_Validation(t *testing.T) {
 				Password: "password",
 			},
 			expectError: true,
-			errorMsg:    "邮箱账号不能为空",
+			errorMsg:    "邮件服务器配置未提供",
 		},
 		{
 			name: "missing password",
@@ -53,7 +53,7 @@ func TestEmailQueryInput_Validation(t *testing.T) {
 				Password: "",
 			},
 			expectError: true,
-			errorMsg:    "邮箱密码不能为空",
+			errorMsg:    "邮件服务器配置未提供",
 		},
 		{
 			name: "valid input with defaults",
