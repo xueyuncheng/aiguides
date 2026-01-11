@@ -99,7 +99,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	migrator := migration.New(db)
 
-	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration)
+	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration, config.FrontendURL)
 	if err != nil {
 		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
 	}

@@ -28,6 +28,13 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// 需要认证的用户信息接口
 	api.GET("/auth/user", a.GetUser)
 
+	// 邮件服务器配置路由
+	api.POST("/email-servers", a.CreateEmailServer)
+	api.GET("/email-servers", a.ListEmailServers)
+	api.GET("/email-servers/:id", a.GetEmailServer)
+	api.PUT("/email-servers/:id", a.UpdateEmailServer)
+	api.DELETE("/email-servers/:id", a.DeleteEmailServer)
+
 	// Agent 聊天路由
 	api.POST("/assistant/chats/:id", a.assistant.Chat)
 
