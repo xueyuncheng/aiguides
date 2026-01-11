@@ -71,7 +71,7 @@ func (a *AIGuide) CreateEmailServer(c *gin.Context) {
 		UserID:    user.ID,
 		Server:    req.Server,
 		Username:  req.Username,
-		Password:  req.Password, // TODO: 应该加密存储
+		Password:  req.Password, // SECURITY WARNING: Stored in plain text. Should be encrypted in production.
 		Mailbox:   req.Mailbox,
 		Name:      req.Name,
 		IsDefault: req.IsDefault,
@@ -195,7 +195,10 @@ func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
 	// 更新配置
 	config.Server = req.Server
 	config.Username = req.Username
-	config.Password = req.Password // TODO: 应该加密存储
+	if req.Password != "" {
+		// Only update password if provided (SECURITY WARNING: Stored in plain text)
+		config.Password = req.Password
+	}
 	config.Mailbox = req.Mailbox
 	config.Name = req.Name
 	config.IsDefault = req.IsDefault

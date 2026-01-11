@@ -208,6 +208,12 @@ export default function EmailServersPage() {
           )}
         </div>
 
+        <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+            <strong>安全提示：</strong>密码当前以明文形式存储。强烈建议使用应用专用密码而不是账户主密码。
+          </AlertDescription>
+        </Alert>
+
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertDescription>{error}</AlertDescription>

@@ -195,7 +195,7 @@ func fetchEmailsFromClient(ctx context.Context, client *imapclient.Client, input
 
 // validateAndNormalizeInput 验证必填参数并设置默认值
 func validateAndNormalizeInput(input EmailQueryInput) (EmailQueryInput, error) {
-	// Server, Username, Password 现在是可选的（可以从数据库配置获取）
+	// 所有参数都必须提供（不从数据库获取）
 	if input.Server == "" {
 		return input, fmt.Errorf("IMAP 服务器地址不能为空")
 	}
