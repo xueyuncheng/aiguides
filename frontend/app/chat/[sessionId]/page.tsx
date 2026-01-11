@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, memo } from 'react';
+import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
@@ -761,6 +761,40 @@ export default function ChatPage() {
     }
   }, [inputValue]);
 
+  // Merge consecutive assistant messages for display
+  const processedMessages = useMemo(() => {
+    if (messages.length === 0) return [];
+
+    const result: Message[] = [];
+    messages.forEach((msg) => {
+      const last = result[result.length - 1];
+      if (
+        last &&
+        last.role === 'assistant' &&
+        msg.role === 'assistant' &&
+        !last.isError &&
+        !msg.isError
+      ) {
+        // Create a new object for the merged message to avoid mutating state
+        const merged = { ...last };
+        merged.content = (merged.content || '') + (msg.content || '');
+        if (msg.thought) {
+          merged.thought = (merged.thought || '') + (merged.thought ? '\n\n' : '') + msg.thought;
+        }
+        if (msg.images && msg.images.length > 0) {
+          merged.images = [...(merged.images || []), ...(msg.images || [])];
+        }
+        // If either is streaming, the merged one is streaming
+        merged.isStreaming = last.isStreaming || msg.isStreaming;
+
+        result[result.length - 1] = merged;
+      } else {
+        result.push(msg);
+      }
+    });
+    return result;
+  }, [messages]);
+
   const handleCancelMessage = () => {
     // Abort the ongoing fetch request
     if (abortControllerRef.current) {
@@ -1118,7 +1152,7 @@ export default function ChatPage() {
                 </div>
               ) : (
                 <div className="space-y-6 sm:space-y-8 animate-fade-in">
-                  {messages.map((message) => (
+                  {processedMessages.map((message) => (
                     <div
                       key={message.id}
                       className={cn(
