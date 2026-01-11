@@ -44,7 +44,7 @@ type EmailQueryOutput struct {
 	Count       int            `json:"count"`
 	Message     string         `json:"message,omitempty"`
 	Error       string         `json:"error,omitempty"`
-	ConfigURL   string         `json:"config_url,omitempty"` // 配置页面URL
+	ConfigURL   string         `json:"config_url,omitempty"`   // 配置页面URL
 	NeedsConfig bool           `json:"needs_config,omitempty"` // 是否需要配置
 }
 
