@@ -104,7 +104,7 @@ const agentInfoMap: Record<string, AgentInfo> = {
 // Helper component for AI Avatar
 const AIAvatar = memo(({ icon }: { icon: string }) => {
   return (
-    <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border/50 bg-background">
+    <div className="h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 border border-border bg-background shadow-sm">
       <span className="text-base">{icon}</span>
     </div>
   );
@@ -145,8 +145,8 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
   };
 
   return (
-    <div className="my-3 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-white relative group">
-      <div className="px-4 py-2 text-xs bg-zinc-800 text-zinc-400 border-b border-zinc-700 flex justify-between items-center">
+    <div className="my-6 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-zinc-50 relative group shadow-sm">
+      <div className="px-4 py-2 text-xs bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
         <span>{match?.[1] || 'code'}</span>
         <button
           onClick={handleCodeCopy}
@@ -269,7 +269,7 @@ const AIMessageContent = memo(({
         <div className="mb-4">
           <button
             onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-lg border bg-secondary/30"
+            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border bg-muted/50"
             aria-expanded={isThoughtExpanded}
           >
             {isThoughtExpanded ? (
@@ -277,24 +277,24 @@ const AIMessageContent = memo(({
             ) : (
               <ChevronRight className="h-3 w-3" />
             )}
-            <span>{isStreaming && !content ? '正在思考' : '思考过程'}</span>
+            <span>{isStreaming && !content ? '思考中' : '查看思考过程'}</span>
             {isStreaming && !content && (
               <div className="flex space-x-0.5 ml-1">
-                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1 h-1 bg-muted-foreground/60 rounded-full animate-bounce"></div>
+                <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
               </div>
             )}
           </button>
 
           <div className={cn(
-            "mt-2 overflow-hidden transition-all duration-300 ease-in-out",
+            "mt-3 overflow-hidden transition-all duration-300 ease-in-out",
             isThoughtExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
           )}>
-            <div className="text-xs text-muted-foreground/80 leading-relaxed pl-4 border-l-2 border-muted py-1 italic whitespace-pre-wrap">
+            <div className="text-xs text-muted-foreground/90 leading-relaxed pl-4 border-l-2 border-primary/20 py-1 whitespace-pre-wrap bg-muted/20 rounded-r-md">
               {thought}
               {isStreaming && (
-                <span className="inline-block w-1 h-3 ml-1 bg-muted-foreground/40 animate-pulse align-middle" />
+                <span className="inline-block w-1 h-3 ml-1 bg-primary animate-pulse align-middle" />
               )}
             </div>
           </div>
@@ -328,27 +328,27 @@ const AIMessageContent = memo(({
           </div>
         )}
         {showRaw ? (
-          <pre className="whitespace-pre-wrap font-mono text-sm bg-secondary/50 p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
+          <pre className="whitespace-pre-wrap font-mono text-sm bg-muted p-4 rounded-lg border overflow-x-auto overflow-y-auto max-h-96">
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-2 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-2">
+          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold">
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeKatex]}
               components={{
                 a: ({ ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline" />
+                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
                 ),
                 img: ({ src, ...props }) => {
                   if (!src) return null;
-                  return <img src={src} {...props} className="max-w-full h-auto rounded-lg my-4" loading="lazy" />;
+                  return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
                 },
                 code: ({ className, children, ...props }) => {
                   const match = /language-(\w+)/.exec(className || '')
                   const isInline = !match;
                   return isInline ? (
-                    <code className="bg-secondary px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
                       {children}
                     </code>
                   ) : (
@@ -358,10 +358,10 @@ const AIMessageContent = memo(({
                   )
                 },
                 ul: ({ ...props }) => (
-                  <ul {...props} className="list-disc list-inside space-y-0.5 my-3 text-sm" />
+                  <ul {...props} className="list-disc pl-6 space-y-1 my-4 text-sm" />
                 ),
                 ol: ({ ...props }) => (
-                  <ol {...props} className="list-decimal list-inside space-y-0.5 my-3 text-sm" />
+                  <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
                 ),
               }}
             >
@@ -1149,10 +1149,10 @@ export default function ChatPage() {
                       <span className="text-3xl sm:text-4xl">{agentInfo.icon}</span>
                     </div>
                   </div>
-                  <h2 className="text-xl sm:text-2xl font-semibold mb-6 sm:mb-8">
+                  <h2 className="text-2xl font-semibold mb-8 tracking-tight">
                     {agentInfo.name} 能够为您做什么？
                   </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 md:gap-4 max-w-2xl mx-auto">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
                     {agentInfo.examples.map((example, index) => (
                       <button
                         key={index}
@@ -1185,10 +1185,10 @@ export default function ChatPage() {
                         )}
 
                         <div className={cn(
-                          "relative text-xs sm:text-sm w-full",
+                          "relative text-sm w-full leading-relaxed",
                           message.role === 'user'
-                            ? "bg-secondary px-2.5 sm:px-3 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-2xl rounded-tr-sm self-end max-w-[95%] sm:max-w-[90%] md:max-w-[85%]"
-                            : "leading-6 pt-1 flex-1"
+                            ? "bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-sm self-end max-w-fit"
+                            : "pt-1 flex-1"
                         )}>
                           {message.role === 'assistant' ? (
                             <AIMessageContent
@@ -1236,8 +1236,8 @@ export default function ChatPage() {
           !isInputVisible && "translate-y-full"
         )}>
           <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="relative flex items-center w-full bg-secondary/50 rounded-xl sm:rounded-2xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring focus-within:border-transparent transition-all">
-              <form onSubmit={handleSubmit} className="w-full flex items-end p-1.5 gap-1.5">
+            <div className="relative flex items-center w-full bg-background rounded-xl border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring transition-all overflow-hidden">
+              <form onSubmit={handleSubmit} className="w-full flex items-end p-2 gap-2">
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
@@ -1245,7 +1245,7 @@ export default function ChatPage() {
                   onKeyDown={handleKeyDown}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
-                  className="flex-1 min-h-[36px] max-h-[120px] sm:max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-2.5 sm:px-3 py-2 text-xs sm:text-sm overflow-y-auto resize-none"
+                  className="flex-1 min-h-[40px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3 py-2.5 text-sm overflow-y-auto resize-none"
                   disabled={isLoading || isLoadingHistory}
                   autoComplete="off"
                   rows={1}

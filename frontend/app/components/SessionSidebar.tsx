@@ -91,20 +91,20 @@ const SessionSidebar = memo(({
   // Desktop collapsed state
   if (isCollapsed) {
     return (
-      <div className="hidden md:flex fixed left-0 top-0 h-full bg-[#171717] border-r border-[#2c2c2c] z-50 flex-col items-center py-4">
+      <div className="hidden md:flex fixed left-0 top-0 h-full bg-zinc-950 border-r border-zinc-800 z-50 flex-col items-center py-4">
         <div className="mt-auto flex flex-col items-center gap-4 pb-4">
           <Button
             onClick={() => setIsCollapsed(false)}
             variant="ghost"
             size="icon"
-            className="text-[#8e8e8e] hover:text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8"
+            className="text-muted-foreground hover:text-foreground hover:bg-zinc-900 h-8 w-8"
             aria-label="展开侧边栏"
           >
             <ChevronRight className="h-5 w-5" />
           </Button>
           <Avatar className="h-8 w-8">
             <AvatarImage src={user?.picture} alt={user?.name} />
-            <AvatarFallback className="bg-blue-500 text-white text-xs">
+            <AvatarFallback className="bg-primary text-primary-foreground text-xs">
               {user?.name?.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -125,7 +125,7 @@ const SessionSidebar = memo(({
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed left-0 top-0 h-full w-[260px] bg-[#171717] flex flex-col z-50 transition-transform duration-300",
+        "fixed left-0 top-0 h-full w-[260px] bg-zinc-950 flex flex-col z-50 transition-transform duration-300 border-r border-zinc-800",
         isMobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
         {/* Header & New Chat */}
@@ -136,7 +136,7 @@ const SessionSidebar = memo(({
               onClick={onMobileToggle}
               variant="ghost"
               size="icon"
-              className="md:hidden text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8"
+              className="md:hidden text-foreground hover:bg-zinc-900 h-8 w-8"
               aria-label="关闭侧边栏"
             >
               <ChevronLeft className="h-5 w-5" />
@@ -146,13 +146,14 @@ const SessionSidebar = memo(({
 
             <Button
               onClick={handleNewSessionClick}
-              className="w-full gap-2 justify-between border border-[#424242] bg-transparent text-[#ececec] hover:bg-[#2c2c2c] transition-colors h-10 px-3 rounded-lg group/btn"
+              variant="outline"
+              className="w-full gap-2 justify-between border-zinc-800 bg-transparent text-zinc-100 hover:bg-zinc-900 transition-colors h-10 px-3 rounded-lg group/btn shadow-sm"
             >
               <div className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
-                <span className="text-sm">新建对话</span>
+                <span className="text-sm font-medium">新建对话</span>
               </div>
-              <kbd className="hidden md:inline-flex h-5 select-none items-center gap-1 rounded border border-[#424242] bg-[#212121] px-1.5 font-mono text-[10px] font-medium text-[#8e8e8e] opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200">
+              <kbd className="hidden md:inline-flex h-5 select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200">
                 <span className="text-xs">⌘</span>K
               </kbd>
             </Button>
@@ -177,10 +178,10 @@ const SessionSidebar = memo(({
                   key={session.session_id}
                   onClick={() => handleSessionClick(session.session_id)}
                   className={cn(
-                    "group relative p-2.5 rounded-lg cursor-pointer transition-colors text-sm",
+                    "group relative p-2 rounded-md cursor-pointer transition-colors text-sm",
                     session.session_id === currentSessionId
-                      ? "bg-[#2c2c2c] text-[#ececec]"
-                      : "text-[#ececec] hover:bg-[#212121]"
+                      ? "bg-zinc-900 text-zinc-100"
+                      : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900"
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
@@ -194,22 +195,22 @@ const SessionSidebar = memo(({
                       session.session_id === currentSessionId && "opacity-100"
                     )}>
                       {/* Shadow gradient to cover text */}
-                      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#171717] to-transparent pointer-events-none group-hover:from-[#212121] group-hover:via-[#212121]"></div>
-                      {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-[#2c2c2c] to-transparent pointer-events-none"></div>}
+                      <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none group-hover:from-zinc-900 group-hover:via-zinc-900"></div>
+                      {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-zinc-900 to-transparent pointer-events-none"></div>}
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="relative z-10 h-6 w-6 text-[#8e8e8e] hover:text-white"
+                            className="relative z-10 h-6 w-6 text-zinc-500 hover:text-zinc-200"
                             aria-label="删除选项"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
+                        <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
                           <DropdownMenuItem
                             className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
                             onClick={(e) => {
@@ -231,23 +232,23 @@ const SessionSidebar = memo(({
         </div>
 
         {/* User Profile */}
-        <div className="p-3 border-t border-[#2c2c2c] flex items-center gap-2">
+        <div className="p-3 border-t border-zinc-800 flex items-center gap-2">
           <div className="flex-1">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="flex items-center justify-center h-10 w-10 p-0 hover:bg-[#2c2c2c] text-[#ececec] rounded-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="flex items-center justify-center h-10 w-10 p-0 hover:bg-zinc-900 text-zinc-100 rounded-full focus-visible:ring-0 transition-colors"
                 >
                   <Avatar className="h-8 w-8">
                     <AvatarImage src={user?.picture} alt={user?.name} />
-                    <AvatarFallback className="bg-blue-500 text-white text-sm">
+                    <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                       {user?.name?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" side="top" className="w-56 bg-[#2c2c2c] border-[#424242] text-[#ececec]">
+              <DropdownMenuContent align="start" side="top" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-100">
                 <DropdownMenuItem
                   className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
                   onClick={logout}
@@ -262,7 +263,7 @@ const SessionSidebar = memo(({
             onClick={() => setIsCollapsed(true)}
             variant="ghost"
             size="icon"
-            className="hidden md:flex text-[#8e8e8e] hover:text-[#ececec] hover:bg-[#2c2c2c] h-8 w-8 flex-shrink-0"
+            className="hidden md:flex text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 h-8 w-8 flex-shrink-0"
             aria-label="收起侧边栏"
           >
             <ChevronLeft className="h-5 w-5" />
