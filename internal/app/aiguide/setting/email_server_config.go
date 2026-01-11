@@ -1,10 +1,12 @@
-package aiguide
+package setting
 
 import (
 	"aiguide/internal/app/aiguide/table"
-	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/middleware"
+	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,45 +23,38 @@ type EmailServerConfigRequest struct {
 
 // EmailServerConfigResponse 邮件服务器配置响应
 type EmailServerConfigResponse struct {
-	ID        uint   `json:"id"`
-	Server    string `json:"server"`
-	Username  string `json:"username"`
-	Mailbox   string `json:"mailbox"`
-	Name      string `json:"name"`
-	IsDefault bool   `json:"is_default"`
-	CreatedAt string `json:"created_at"`
-	UpdatedAt string `json:"updated_at"`
+	ID        uint      `json:"id"`
+	Server    string    `json:"server"`
+	Username  string    `json:"username"`
+	Mailbox   string    `json:"mailbox"`
+	Name      string    `json:"name"`
+	IsDefault bool      `json:"is_default"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // CreateEmailServer 创建邮件服务器配置
-func (a *AIGuide) CreateEmailServer(c *gin.Context) {
-	googleUserID, exists := auth.GetUserID(c)
+func (s *Setting) CreateEmailServer(c *gin.Context) {
+	var req EmailServerConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Error("c.ShouldBindJSON() error", "err", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
+		return
+	}
+
+	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
+		slog.Error("user not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
 
 	// 查找用户
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+		slog.Error("db.First() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
-	}
-
-	var req EmailServerConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
-		return
-	}
-
-	// 如果设置为默认，取消其他配置的默认状态
-	if req.IsDefault {
-		if err := a.db.Model(&table.EmailServerConfig{}).
-			Where("user_id = ?", user.ID).
-			Update("is_default", false).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新默认配置失败"})
-			return
-		}
 	}
 
 	// 设置默认邮箱文件夹
@@ -77,7 +72,8 @@ func (a *AIGuide) CreateEmailServer(c *gin.Context) {
 		IsDefault: req.IsDefault,
 	}
 
-	if err := a.db.Create(&config).Error; err != nil {
+	if err := s.db.Create(&config).Error; err != nil {
+		slog.Error("db.Create() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "创建配置失败: " + err.Error()})
 		return
 	}
@@ -86,8 +82,8 @@ func (a *AIGuide) CreateEmailServer(c *gin.Context) {
 }
 
 // ListEmailServers 列出所有邮件服务器配置
-func (a *AIGuide) ListEmailServers(c *gin.Context) {
-	googleUserID, exists := auth.GetUserID(c)
+func (s *Setting) ListEmailServers(c *gin.Context) {
+	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -95,13 +91,13 @@ func (a *AIGuide) ListEmailServers(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	var configs []table.EmailServerConfig
-	if err := a.db.Where("user_id = ?", user.ID).Order("is_default DESC, created_at DESC").Find(&configs).Error; err != nil {
+	if err := s.db.Where("user_id = ?", user.ID).Order("is_default DESC, created_at DESC").Find(&configs).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询配置失败: " + err.Error()})
 		return
 	}
@@ -115,8 +111,8 @@ func (a *AIGuide) ListEmailServers(c *gin.Context) {
 }
 
 // GetEmailServer 获取指定邮件服务器配置
-func (a *AIGuide) GetEmailServer(c *gin.Context) {
-	googleUserID, exists := auth.GetUserID(c)
+func (s *Setting) GetEmailServer(c *gin.Context) {
+	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -124,7 +120,7 @@ func (a *AIGuide) GetEmailServer(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -136,7 +132,7 @@ func (a *AIGuide) GetEmailServer(c *gin.Context) {
 	}
 
 	var config table.EmailServerConfig
-	if err := a.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
 		return
 	}
@@ -145,8 +141,14 @@ func (a *AIGuide) GetEmailServer(c *gin.Context) {
 }
 
 // UpdateEmailServer 更新邮件服务器配置
-func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
-	googleUserID, exists := auth.GetUserID(c)
+func (s *Setting) UpdateEmailServer(c *gin.Context) {
+	var req EmailServerConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
+		return
+	}
+
+	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -154,7 +156,7 @@ func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -165,21 +167,15 @@ func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
 		return
 	}
 
-	var req EmailServerConfigRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
-		return
-	}
-
 	var config table.EmailServerConfig
-	if err := a.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
+	if err := s.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
 		return
 	}
 
 	// 如果设置为默认，取消其他配置的默认状态
 	if req.IsDefault && !config.IsDefault {
-		if err := a.db.Model(&table.EmailServerConfig{}).
+		if err := s.db.Model(&table.EmailServerConfig{}).
 			Where("user_id = ? AND id != ?", user.ID, id).
 			Update("is_default", false).Error; err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新默认配置失败"})
@@ -203,7 +199,7 @@ func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
 	config.Name = req.Name
 	config.IsDefault = req.IsDefault
 
-	if err := a.db.Save(&config).Error; err != nil {
+	if err := s.db.Save(&config).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新配置失败: " + err.Error()})
 		return
 	}
@@ -212,8 +208,8 @@ func (a *AIGuide) UpdateEmailServer(c *gin.Context) {
 }
 
 // DeleteEmailServer 删除邮件服务器配置
-func (a *AIGuide) DeleteEmailServer(c *gin.Context) {
-	googleUserID, exists := auth.GetUserID(c)
+func (s *Setting) DeleteEmailServer(c *gin.Context) {
+	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -221,7 +217,7 @@ func (a *AIGuide) DeleteEmailServer(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -232,7 +228,7 @@ func (a *AIGuide) DeleteEmailServer(c *gin.Context) {
 		return
 	}
 
-	result := a.db.Where("id = ? AND user_id = ?", id, user.ID).Delete(&table.EmailServerConfig{})
+	result := s.db.Where("id = ? AND user_id = ?", id, user.ID).Delete(&table.EmailServerConfig{})
 	if result.Error != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除配置失败: " + result.Error.Error()})
 		return
@@ -255,7 +251,7 @@ func toEmailServerConfigResponse(config *table.EmailServerConfig) EmailServerCon
 		Mailbox:   config.Mailbox,
 		Name:      config.Name,
 		IsDefault: config.IsDefault,
-		CreatedAt: config.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: config.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
 	}
 }

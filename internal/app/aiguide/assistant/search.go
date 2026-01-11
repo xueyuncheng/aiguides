@@ -25,7 +25,7 @@ func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGenerat
 	}
 
 	// 创建邮件查询工具
-	emailQueryTool, err := tools.NewEmailQueryTool(frontendURL)
+	emailQueryTool, err := tools.NewEmailQueryTool()
 	if err != nil {
 		slog.Error("tools.NewEmailQueryTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewEmailQueryTool() error, err = %w", err)

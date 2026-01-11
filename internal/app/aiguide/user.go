@@ -2,7 +2,7 @@ package aiguide
 
 import (
 	"aiguide/internal/app/aiguide/table"
-	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/middleware"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -12,7 +12,11 @@ import (
 
 // GetUser 获取当前用户信息
 func (a *AIGuide) GetUser(c *gin.Context) {
-	userID, _ := auth.GetUserID(c)
+	userID, existed := middleware.GetUserID(c)
+	if !existed {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
+		return
+	}
 
 	var user table.User
 	if err := a.db.Where("google_user_id = ?", userID).First(&user).Error; err != nil {
