@@ -49,12 +49,12 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 
 func registerSettingRoutes(db *gorm.DB, api *gin.RouterGroup) {
 	s := setting.New(db)
-	emailServerConfig := api.Group("/email-servers")
+	emailServerConfig := api.Group("/email_server_configs")
 	{
-		emailServerConfig.POST("", s.CreateEmailServer)
-		emailServerConfig.GET("", s.ListEmailServers)
-		emailServerConfig.GET("/:id", s.GetEmailServer)
-		emailServerConfig.PUT("/:id", s.UpdateEmailServer)
-		emailServerConfig.DELETE("/:id", s.DeleteEmailServer)
+		emailServerConfig.POST("", s.CreateEmailServerConfig)
+		emailServerConfig.GET("", s.ListEmailServerConfigs)
+		emailServerConfig.GET("/:id", s.GetEmailServerConfig)
+		emailServerConfig.PUT("/:id", s.UpdateEmailServerConfig)
+		emailServerConfig.DELETE("/:id", s.DeleteEmailServerConfig)
 	}
 }

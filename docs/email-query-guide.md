@@ -10,7 +10,7 @@ AI 助手现在支持通过 IMAP 协议查询您的邮箱。当您请求查询�
 
 当您第一次请求查询邮件时（例如："帮我看看最近有没有什么重要的邮件"），如果还没有配置邮件服务器，AI 助手会：
 
-1. 返回一个配置页面链接（例如：`http://localhost:3000/settings/email-servers`）
+1. 返回一个配置页面链接（例如：`http://localhost:3000/settings/email-server-configs`）
 2. 提示您前往该页面配置邮件服务器信息
 
 ### 2. 配置邮件服务器
@@ -56,7 +56,7 @@ AI 助手现在支持通过 IMAP 协议查询您的邮箱。当您请求查询�
 用户：帮我看看最近有没有什么重要的邮件
 
 AI：我需要访问您的邮箱来查询邮件。请先前往以下链接配置您的邮件服务器信息：
-http://localhost:3000/settings/email-servers
+http://localhost:3000/settings/email-server-configs
 
 配置完成后，请告诉我"已配置"，我会重新查询。
 
@@ -68,7 +68,7 @@ AI：好的，正在查询您的邮件...
 
 ## 管理邮件服务器配置
 
-您可以随时访问 `/settings/email-servers` 页面来：
+您可以随时访问 `/settings/email-server-configs` 页面来：
 
 - 添加新的邮件服务器
 - 编辑现有配置

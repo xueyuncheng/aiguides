@@ -17,12 +17,12 @@ The implementation fulfills all requirements from issue #[number]:
 
 ### Backend (Go)
 - **Database**: `EmailServerConfig` table with user isolation
-- **API Endpoints**: Full RESTful CRUD at `/api/email-servers`
+- **API Endpoints**: Full RESTful CRUD at `/api/email_server_configs`
 - **Email Tool**: Returns helpful error with config URL when credentials missing
 - **Security**: Clear warnings about plain text storage (documented limitation)
 
 ### Frontend (React/Next.js)
-- **Configuration Page**: `/settings/email-servers`
+- **Configuration Page**: `/settings/email-server-configs`
 - **Features**: Add, edit, delete, set default server
 - **Security UI**: Prominent warning about password storage
 - **Validation**: Form validation for all required fields
@@ -38,7 +38,7 @@ The implementation fulfills all requirements from issue #[number]:
 用户: 帮我看看最近有没有什么重要的邮件
 
 AI: 我需要访问您的邮箱来查询邮件。您还没有配置邮件服务器，请前往以下链接配置：
-    http://localhost:3000/settings/email-servers
+    http://localhost:3000/settings/email-server-configs
     
     配置完成后，您可以提供服务器地址、用户名和密码来查询邮件。
 
@@ -53,7 +53,7 @@ AI: [查询邮件并返回结果]
 
 ### New Files
 - `internal/app/aiguide/email_server.go` - Email server CRUD handlers
-- `frontend/app/settings/email-servers/page.tsx` - Configuration UI
+- `frontend/app/settings/email-server-configs/page.tsx` - Configuration UI
 - `docs/email-query-guide.md` - User documentation
 
 ### Modified Files
@@ -90,7 +90,7 @@ Passwords are stored in plain text (documented limitation):
 - ✅ Code compiles successfully
 
 ### Manual Testing Checklist
-- [ ] Navigate to `/settings/email-servers`
+- [ ] Navigate to `/settings/email-server-configs`
 - [ ] Add a new email server configuration
 - [ ] Edit an existing configuration
 - [ ] Delete a configuration
@@ -159,7 +159,7 @@ Passwords are stored in plain text (documented limitation):
 
 ### Frontend
 - No additional dependencies required
-- Page accessible at `/settings/email-servers`
+- Page accessible at `/settings/email-server-configs`
 - Responsive design for mobile and desktop
 
 ### Configuration

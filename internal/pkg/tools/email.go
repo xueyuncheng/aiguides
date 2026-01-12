@@ -114,7 +114,7 @@ func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryO
 
 	if len(emailServerConfigs) == 0 {
 		slog.Info("没有找到邮件服务器配置")
-		configURL := "http://localhost:3000/settings/email-servers"
+		configURL := "http://localhost:3000/settings/email-server-configs"
 		return &EmailQueryOutput{
 			Success:   false,
 			Message:   "没有找到邮件服务器配置",

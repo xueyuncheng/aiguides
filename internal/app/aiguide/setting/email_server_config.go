@@ -26,6 +26,7 @@ type EmailServerConfigResponse struct {
 	ID        uint      `json:"id"`
 	Server    string    `json:"server"`
 	Username  string    `json:"username"`
+	Password  string    `json:"password"`
 	Mailbox   string    `json:"mailbox"`
 	Name      string    `json:"name"`
 	IsDefault bool      `json:"is_default"`
@@ -33,8 +34,8 @@ type EmailServerConfigResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// CreateEmailServer 创建邮件服务器配置
-func (s *Setting) CreateEmailServer(c *gin.Context) {
+// CreateEmailServerConfig 创建邮件服务器配置
+func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 	var req EmailServerConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		slog.Error("c.ShouldBindJSON() error", "err", err)
@@ -78,11 +79,23 @@ func (s *Setting) CreateEmailServer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, toEmailServerConfigResponse(&config))
+	resp := EmailServerConfigResponse{
+		ID:        config.ID,
+		Server:    config.Server,
+		Username:  config.Username,
+		Password:  config.Password,
+		Mailbox:   config.Mailbox,
+		Name:      config.Name,
+		IsDefault: config.IsDefault,
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	c.JSON(http.StatusCreated, resp)
 }
 
-// ListEmailServers 列出所有邮件服务器配置
-func (s *Setting) ListEmailServers(c *gin.Context) {
+// ListEmailServerConfigs 列出所有邮件服务器配置
+func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
@@ -104,14 +117,26 @@ func (s *Setting) ListEmailServers(c *gin.Context) {
 
 	response := make([]EmailServerConfigResponse, 0, len(configs))
 	for i := range configs {
-		response = append(response, toEmailServerConfigResponse(&configs[i]))
+		cfg := configs[i]
+		item := EmailServerConfigResponse{
+			ID:        cfg.ID,
+			Server:    cfg.Server,
+			Username:  cfg.Username,
+			Password:  cfg.Password,
+			Mailbox:   cfg.Mailbox,
+			Name:      cfg.Name,
+			IsDefault: cfg.IsDefault,
+			CreatedAt: cfg.CreatedAt,
+			UpdatedAt: cfg.UpdatedAt,
+		}
+		response = append(response, item)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"configs": response})
 }
 
-// GetEmailServer 获取指定邮件服务器配置
-func (s *Setting) GetEmailServer(c *gin.Context) {
+// GetEmailServerConfig 获取指定邮件服务器配置
+func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
@@ -137,11 +162,23 @@ func (s *Setting) GetEmailServer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toEmailServerConfigResponse(&config))
+	resp := EmailServerConfigResponse{
+		ID:        config.ID,
+		Server:    config.Server,
+		Username:  config.Username,
+		Password:  config.Password,
+		Mailbox:   config.Mailbox,
+		Name:      config.Name,
+		IsDefault: config.IsDefault,
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
-// UpdateEmailServer 更新邮件服务器配置
-func (s *Setting) UpdateEmailServer(c *gin.Context) {
+// UpdateEmailServerConfig 更新邮件服务器配置
+func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 	var req EmailServerConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
@@ -204,11 +241,23 @@ func (s *Setting) UpdateEmailServer(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, toEmailServerConfigResponse(&config))
+	resp := EmailServerConfigResponse{
+		ID:        config.ID,
+		Server:    config.Server,
+		Username:  config.Username,
+		Password:  config.Password,
+		Mailbox:   config.Mailbox,
+		Name:      config.Name,
+		IsDefault: config.IsDefault,
+		CreatedAt: config.CreatedAt,
+		UpdatedAt: config.UpdatedAt,
+	}
+
+	c.JSON(http.StatusOK, resp)
 }
 
-// DeleteEmailServer 删除邮件服务器配置
-func (s *Setting) DeleteEmailServer(c *gin.Context) {
+// DeleteEmailServerConfig 删除邮件服务器配置
+func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
 	googleUserID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
@@ -240,18 +289,4 @@ func (s *Setting) DeleteEmailServer(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "删除成功"})
-}
-
-// toEmailServerConfigResponse 将数据库模型转换为响应格式
-func toEmailServerConfigResponse(config *table.EmailServerConfig) EmailServerConfigResponse {
-	return EmailServerConfigResponse{
-		ID:        config.ID,
-		Server:    config.Server,
-		Username:  config.Username,
-		Mailbox:   config.Mailbox,
-		Name:      config.Name,
-		IsDefault: config.IsDefault,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
-	}
 }

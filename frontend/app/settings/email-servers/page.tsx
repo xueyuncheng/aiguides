@@ -1,18 +1,29 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
-import { Plus, Trash2, Edit2, Check, X, Mail, ArrowLeft } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Edit2,
+  Check,
+  X,
+  Mail,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+} from 'lucide-react';
 
 interface EmailServerConfig {
   id: number;
   server: string;
   username: string;
+  password?: string;
   mailbox: string;
   name: string;
   is_default: boolean;
@@ -29,12 +40,21 @@ interface FormData {
   is_default: boolean;
 }
 
+type ToastType = 'success' | 'error' | 'info';
+
+interface ToastMessage {
+  id: number;
+  message: string;
+  type: ToastType;
+}
+
 export default function EmailServersPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [configs, setConfigs] = useState<EmailServerConfig[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     server: '',
     username: '',
@@ -46,6 +66,16 @@ export default function EmailServersPage() {
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const toastId = useRef(0);
+
+  const notify = (message: string, type: ToastType = 'info') => {
+    const id = toastId.current++;
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3200);
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -61,17 +91,21 @@ export default function EmailServersPage() {
 
   const loadConfigs = async () => {
     try {
-      const response = await fetch('/api/email-servers', {
+      const response = await fetch('/api/email_server_configs', {
         credentials: 'include',
       });
       if (response.ok) {
         const data = await response.json();
         setConfigs(data.configs || []);
       } else {
-        setError('加载邮件服务器配置失败');
+        const msg = '加载邮件服务器配置失败';
+        setError(msg);
+        notify(msg, 'error');
       }
     } catch (err) {
-      setError('加载邮件服务器配置失败: ' + (err as Error).message);
+      const msg = '加载邮件服务器配置失败: ' + (err as Error).message;
+      setError(msg);
+      notify(msg, 'error');
     }
   };
 
@@ -83,8 +117,8 @@ export default function EmailServersPage() {
 
     try {
       const url = editingId
-        ? `/api/email-servers/${editingId}`
-        : '/api/email-servers';
+        ? `/api/email_server_configs/${editingId}`
+        : '/api/email_server_configs';
       const method = editingId ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -97,35 +131,67 @@ export default function EmailServersPage() {
       });
 
       if (response.ok) {
-        setSuccess(editingId ? '更新成功' : '添加成功');
+        const msg = editingId ? '更新成功' : '添加成功';
+        setSuccess(msg);
+        notify(msg, 'success');
         setShowForm(false);
         setEditingId(null);
         resetForm();
         await loadConfigs();
       } else {
         const data = await response.json();
-        setError(data.error || '操作失败');
+        const msg = data.error || '操作失败';
+        setError(msg);
+        notify(msg, 'error');
       }
     } catch (err) {
-      setError('操作失败: ' + (err as Error).message);
+      const msg = '操作失败: ' + (err as Error).message;
+      setError(msg);
+      notify(msg, 'error');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleEdit = (config: EmailServerConfig) => {
-    setFormData({
-      server: config.server,
-      username: config.username,
-      password: '', // Don't populate password for security
-      mailbox: config.mailbox,
-      name: config.name,
-      is_default: config.is_default,
-    });
-    setEditingId(config.id);
-    setShowForm(true);
+  const handleEdit = async (config: EmailServerConfig) => {
     setError('');
     setSuccess('');
+    setIsLoading(true);
+    setShowPassword(false);
+
+    try {
+      const response = await fetch(`/api/email_server_configs/${config.id}`, {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        const msg = data.error || '加载配置失败';
+        setError(msg);
+        notify(msg, 'error');
+        return;
+      }
+
+      const detail: EmailServerConfig = await response.json();
+
+      setFormData({
+        server: detail.server,
+        username: detail.username,
+        password: detail.password || '',
+        mailbox: detail.mailbox || 'INBOX',
+        name: detail.name,
+        is_default: detail.is_default,
+      });
+
+      setEditingId(detail.id);
+      setShowForm(true);
+    } catch (err) {
+      const msg = '加载配置失败: ' + (err as Error).message;
+      setError(msg);
+      notify(msg, 'error');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = async (id: number) => {
@@ -134,20 +200,26 @@ export default function EmailServersPage() {
     }
 
     try {
-      const response = await fetch(`/api/email-servers/${id}`, {
+      const response = await fetch(`/api/email_server_configs/${id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
 
       if (response.ok) {
-        setSuccess('删除成功');
+        const msg = '删除成功';
+        setSuccess(msg);
+        notify(msg, 'success');
         await loadConfigs();
       } else {
         const data = await response.json();
-        setError(data.error || '删除失败');
+        const msg = data.error || '删除失败';
+        setError(msg);
+        notify(msg, 'error');
       }
     } catch (err) {
-      setError('删除失败: ' + (err as Error).message);
+      const msg = '删除失败: ' + (err as Error).message;
+      setError(msg);
+      notify(msg, 'error');
     }
   };
 
@@ -161,6 +233,7 @@ export default function EmailServersPage() {
       is_default: false,
     });
     setEditingId(null);
+    setShowPassword(false);
   };
 
   const handleCancel = () => {
@@ -226,6 +299,28 @@ export default function EmailServersPage() {
           </Alert>
         )}
 
+        {/* Toasts */}
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80">
+          {toasts.map((toast) => {
+            const isSuccess = toast.type === 'success';
+            const isError = toast.type === 'error';
+            const base = 'rounded-md px-4 py-3 shadow-lg text-sm flex items-start gap-2 border';
+            const theme = isSuccess
+              ? 'bg-green-50 text-green-800 border-green-200'
+              : isError
+                ? 'bg-red-50 text-red-800 border-red-200'
+                : 'bg-blue-50 text-blue-800 border-blue-200';
+            return (
+              <div key={toast.id} className={`${base} ${theme}`}>
+                <span className="font-semibold">
+                  {isSuccess ? '成功' : isError ? '错误' : '提示'}
+                </span>
+                <span className="flex-1">{toast.message}</span>
+              </div>
+            );
+          })}
+        </div>
+
         {showForm && (
           <Card className="mb-6">
             <CardHeader>
@@ -288,15 +383,29 @@ export default function EmailServersPage() {
                   <label className="block text-sm font-medium mb-2">
                     密码 *
                   </label>
-                  <Input
-                    type="password"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
-                    }
-                    placeholder={editingId ? '留空表示不修改' : '邮箱密码或应用专用密码'}
-                    required={!editingId}
-                  />
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? 'text' : 'password'}
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      placeholder={editingId ? '留空表示不修改' : '邮箱密码或应用专用密码'}
+                      required={!editingId}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground"
+                      onClick={() => setShowPassword((v) => !v)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     建议使用应用专用密码而不是账户密码
                   </p>
