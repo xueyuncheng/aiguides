@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"context"
 	"testing"
 
 	"github.com/emersion/go-imap/v2"
@@ -15,73 +14,6 @@ func TestNewEmailQueryTool(t *testing.T) {
 
 	if tool == nil {
 		t.Fatal("NewEmailQueryTool() returned nil tool")
-	}
-}
-
-func TestEmailQueryInput_Validation(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       EmailQueryInput
-		expectError bool
-		errorMsg    string
-	}{
-		{
-			name: "missing server",
-			input: EmailQueryInput{
-				Server:   "",
-				Username: "test@example.com",
-				Password: "password",
-			},
-			expectError: true,
-			errorMsg:    "邮件服务器配置未提供",
-		},
-		{
-			name: "missing username",
-			input: EmailQueryInput{
-				Server:   "imap.example.com:993",
-				Username: "",
-				Password: "password",
-			},
-			expectError: true,
-			errorMsg:    "邮件服务器配置未提供",
-		},
-		{
-			name: "missing password",
-			input: EmailQueryInput{
-				Server:   "imap.example.com:993",
-				Username: "test@example.com",
-				Password: "",
-			},
-			expectError: true,
-			errorMsg:    "邮件服务器配置未提供",
-		},
-		{
-			name: "valid input with defaults",
-			input: EmailQueryInput{
-				Server:   "imap.example.com:993",
-				Username: "test@example.com",
-				Password: "password",
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			output, err := queryEmails(context.Background(), tt.input)
-			if err != nil {
-				t.Fatalf("queryEmails() unexpected error: %v", err)
-			}
-
-			if tt.expectError {
-				if output.Success {
-					t.Errorf("Expected error but got success")
-				}
-				if output.Error != tt.errorMsg {
-					t.Errorf("Expected error message %q, got %q", tt.errorMsg, output.Error)
-				}
-			}
-		})
 	}
 }
 

@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"aiguide/internal/app/aiguide/table"
+	"aiguide/internal/pkg/middleware"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -18,12 +20,9 @@ import (
 
 // EmailQueryInput 定义邮件查询工具的输入参数
 type EmailQueryInput struct {
-	Server   string `json:"server" jsonschema:"IMAP 服务器地址，例如: imap.gmail.com:993"`
-	Username string `json:"username" jsonschema:"邮箱账号"`
-	Password string `json:"password" jsonschema:"邮箱密码或应用专用密码"`
-	Mailbox  string `json:"mailbox,omitempty" jsonschema:"邮箱文件夹名称，默认为 INBOX"`
-	Limit    int    `json:"limit,omitempty" jsonschema:"返回的邮件数量限制，默认为 10，最多 50"`
-	Unseen   bool   `json:"unseen,omitempty" jsonschema:"是否只查询未读邮件，默认为 false"`
+	Mailbox string `json:"mailbox,omitempty" jsonschema:"邮箱文件夹名称，默认为 INBOX"`
+	Limit   int    `json:"limit,omitempty" jsonschema:"返回的邮件数量限制，默认为 10，最多 50"`
+	Unseen  bool   `json:"unseen,omitempty" jsonschema:"是否只查询未读邮件，默认为 false"`
 }
 
 // EmailMessage 表示一封邮件的基本信息
@@ -39,11 +38,13 @@ type EmailMessage struct {
 
 // EmailQueryOutput 定义邮件查询工具的输出
 type EmailQueryOutput struct {
-	Success  bool           `json:"success"`
-	Messages []EmailMessage `json:"messages,omitempty"`
-	Count    int            `json:"count"`
-	Message  string         `json:"message,omitempty"`
-	Error    string         `json:"error,omitempty"`
+	Success     bool           `json:"success"`
+	Messages    []EmailMessage `json:"messages,omitempty"`
+	Count       int            `json:"count"`
+	Message     string         `json:"message,omitempty"`
+	Error       string         `json:"error,omitempty"`
+	ConfigURL   string         `json:"config_url,omitempty"`   // 配置页面URL
+	NeedsConfig bool           `json:"needs_config,omitempty"` // 是否需要配置
 }
 
 // NewEmailQueryTool 创建邮件查询工具
@@ -74,6 +75,12 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 	default:
 	}
 
+	// 使用提供的配置查询单个服务器
+	return querySingleServer(ctx, input)
+}
+
+// querySingleServer 查询单个邮件服务器
+func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
 	// 验证并标准化输入
 	input, err := validateAndNormalizeInput(input)
 	if err != nil {
@@ -85,16 +92,41 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 	}
 
 	slog.Info("开始查询邮件",
-		"server", input.Server,
-		"username", input.Username,
 		"mailbox", input.Mailbox,
 		"limit", input.Limit,
 		"unseen", input.Unseen)
 
+	var emailServerConfigs []*table.EmailServerConfig
+	tx, ok := middleware.GetTx(ctx)
+	if !ok {
+		slog.Error("没有从 context 中找到 db")
+		output := &EmailQueryOutput{
+			Success: false,
+			Message: "没有从 context 中找到 db",
+		}
+		return output, nil
+	}
+
+	if err := tx.Find(&emailServerConfigs).Error; err != nil {
+		slog.Error("tx.Find() error", "err", err)
+		return nil, fmt.Errorf("tx.Find() error, err = %w", err)
+	}
+
+	if len(emailServerConfigs) == 0 {
+		slog.Info("没有找到邮件服务器配置")
+		configURL := "http://localhost:3000/settings/email-server-configs"
+		return &EmailQueryOutput{
+			Success:   false,
+			Message:   "没有找到邮件服务器配置",
+			ConfigURL: configURL,
+		}, nil
+	}
+
+	emailServerConfig := emailServerConfigs[0]
+
 	// 连接到 IMAP 服务器
-	client, err := connectToIMAP(input.Server, input.Username, input.Password)
+	client, err := connectToIMAP(emailServerConfig.Server, emailServerConfig.Username, emailServerConfig.Password)
 	if err != nil {
-		slog.Error("连接或登录 IMAP 服务器失败", "err", err)
 		return &EmailQueryOutput{
 			Success: false,
 			Error:   err.Error(),
@@ -102,6 +134,11 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 	}
 	defer client.Close()
 
+	return fetchEmailsFromClient(ctx, client, input)
+}
+
+// fetchEmailsFromClient 从 IMAP 客户端获取邮件
+func fetchEmailsFromClient(ctx context.Context, client *imapclient.Client, input EmailQueryInput) (*EmailQueryOutput, error) {
 	// 选择邮箱文件夹
 	selectData, err := client.Select(input.Mailbox, nil).Wait()
 	if err != nil {
@@ -169,16 +206,6 @@ func queryEmails(ctx context.Context, input EmailQueryInput) (*EmailQueryOutput,
 
 // validateAndNormalizeInput 验证必填参数并设置默认值
 func validateAndNormalizeInput(input EmailQueryInput) (EmailQueryInput, error) {
-	if input.Server == "" {
-		return input, fmt.Errorf("IMAP 服务器地址不能为空")
-	}
-	if input.Username == "" {
-		return input, fmt.Errorf("邮箱账号不能为空")
-	}
-	if input.Password == "" {
-		return input, fmt.Errorf("邮箱密码不能为空")
-	}
-
 	if input.Mailbox == "" {
 		input.Mailbox = "INBOX"
 	}
@@ -203,12 +230,14 @@ func connectToIMAP(server, username, password string) (*imapclient.Client, error
 
 	client, err := imapclient.DialTLS(server, options)
 	if err != nil {
-		return nil, fmt.Errorf("连接 IMAP 服务器失败: %v", err)
+		slog.Error("imapclient.DialTLS() error", "err", err)
+		return nil, fmt.Errorf("连接 IMAP 服务器失败: %w", err)
 	}
 
 	if err := client.Login(username, password).Wait(); err != nil {
 		client.Close()
-		return nil, fmt.Errorf("IMAP 登录失败: %v", err)
+		slog.Error("client.Login() error", "err", err)
+		return nil, fmt.Errorf("IMAP 登录失败: %w", err)
 	}
 
 	return client, nil

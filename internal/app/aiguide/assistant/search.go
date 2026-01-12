@@ -16,7 +16,7 @@ import (
 //go:embed search_prompt.md
 var searchAgentInstruction string
 
-func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
+func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string) (agent.Agent, error) {
 	// 创建图片生成工具
 	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
 	if err != nil {
