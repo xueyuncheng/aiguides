@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/emersion/go-imap/v2"
+	"google.golang.org/adk/model"
 )
 
 func TestNewEmailQueryTool(t *testing.T) {
@@ -14,6 +15,32 @@ func TestNewEmailQueryTool(t *testing.T) {
 
 	if tool == nil {
 		t.Fatal("NewEmailQueryTool() returned nil tool")
+	}
+}
+
+func TestNewEmailAgent(t *testing.T) {
+	// Test with nil model (should still create the agent structure)
+	agent, err := NewEmailAgent(nil)
+	if err != nil {
+		t.Fatalf("NewEmailAgent() failed: %v", err)
+	}
+
+	if agent == nil {
+		t.Fatal("NewEmailAgent() returned nil agent")
+	}
+}
+
+func TestNewEmailAgentWithModel(t *testing.T) {
+	// Create a mock model
+	var mockModel model.LLM = nil // In production, this would be a real model
+
+	agent, err := NewEmailAgent(mockModel)
+	if err != nil {
+		t.Fatalf("NewEmailAgent() with model failed: %v", err)
+	}
+
+	if agent == nil {
+		t.Fatal("NewEmailAgent() with model returned nil agent")
 	}
 }
 

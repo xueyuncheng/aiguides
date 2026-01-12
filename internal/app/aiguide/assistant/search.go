@@ -24,11 +24,11 @@ func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGenerat
 		return nil, fmt.Errorf("tools.NewImageGenTool() error, err = %w", err)
 	}
 
-	// 创建邮件查询工具
-	emailQueryTool, err := tools.NewEmailQueryTool()
+	// 创建邮件查询 Agent
+	emailAgent, err := tools.NewEmailAgent(model)
 	if err != nil {
-		slog.Error("tools.NewEmailQueryTool() error", "err", err)
-		return nil, fmt.Errorf("tools.NewEmailQueryTool() error, err = %w", err)
+		slog.Error("tools.NewEmailAgent() error", "err", err)
+		return nil, fmt.Errorf("tools.NewEmailAgent() error, err = %w", err)
 	}
 
 	// 创建 Google 搜索工具 (封装 geminitool.GoogleSearch，解决工具混用问题)
@@ -46,7 +46,7 @@ func NewSearchAgent(model model.LLM, genaiClient *genai.Client, mockImageGenerat
 		Tools: []tool.Tool{
 			googleSearchTool,
 			imageGenTool,
-			emailQueryTool,
+			emailAgent,
 		},
 	}
 	agent, err := llmagent.New(searchAgentConfig)
