@@ -18,14 +18,24 @@ func GetUserID(c *gin.Context) (string, bool) {
 	return id, ok
 }
 
-// GetUserEmail 从上下文中获取用户邮箱
+// GetUserEmail 从上下文中获取 Google 用户邮箱
 func GetUserEmail(c *gin.Context) (string, bool) {
-	email, exists := c.Get("user_email")
+	email, exists := c.Get("google_user_email")
 	if !exists {
 		return "", false
 	}
 	e, ok := email.(string)
 	return e, ok
+}
+
+// GetGoogleUserID 从上下文中获取 Google 用户 ID
+func GetGoogleUserID(c *gin.Context) (string, bool) {
+	googleUserID, exists := c.Get("google_user_id")
+	if !exists {
+		return "", false
+	}
+	id, ok := googleUserID.(string)
+	return id, ok
 }
 
 // GetUserName 从上下文中获取用户名

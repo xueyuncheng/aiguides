@@ -47,13 +47,13 @@ func (a *AIGuide) RefreshToken(c *gin.Context) {
 
 	// 重建用户信息用于生成新令牌
 	user := &auth.GoogleUser{
-		ID:    claims.UserID,
+		ID:    claims.GoogleUserID,
 		Email: claims.Email,
 		Name:  claims.Name,
 	}
 
 	// 生成新的令牌对（包括新的刷新令牌，实现滑动过期）
-	tokenPair, err := a.authService.GenerateTokenPair(user)
+	tokenPair, err := a.authService.GenerateTokenPair(claims.UserID, user)
 	if err != nil {
 		slog.Error("failed to generate token pair", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate tokens"})

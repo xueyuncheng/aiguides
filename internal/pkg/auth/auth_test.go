@@ -14,13 +14,14 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 	authService := NewAuthService(config)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 生成访问令牌
-	accessToken, err := authService.GenerateAccessToken(user)
+	accessToken, err := authService.GenerateAccessToken(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken failed: %v", err)
 	}
@@ -35,8 +36,12 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 		t.Fatalf("ValidateJWT failed: %v", err)
 	}
 
-	if claims.UserID != user.ID {
-		t.Errorf("Expected UserID %s, got %s", user.ID, claims.UserID)
+	if claims.UserID != internalUserID {
+		t.Errorf("Expected UserID %s, got %s", internalUserID, claims.UserID)
+	}
+
+	if claims.GoogleUserID != user.ID {
+		t.Errorf("Expected GoogleUserID %s, got %s", user.ID, claims.GoogleUserID)
 	}
 
 	if claims.Email != user.Email {
@@ -59,13 +64,14 @@ func TestGenerateAndValidateRefreshToken(t *testing.T) {
 	authService := NewAuthService(config)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 生成刷新令牌
-	refreshToken, err := authService.GenerateRefreshToken(user)
+	refreshToken, err := authService.GenerateRefreshToken(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateRefreshToken failed: %v", err)
 	}
@@ -80,8 +86,12 @@ func TestGenerateAndValidateRefreshToken(t *testing.T) {
 		t.Fatalf("ValidateRefreshToken failed: %v", err)
 	}
 
-	if claims.UserID != user.ID {
-		t.Errorf("Expected UserID %s, got %s", user.ID, claims.UserID)
+	if claims.UserID != internalUserID {
+		t.Errorf("Expected UserID %s, got %s", internalUserID, claims.UserID)
+	}
+
+	if claims.GoogleUserID != user.ID {
+		t.Errorf("Expected GoogleUserID %s, got %s", user.ID, claims.GoogleUserID)
 	}
 
 	if claims.Email != user.Email {
@@ -104,13 +114,14 @@ func TestGenerateTokenPair(t *testing.T) {
 	authService := NewAuthService(config)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 生成令牌对
-	tokenPair, err := authService.GenerateTokenPair(user)
+	tokenPair, err := authService.GenerateTokenPair(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateTokenPair failed: %v", err)
 	}
@@ -155,13 +166,14 @@ func TestValidateTokenWithWrongType(t *testing.T) {
 	authService := NewAuthService(config)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 生成访问令牌
-	accessToken, err := authService.GenerateAccessToken(user)
+	accessToken, err := authService.GenerateAccessToken(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken failed: %v", err)
 	}
@@ -173,7 +185,7 @@ func TestValidateTokenWithWrongType(t *testing.T) {
 	}
 
 	// 生成刷新令牌
-	refreshToken, err := authService.GenerateRefreshToken(user)
+	refreshToken, err := authService.GenerateRefreshToken(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateRefreshToken failed: %v", err)
 	}
@@ -194,10 +206,11 @@ func TestValidateExpiredToken(t *testing.T) {
 	// 创建一个已过期的令牌
 	expirationTime := time.Now().Add(-1 * time.Hour) // 1小时前过期
 	claims := &Claims{
-		UserID:    "test-user-id",
-		Email:     "test@example.com",
-		Name:      "Test User",
-		TokenType: "access",
+		UserID:       "1",
+		GoogleUserID: "test-google-user-id",
+		Email:        "test@example.com",
+		Name:         "Test User",
+		TokenType:    "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
@@ -230,13 +243,14 @@ func TestValidateInvalidSignature(t *testing.T) {
 	differentAuthService := NewAuthService(differentConfig)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 使用不同的密钥生成令牌
-	token, err := differentAuthService.GenerateAccessToken(user)
+	token, err := differentAuthService.GenerateAccessToken(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateAccessToken failed: %v", err)
 	}
@@ -276,13 +290,14 @@ func TestBackwardCompatibility(t *testing.T) {
 	authService := NewAuthService(config)
 
 	user := &GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := "1" // Simulated internal database ID
 
 	// 测试 GenerateJWT 仍然有效（向后兼容）
-	token, err := authService.GenerateJWT(user)
+	token, err := authService.GenerateJWT(internalUserID, user)
 	if err != nil {
 		t.Fatalf("GenerateJWT failed: %v", err)
 	}

@@ -43,7 +43,7 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 		return
 	}
 
-	googleUserID, exists := middleware.GetUserID(c)
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		slog.Error("user not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
@@ -52,7 +52,7 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		slog.Error("db.First() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
@@ -96,7 +96,7 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 
 // ListEmailServerConfigs 列出所有邮件服务器配置
 func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
-	googleUserID, exists := middleware.GetUserID(c)
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -104,7 +104,7 @@ func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -137,7 +137,7 @@ func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 
 // GetEmailServerConfig 获取指定邮件服务器配置
 func (s *Setting) GetEmailServerConfig(c *gin.Context) {
-	googleUserID, exists := middleware.GetUserID(c)
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -145,7 +145,7 @@ func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -185,7 +185,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 		return
 	}
 
-	googleUserID, exists := middleware.GetUserID(c)
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -193,7 +193,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
@@ -258,7 +258,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 
 // DeleteEmailServerConfig 删除邮件服务器配置
 func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
-	googleUserID, exists := middleware.GetUserID(c)
+	userID, exists := middleware.GetUserID(c)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
@@ -266,7 +266,7 @@ func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
 
 	// 查找用户
 	var user table.User
-	if err := s.db.Where("google_user_id = ?", googleUserID).First(&user).Error; err != nil {
+	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
