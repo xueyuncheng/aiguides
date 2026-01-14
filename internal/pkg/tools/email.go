@@ -107,7 +107,18 @@ func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryO
 		return output, nil
 	}
 
-	if err := tx.Find(&emailServerConfigs).Error; err != nil {
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		slog.Error("没有从 context 中找到 user id")
+		output := &EmailQueryOutput{
+			Success: false,
+			Message: "没有从 context 中找到 user id",
+		}
+		return output, nil
+	}
+
+	// 查找用户的邮件服务器配置
+	if err := tx.Where("user_id = ?", userID).Find(&emailServerConfigs).Error; err != nil {
 		slog.Error("tx.Find() error", "err", err)
 		return nil, fmt.Errorf("tx.Find() error, err = %w", err)
 	}

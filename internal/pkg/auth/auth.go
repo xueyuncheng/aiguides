@@ -28,10 +28,11 @@ type GoogleUser struct {
 
 // Claims 表示 JWT token 中的声明
 type Claims struct {
-	UserID    string `json:"user_id"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
-	TokenType string `json:"token_type"` // "access" or "refresh"
+	UserID       int    `json:"user_id"`        // Internal database user ID
+	GoogleUserID string `json:"google_user_id"` // Google's user ID
+	Email        string `json:"email"`
+	Name         string `json:"name"`
+	TokenType    string `json:"token_type"` // "access" or "refresh"
 	jwt.RegisteredClaims
 }
 
@@ -109,18 +110,18 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 }
 
 // GenerateJWT 生成 JWT token (保持向后兼容，默认生成访问令牌)
-func (s *AuthService) GenerateJWT(user *GoogleUser) (string, error) {
-	return s.GenerateAccessToken(user)
+func (s *AuthService) GenerateJWT(internalUserID int, user *GoogleUser) (string, error) {
+	return s.GenerateAccessToken(internalUserID, user)
 }
 
 // GenerateTokenPair 生成访问令牌和刷新令牌对
-func (s *AuthService) GenerateTokenPair(user *GoogleUser) (*TokenPair, error) {
-	accessToken, err := s.GenerateAccessToken(user)
+func (s *AuthService) GenerateTokenPair(internalUserID int, user *GoogleUser) (*TokenPair, error) {
+	accessToken, err := s.GenerateAccessToken(internalUserID, user)
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.GenerateRefreshToken(user)
+	refreshToken, err := s.GenerateRefreshToken(internalUserID, user)
 	if err != nil {
 		return nil, err
 	}
@@ -133,13 +134,14 @@ func (s *AuthService) GenerateTokenPair(user *GoogleUser) (*TokenPair, error) {
 }
 
 // GenerateAccessToken 生成访问令牌（短期有效）
-func (s *AuthService) GenerateAccessToken(user *GoogleUser) (string, error) {
+func (s *AuthService) GenerateAccessToken(internalUserID int, user *GoogleUser) (string, error) {
 	expirationTime := time.Now().Add(15 * time.Hour) // 访问令牌 15 分钟有效
 	claims := &Claims{
-		UserID:    user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		TokenType: "access",
+		UserID:       internalUserID,
+		GoogleUserID: user.ID,
+		Email:        user.Email,
+		Name:         user.Name,
+		TokenType:    "access",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -156,13 +158,14 @@ func (s *AuthService) GenerateAccessToken(user *GoogleUser) (string, error) {
 }
 
 // GenerateRefreshToken 生成刷新令牌（长期有效）
-func (s *AuthService) GenerateRefreshToken(user *GoogleUser) (string, error) {
+func (s *AuthService) GenerateRefreshToken(internalUserID int, user *GoogleUser) (string, error) {
 	expirationTime := time.Now().Add(7 * 24 * time.Hour) // 刷新令牌 7 天有效
 	claims := &Claims{
-		UserID:    user.ID,
-		Email:     user.Email,
-		Name:      user.Name,
-		TokenType: "refresh",
+		UserID:       internalUserID,
+		GoogleUserID: user.ID,
+		Email:        user.Email,
+		Name:         user.Name,
+		TokenType:    "refresh",
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

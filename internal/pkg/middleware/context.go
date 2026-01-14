@@ -9,23 +9,27 @@ import (
 )
 
 // GetUserID 从上下文中获取用户 ID
-func GetUserID(c *gin.Context) (string, bool) {
-	userID, exists := c.Get("user_id")
-	if !exists {
-		return "", false
-	}
-	id, ok := userID.(string)
-	return id, ok
+func GetUserID(ctx context.Context) (int, bool) {
+	userID, ok := ctx.Value("user_id").(int)
+
+	return userID, ok
 }
 
-// GetUserEmail 从上下文中获取用户邮箱
-func GetUserEmail(c *gin.Context) (string, bool) {
-	email, exists := c.Get("user_email")
+// GetUserEmail 从上下文中获取 Google 用户邮箱
+func GetUserEmail(ctx context.Context) (string, bool) {
+	email, ok := ctx.Value("google_user_email").(string)
+
+	return email, ok
+}
+
+// GetGoogleUserID 从上下文中获取 Google 用户 ID
+func GetGoogleUserID(c *gin.Context) (string, bool) {
+	googleUserID, exists := c.Get("google_user_id")
 	if !exists {
 		return "", false
 	}
-	e, ok := email.(string)
-	return e, ok
+	id, ok := googleUserID.(string)
+	return id, ok
 }
 
 // GetUserName 从上下文中获取用户名

@@ -19,7 +19,7 @@ func (a *AIGuide) GetUser(c *gin.Context) {
 	}
 
 	var user table.User
-	if err := a.db.Where("google_user_id = ?", userID).First(&user).Error; err != nil {
+	if err := a.db.Where("id = ?", userID).First(&user).Error; err != nil {
 		slog.Error("db.First() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"err": err})
 		return

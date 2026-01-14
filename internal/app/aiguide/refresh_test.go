@@ -22,13 +22,14 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 
 	// 创建测试用户
 	user := &auth.GoogleUser{
-		ID:    "test-user-id",
+		ID:    "test-google-user-id",
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成令牌对
-	tokenPair, err := authService.GenerateTokenPair(user)
+	tokenPair, err := authService.GenerateTokenPair(internalUserID, user)
 	if err != nil {
 		t.Fatalf("Failed to generate token pair: %v", err)
 	}

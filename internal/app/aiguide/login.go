@@ -90,13 +90,14 @@ func (a *AIGuide) GoogleCallback(c *gin.Context) {
 	}
 
 	// 保存用户信息到数据库
-	if err := saveUser(a.db, user); err != nil {
+	dbUser, err := saveUser(a.db, user)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save user info"})
 		return
 	}
 
-	// 生成访问令牌和刷新令牌
-	tokenPair, err := a.authService.GenerateTokenPair(user)
+	// 生成访问令牌和刷新令牌，使用内部用户 ID
+	tokenPair, err := a.authService.GenerateTokenPair(dbUser.ID, user)
 	if err != nil {
 		slog.Error("failed to generate token pair", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate tokens"})
@@ -112,12 +113,12 @@ func (a *AIGuide) GoogleCallback(c *gin.Context) {
 	c.Redirect(http.StatusFound, frontendURL)
 }
 
-func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
+func saveUser(db *gorm.DB, user *auth.GoogleUser) (*table.User, error) {
 	var u table.User
 	if err := db.Where("google_user_id = ?", user.ID).First(&u).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			slog.Error("db.First() error", "err", err)
-			return fmt.Errorf("db.First() error, err = %w", err)
+			return nil, fmt.Errorf("db.First() error, err = %w", err)
 		}
 
 		// Download avatar image
@@ -138,7 +139,7 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 
 		if err := db.Create(&u).Error; err != nil {
 			slog.Error("db.Create() error", "err", err)
-			return fmt.Errorf("db.Create() error, err = %w", err)
+			return nil, fmt.Errorf("db.Create() error, err = %w", err)
 		}
 	} else {
 		// Update existing user info
@@ -161,9 +162,9 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser) error {
 
 		if err := db.Save(&u).Error; err != nil {
 			slog.Error("db.Save() error", "err", err)
-			return fmt.Errorf("db.Save() error, err = %w", err)
+			return nil, fmt.Errorf("db.Save() error, err = %w", err)
 		}
 	}
 
-	return nil
+	return &u, nil
 }
