@@ -23,7 +23,7 @@ type EmailServerConfigRequest struct {
 
 // EmailServerConfigResponse 邮件服务器配置响应
 type EmailServerConfigResponse struct {
-	ID        uint      `json:"id"`
+	ID        int       `json:"id"`
 	Server    string    `json:"server"`
 	Username  string    `json:"username"`
 	Password  string    `json:"password"`
@@ -150,7 +150,7 @@ func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return
@@ -198,7 +198,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return
@@ -271,7 +271,7 @@ func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
 		return
 	}
 
-	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return

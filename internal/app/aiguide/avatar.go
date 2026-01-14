@@ -37,9 +37,9 @@ var allowedImageMimeTypes = map[string]bool{
 // are typically public information, similar to profile pictures on social platforms.
 func (a *AIGuide) GetAvatar(c *gin.Context) {
 	userIDStr := c.Param("userId")
-	userID, err := strconv.ParseUint(userIDStr, 10, 64)
+	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		slog.Error("strconv.ParseUnit() error", "err", err)
+		slog.Error("strconv.Atoi() error", "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}

@@ -1,9 +1,21 @@
 package table
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
+
+// Model 自定义模型，与 gorm.Model 类似但 ID 使用 int 类型
+type Model struct {
+	ID        int `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
+}
 
 type User struct {
-	gorm.Model
+	Model
 
 	GoogleUserID   string
 	GoogleEmail    string
@@ -14,7 +26,7 @@ type User struct {
 }
 
 type SessionMeta struct {
-	gorm.Model
+	Model
 
 	SessionID string
 	Title     string
@@ -22,9 +34,9 @@ type SessionMeta struct {
 
 // EmailServerConfig 邮件服务器配置
 type EmailServerConfig struct {
-	gorm.Model
+	Model
 
-	UserID    uint   // 关联的用户 ID
+	UserID    int    // 关联的用户 ID
 	Server    string `gorm:"not null"` // IMAP 服务器地址，例如: imap.gmail.com:993
 	Username  string `gorm:"not null"` // 邮箱账号
 	Password  string `gorm:"not null"` // 邮箱密码或应用专用密码（应加密存储）

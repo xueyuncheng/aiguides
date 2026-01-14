@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
@@ -21,7 +22,7 @@ import (
 
 // ChatRequest 定义通用的聊天请求结构
 type ChatRequest struct {
-	UserID    string `json:"user_id"`
+	UserID    int    `json:"user_id"`
 	SessionID string `json:"session_id"`
 	Message   string `json:"message"`
 }
@@ -37,7 +38,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	userID := req.UserID
+	userID := strconv.Itoa(req.UserID)
 	sessionID := req.SessionID
 	message := genai.NewContentFromText(req.Message, genai.RoleUser)
 

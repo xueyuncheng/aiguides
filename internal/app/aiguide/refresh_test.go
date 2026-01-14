@@ -26,7 +26,7 @@ func TestRefreshTokenEndpoint(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成令牌对
 	tokenPair, err := authService.GenerateTokenPair(internalUserID, user)

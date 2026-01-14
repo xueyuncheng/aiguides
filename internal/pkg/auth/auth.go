@@ -28,7 +28,7 @@ type GoogleUser struct {
 
 // Claims 表示 JWT token 中的声明
 type Claims struct {
-	UserID       string `json:"user_id"`        // Internal database user ID
+	UserID       int    `json:"user_id"`        // Internal database user ID
 	GoogleUserID string `json:"google_user_id"` // Google's user ID
 	Email        string `json:"email"`
 	Name         string `json:"name"`
@@ -110,12 +110,12 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 }
 
 // GenerateJWT 生成 JWT token (保持向后兼容，默认生成访问令牌)
-func (s *AuthService) GenerateJWT(internalUserID string, user *GoogleUser) (string, error) {
+func (s *AuthService) GenerateJWT(internalUserID int, user *GoogleUser) (string, error) {
 	return s.GenerateAccessToken(internalUserID, user)
 }
 
 // GenerateTokenPair 生成访问令牌和刷新令牌对
-func (s *AuthService) GenerateTokenPair(internalUserID string, user *GoogleUser) (*TokenPair, error) {
+func (s *AuthService) GenerateTokenPair(internalUserID int, user *GoogleUser) (*TokenPair, error) {
 	accessToken, err := s.GenerateAccessToken(internalUserID, user)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (s *AuthService) GenerateTokenPair(internalUserID string, user *GoogleUser)
 }
 
 // GenerateAccessToken 生成访问令牌（短期有效）
-func (s *AuthService) GenerateAccessToken(internalUserID string, user *GoogleUser) (string, error) {
+func (s *AuthService) GenerateAccessToken(internalUserID int, user *GoogleUser) (string, error) {
 	expirationTime := time.Now().Add(15 * time.Hour) // 访问令牌 15 分钟有效
 	claims := &Claims{
 		UserID:       internalUserID,
@@ -158,7 +158,7 @@ func (s *AuthService) GenerateAccessToken(internalUserID string, user *GoogleUse
 }
 
 // GenerateRefreshToken 生成刷新令牌（长期有效）
-func (s *AuthService) GenerateRefreshToken(internalUserID string, user *GoogleUser) (string, error) {
+func (s *AuthService) GenerateRefreshToken(internalUserID int, user *GoogleUser) (string, error) {
 	expirationTime := time.Now().Add(7 * 24 * time.Hour) // 刷新令牌 7 天有效
 	claims := &Claims{
 		UserID:       internalUserID,

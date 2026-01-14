@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -98,8 +97,7 @@ func (a *AIGuide) GoogleCallback(c *gin.Context) {
 	}
 
 	// 生成访问令牌和刷新令牌，使用内部用户 ID
-	internalUserID := strconv.FormatUint(uint64(dbUser.ID), 10)
-	tokenPair, err := a.authService.GenerateTokenPair(internalUserID, user)
+	tokenPair, err := a.authService.GenerateTokenPair(dbUser.ID, user)
 	if err != nil {
 		slog.Error("failed to generate token pair", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate tokens"})

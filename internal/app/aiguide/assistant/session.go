@@ -17,7 +17,7 @@ import (
 type SessionInfo struct {
 	SessionID      string    `json:"session_id"`
 	AppName        string    `json:"app_name"`
-	UserID         string    `json:"user_id"`
+	UserID         int       `json:"user_id"`
 	LastUpdateTime time.Time `json:"last_update_time"`
 	MessageCount   int       `json:"message_count"`
 	FirstMessage   string    `json:"first_message"`
@@ -28,7 +28,7 @@ type SessionInfo struct {
 type SessionHistoryResponse struct {
 	SessionID string         `json:"session_id"`
 	AppName   string         `json:"app_name"`
-	UserID    string         `json:"user_id"`
+	UserID    int            `json:"user_id"`
 	Messages  []MessageEvent `json:"messages"`
 	Total     int            `json:"total,omitempty"`
 	Limit     int            `json:"limit,omitempty"`
@@ -48,7 +48,7 @@ type MessageEvent struct {
 
 // CreateSessionRequest 定义创建会话的请求结构
 type CreateSessionRequest struct {
-	UserID string `json:"user_id" binding:"required"`
+	UserID int `json:"user_id" binding:"required"`
 }
 
 // CreateSessionResponse 定义创建会话的响应结构
@@ -61,16 +61,22 @@ type CreateSessionResponse struct {
 // GET /api/:agentId/sessions?user_id=xxx
 func (a *Assistant) ListSessions(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
-	userID := ctx.Query("user_id")
+	userIDStr := ctx.Query("user_id")
 
-	if userID == "" {
+	if userIDStr == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
 
 	listReq := &session.ListRequest{
 		AppName: agentID,
-		UserID:  userID,
+		UserID:  userIDStr,
 	}
 
 	listResp, err := a.session.List(ctx, listReq)
@@ -125,7 +131,7 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 		sessions = append(sessions, SessionInfo{
 			SessionID:      sess.ID(),
 			AppName:        sess.AppName(),
-			UserID:         sess.UserID(),
+			UserID:         userIDInt,
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
 			FirstMessage:   firstMessage,
@@ -141,10 +147,16 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
-	userID := ctx.Query("user_id")
+	userIDStr := ctx.Query("user_id")
 
-	if userID == "" {
+	if userIDStr == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	userIDInt, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
 
@@ -166,7 +178,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 
 	getReq := &session.GetRequest{
 		AppName:   agentID,
-		UserID:    userID,
+		UserID:    userIDStr,
 		SessionID: sessionID,
 	}
 
@@ -241,7 +253,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 		response := SessionHistoryResponse{
 			SessionID: sess.ID(),
 			AppName:   sess.AppName(),
-			UserID:    sess.UserID(),
+			UserID:    userIDInt,
 			Messages:  []MessageEvent{},
 			Total:     totalCount,
 			Limit:     limit,
@@ -267,7 +279,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	response := SessionHistoryResponse{
 		SessionID: sess.ID(),
 		AppName:   sess.AppName(),
-		UserID:    sess.UserID(),
+		UserID:    userIDInt,
 		Messages:  messages,
 		Total:     totalCount,
 		Limit:     limit,
@@ -295,7 +307,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 
 	createReq := &session.CreateRequest{
 		AppName:   agentID,
-		UserID:    req.UserID,
+		UserID:    strconv.Itoa(req.UserID),
 		SessionID: sessionID,
 		State:     map[string]any{},
 	}
@@ -319,16 +331,21 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 func (a *Assistant) DeleteSession(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
-	userID := ctx.Query("user_id")
+	userIDStr := ctx.Query("user_id")
 
-	if userID == "" {
+	if userIDStr == "" {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	if _, err := strconv.Atoi(userIDStr); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
 
 	deleteReq := &session.DeleteRequest{
 		AppName:   agentID,
-		UserID:    userID,
+		UserID:    userIDStr,
 		SessionID: sessionID,
 	}
 

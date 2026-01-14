@@ -18,7 +18,7 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成访问令牌
 	accessToken, err := authService.GenerateAccessToken(internalUserID, user)
@@ -37,7 +37,7 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 	}
 
 	if claims.UserID != internalUserID {
-		t.Errorf("Expected UserID %s, got %s", internalUserID, claims.UserID)
+		t.Errorf("Expected UserID %d, got %d", internalUserID, claims.UserID)
 	}
 
 	if claims.GoogleUserID != user.ID {
@@ -68,7 +68,7 @@ func TestGenerateAndValidateRefreshToken(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成刷新令牌
 	refreshToken, err := authService.GenerateRefreshToken(internalUserID, user)
@@ -87,7 +87,7 @@ func TestGenerateAndValidateRefreshToken(t *testing.T) {
 	}
 
 	if claims.UserID != internalUserID {
-		t.Errorf("Expected UserID %s, got %s", internalUserID, claims.UserID)
+		t.Errorf("Expected UserID %d, got %d", internalUserID, claims.UserID)
 	}
 
 	if claims.GoogleUserID != user.ID {
@@ -118,7 +118,7 @@ func TestGenerateTokenPair(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成令牌对
 	tokenPair, err := authService.GenerateTokenPair(internalUserID, user)
@@ -170,7 +170,7 @@ func TestValidateTokenWithWrongType(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 生成访问令牌
 	accessToken, err := authService.GenerateAccessToken(internalUserID, user)
@@ -206,7 +206,7 @@ func TestValidateExpiredToken(t *testing.T) {
 	// 创建一个已过期的令牌
 	expirationTime := time.Now().Add(-1 * time.Hour) // 1小时前过期
 	claims := &Claims{
-		UserID:       "1",
+		UserID:       1,
 		GoogleUserID: "test-google-user-id",
 		Email:        "test@example.com",
 		Name:         "Test User",
@@ -247,7 +247,7 @@ func TestValidateInvalidSignature(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 使用不同的密钥生成令牌
 	token, err := differentAuthService.GenerateAccessToken(internalUserID, user)
@@ -294,7 +294,7 @@ func TestBackwardCompatibility(t *testing.T) {
 		Email: "test@example.com",
 		Name:  "Test User",
 	}
-	internalUserID := "1" // Simulated internal database ID
+	internalUserID := 1 // Simulated internal database ID
 
 	// 测试 GenerateJWT 仍然有效（向后兼容）
 	token, err := authService.GenerateJWT(internalUserID, user)
