@@ -442,6 +442,7 @@ export default function ChatPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const titlePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousScrollHeightRef = useRef<number>(0);
   const isAtBottomRef = useRef(true);
@@ -802,6 +803,12 @@ export default function ChatPage() {
       abortControllerRef.current = null;
     }
 
+    // Clear title polling interval
+    if (titlePollIntervalRef.current) {
+      clearInterval(titlePollIntervalRef.current);
+      titlePollIntervalRef.current = null;
+    }
+
     // Just set loading to false - keep the messages as they are
     setIsLoading(false);
   };
@@ -841,20 +848,31 @@ export default function ChatPage() {
     // Check if this is the first user message (before adding the new one, we had 0 user messages)
     const isFirstMessage = messages.filter(m => m.role === 'user').length === 0;
     if (isFirstMessage) {
+      // Clear any existing title polling interval
+      if (titlePollIntervalRef.current) {
+        clearInterval(titlePollIntervalRef.current);
+      }
+
       let pollCount = 0;
       const maxPolls = 30; // Poll up to 30 times
-      const pollInterval = setInterval(async () => {
+      titlePollIntervalRef.current = setInterval(async () => {
         const fetchedSessions = await loadSessions(true);
         const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
 
         if (currentSession?.title) {
-          clearInterval(pollInterval);
+          if (titlePollIntervalRef.current) {
+            clearInterval(titlePollIntervalRef.current);
+            titlePollIntervalRef.current = null;
+          }
           return;
         }
 
         pollCount++;
         if (pollCount >= maxPolls) {
-          clearInterval(pollInterval);
+          if (titlePollIntervalRef.current) {
+            clearInterval(titlePollIntervalRef.current);
+            titlePollIntervalRef.current = null;
+          }
         }
       }, 1000); // Poll every 1 second
     }
@@ -899,7 +917,7 @@ export default function ChatPage() {
           for (const line of lines) {
             const trimmedLine = line.trim();
 
-            // Handle SSE event type line (e.g., "event: error", "event: data", "event: stop")
+            // Handle SSE event type line (e.g., "event: error", "event: data", "event: stop", "event: heartbeat")
             if (trimmedLine.startsWith('event:')) {
               currentEventType = trimmedLine.substring(6).trim();
               continue;
@@ -911,6 +929,12 @@ export default function ChatPage() {
                 if (!jsonStr) continue;
 
                 const data = JSON.parse(jsonStr);
+
+                // Ignore heartbeat events (used to keep connection alive)
+                if (currentEventType === 'heartbeat') {
+                  currentEventType = 'data';
+                  continue;
+                }
 
                 // Handle error events
                 if (currentEventType === 'error') {
@@ -1014,6 +1038,12 @@ export default function ChatPage() {
         setMessages((prev) => prev.map(msg => ({ ...msg, isStreaming: false })));
       }
     } catch (error) {
+      // Clear title polling on error
+      if (titlePollIntervalRef.current) {
+        clearInterval(titlePollIntervalRef.current);
+        titlePollIntervalRef.current = null;
+      }
+
       // Check if the error is due to abort
       if (error instanceof Error && error.name === 'AbortError') {
         // Request was cancelled by user - this is expected, don't show error

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/agent"
@@ -130,11 +131,15 @@ func (a *Assistant) streamAgentEvents(
 	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
 	var currentAgentAuthor string
 
+	// 启动心跳，防止长时间无响应导致连接超时
+	cancelHeartbeat := startHeartbeat(ctx, 30*time.Second)
+	defer cancelHeartbeat()
+
 	for event, err := range runner.Run(ctx, userID, sessionID, message, runConfig) {
 		// 检查客户端是否断开连接
 		select {
 		case <-ctx.Request.Context().Done():
-			slog.Info("client abort connection", "err", ctx.Request.Context().Err())
+			slog.Debug("客户端断开连接（可能是用户主动取消或关闭页面）", "err", ctx.Request.Context().Err())
 			return // 客户端断开，停止处理
 		default:
 		}
@@ -206,6 +211,30 @@ func (a *Assistant) streamAgentEvents(
 	// 循环结束后，发送结束标记
 	ctx.SSEvent("stop", gin.H{"status": "done"})
 	ctx.Writer.Flush()
+}
+
+// startHeartbeat 启动心跳 goroutine，防止 SSE 连接因长时间无响应而超时
+// 返回一个 cancel 函数，调用它可以停止心跳
+func startHeartbeat(ctx *gin.Context, interval time.Duration) context.CancelFunc {
+	heartbeatCtx, cancel := context.WithCancel(ctx.Request.Context())
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-heartbeatCtx.Done():
+				return
+			case <-ticker.C:
+				// 发送心跳事件（客户端应忽略此事件）
+				ctx.SSEvent("heartbeat", gin.H{"timestamp": time.Now().Unix()})
+				ctx.Writer.Flush()
+			}
+		}
+	}()
+
+	return cancel
 }
 
 const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s". 
