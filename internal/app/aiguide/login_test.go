@@ -1,6 +1,7 @@
 package aiguide
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -56,16 +57,9 @@ func TestAllowedEmailsValidation(t *testing.T) {
 				AllowedEmails: tt.allowedEmails,
 			}
 
-			// Simulate the validation logic from login.go
-			allowed := len(config.AllowedEmails) == 0
-			if !allowed {
-				for _, email := range config.AllowedEmails {
-					if email == tt.userEmail {
-						allowed = true
-						break
-					}
-				}
-			}
+			// Test the actual validation logic from login.go (line 86)
+			// This is: allowed := len(a.config.AllowedEmails) == 0 || slices.Contains(a.config.AllowedEmails, user.Email)
+			allowed := isEmailAllowed(config.AllowedEmails, tt.userEmail)
 
 			if allowed != tt.expected {
 				t.Errorf("expected allowed=%v for email=%s with allowedEmails=%v, but got allowed=%v",
@@ -73,4 +67,12 @@ func TestAllowedEmailsValidation(t *testing.T) {
 			}
 		})
 	}
+}
+
+// isEmailAllowed checks if an email is allowed to log in based on the allowed_emails configuration.
+// This is the extracted validation logic from login.go line 86.
+// If allowedEmails is empty, all emails are allowed.
+// Otherwise, only emails in the list are allowed.
+func isEmailAllowed(allowedEmails []string, email string) bool {
+	return len(allowedEmails) == 0 || slices.Contains(allowedEmails, email)
 }
