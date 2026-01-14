@@ -82,7 +82,8 @@ func (a *AIGuide) GoogleCallback(c *gin.Context) {
 		frontendURL = "http://localhost:3000"
 	}
 
-	allowed := slices.Contains(a.config.AllowedEmails, user.Email)
+	// 如果 allowed_emails 为空，则允许所有人登录
+	allowed := len(a.config.AllowedEmails) == 0 || slices.Contains(a.config.AllowedEmails, user.Email)
 	if !allowed {
 		slog.Error("login attempt from unauthorized email", "email", user.Email)
 		c.Redirect(http.StatusFound, frontendURL+"/login?error=unauthorized")
