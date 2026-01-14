@@ -25,6 +25,6 @@ mock_image_generation: false
 # google_redirect_url: http://localhost:8080/auth/google/callback
 # jwt_secret: your_random_jwt_secret_here
 
-# 允许登录的邮箱列表 (如果列表为空，则任何人都无法登录)
+# 允许登录的邮箱列表 (如果列表为空，则允许所有人登录；如果列表不为空，则只允许列表中的邮箱登录)
 allowed_emails:
   - datouguix@gmail.com
