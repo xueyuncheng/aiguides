@@ -63,8 +63,6 @@ export default function EmailServersPage() {
     name: '',
     is_default: false,
   });
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastId = useRef(0);
@@ -99,20 +97,16 @@ export default function EmailServersPage() {
         setConfigs(data.configs || []);
       } else {
         const msg = '加载邮件服务器配置失败';
-        setError(msg);
         notify(msg, 'error');
       }
     } catch (err) {
       const msg = '加载邮件服务器配置失败: ' + (err as Error).message;
-      setError(msg);
       notify(msg, 'error');
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
     setIsLoading(true);
 
     try {
@@ -132,7 +126,6 @@ export default function EmailServersPage() {
 
       if (response.ok) {
         const msg = editingId ? '更新成功' : '添加成功';
-        setSuccess(msg);
         notify(msg, 'success');
         setShowForm(false);
         setEditingId(null);
@@ -141,12 +134,10 @@ export default function EmailServersPage() {
       } else {
         const data = await response.json();
         const msg = data.error || '操作失败';
-        setError(msg);
         notify(msg, 'error');
       }
     } catch (err) {
       const msg = '操作失败: ' + (err as Error).message;
-      setError(msg);
       notify(msg, 'error');
     } finally {
       setIsLoading(false);
@@ -154,8 +145,6 @@ export default function EmailServersPage() {
   };
 
   const handleEdit = async (config: EmailServerConfig) => {
-    setError('');
-    setSuccess('');
     setIsLoading(true);
     setShowPassword(false);
 
@@ -167,7 +156,6 @@ export default function EmailServersPage() {
       if (!response.ok) {
         const data = await response.json();
         const msg = data.error || '加载配置失败';
-        setError(msg);
         notify(msg, 'error');
         return;
       }
@@ -187,7 +175,6 @@ export default function EmailServersPage() {
       setShowForm(true);
     } catch (err) {
       const msg = '加载配置失败: ' + (err as Error).message;
-      setError(msg);
       notify(msg, 'error');
     } finally {
       setIsLoading(false);
@@ -207,18 +194,15 @@ export default function EmailServersPage() {
 
       if (response.ok) {
         const msg = '删除成功';
-        setSuccess(msg);
         notify(msg, 'success');
         await loadConfigs();
       } else {
         const data = await response.json();
         const msg = data.error || '删除失败';
-        setError(msg);
         notify(msg, 'error');
       }
     } catch (err) {
       const msg = '删除失败: ' + (err as Error).message;
-      setError(msg);
       notify(msg, 'error');
     }
   };
@@ -239,7 +223,6 @@ export default function EmailServersPage() {
   const handleCancel = () => {
     setShowForm(false);
     resetForm();
-    setError('');
   };
 
   if (loading) {
@@ -286,18 +269,6 @@ export default function EmailServersPage() {
             <strong>安全提示：</strong>密码当前以明文形式存储。强烈建议使用应用专用密码而不是账户主密码。
           </AlertDescription>
         </Alert>
-
-        {error && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {success && (
-          <Alert className="mb-4 border-green-500 text-green-600">
-            <AlertDescription>{success}</AlertDescription>
-          </Alert>
-        )}
 
         {/* Toasts */}
         <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80">
