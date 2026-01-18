@@ -38,7 +38,6 @@ const (
 
 var allowedUserImageMimeTypes = map[string]bool{
 	"image/jpeg": true,
-	"image/jpg":  true,
 	"image/png":  true,
 	"image/gif":  true,
 	"image/webp": true,
@@ -67,6 +66,9 @@ func parseImageDataURI(dataURI string) ([]byte, string, error) {
 	mimeType := strings.TrimSpace(headerParts[0])
 	if mimeType == "" {
 		return nil, "", errors.New("missing image MIME type")
+	}
+	if mimeType == "image/jpg" {
+		mimeType = "image/jpeg"
 	}
 
 	isBase64 := false

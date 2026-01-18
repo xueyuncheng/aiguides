@@ -865,8 +865,11 @@ export default function ChatPage() {
 
       try {
         const dataUrl = await readFileAsDataUrl(file);
+        const imageId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         nextImages.push({
-          id: `img-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          id: imageId,
           dataUrl,
           name: file.name,
         });
