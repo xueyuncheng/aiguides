@@ -1,56 +1,57 @@
 # AIGuide Project Instructions
 
-This project is an AI Agent framework built using the [Google ADK (Agent Development Kit)](https://github.com/google/adk).
+This project is a full-stack AI assistant built with Go (Gin + Google ADK) and a Next.js frontend.
 
 ## Architecture Overview
 
-- **Core Framework**: Uses `google.golang.org/adk` for agent definition and execution.
-- **Entry Point**: [cmd/aiguide/aiguide.go](cmd/aiguide/aiguide.go) handles configuration loading and starts the agent launcher.
-- **Agent Logic**: Located in [internal/app/aiguide/](internal/app/aiguide/). Agents are defined using `agent.Config` and implemented via a `Run` function.
-- **Launcher**: Uses `launcher.Launcher` to execute agents, supporting different execution modes (e.g., `full.NewLauncher`).
+- **Backend entry point**: [cmd/aiguide/aiguide.go](cmd/aiguide/aiguide.go) loads YAML config and starts the service.
+- **Core app**: [internal/app/aiguide/](internal/app/aiguide/) contains config, router, handlers, migration, and auth wiring.
+- **Assistant runtime**: [internal/app/aiguide/assistant/](internal/app/aiguide/assistant/) builds the ADK agent, runner, SSE streaming, and session APIs.
+- **Tools**: [internal/pkg/tools/](internal/pkg/tools/) provides `generate_image` (Imagen) and `query_emails` (IMAP).
+- **Auth & middleware**: [internal/pkg/auth/](internal/pkg/auth/) and [internal/pkg/middleware/](internal/pkg/middleware/) handle Google OAuth + JWT cookies.
+- **Frontend**: [frontend/app/](frontend/app/) includes login, chat, and settings pages.
 
 ## Key Patterns & Conventions
 
 ### 1. Agent Implementation
-Agents must implement a `Run` function with the following signature:
-```go
-func runFunc(ctx agent.InvocationContext) iter.Seq2[*session.Event, error] {
-    return func(yield func(*session.Event, error) bool) {
-        // Implementation logic
-        // Use yield(event, nil) to send events back to the session
-    }
-}
-```
-- Example: [searchAgentRun](internal/app/aiguide/summary.go#L58) in `internal/app/aiguide/summary.go`.
+- The assistant agent is built in [internal/app/aiguide/assistant/agent.go](internal/app/aiguide/assistant/agent.go) using `llmagent.New`.
+- Streaming responses are handled via SSE in [internal/app/aiguide/assistant/sse.go](internal/app/aiguide/assistant/sse.go).
+- Session APIs are in [internal/app/aiguide/assistant/session.go](internal/app/aiguide/assistant/session.go).
 
 ### 2. Configuration
-- Configuration is defined in `Config` structs with `yaml` tags.
-- Default config file is `aiguide.yaml`.
-- See [Config](internal/app/aiguide/aiguide.go#L16) in `internal/app/aiguide/aiguide.go`.
+- YAML config is defined in `Config` with `yaml` tags in [internal/app/aiguide/aiguide.go](internal/app/aiguide/aiguide.go).
+- Default dev config lives at [cmd/aiguide/aiguide.yaml](cmd/aiguide/aiguide.yaml) (see example in [cmd/aiguide/aiguide.yaml.example](cmd/aiguide/aiguide.yaml.example)).
 
 ### 3. Logging
 - Use `log/slog` for structured logging.
 - Prefer `slog.Error("message", "err", err)` for error logging.
 
-### 4. Dependency Management
+### 4. Function Order
+- Place main/entry functions above the helper functions they call.
+
+### 5. Dependency Management
 - Core dependencies: `google.golang.org/adk`, `google.golang.org/genai`.
-- Use `go get` to add new ADK sub-packages (e.g., `google.golang.org/adk/agent/workflowagents/sequentialagent`).
+- Use `go get` to add ADK sub-packages as needed.
 
 ## Developer Workflows
 
 ### Running the Application
 ```bash
-go run cmd/aiguide/aiguide.go -f aiguide.yaml
+go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml
 ```
 
-### Adding a New Agent
-1. Define the agent configuration in [internal/app/aiguide/summary.go](internal/app/aiguide/summary.go) (or a new file in that directory).
-2. Implement the `Run` function using the `iter.Seq2` pattern.
-3. Register the agent in the `AIGuide` struct or as a sub-agent of an existing agent.
+### Adding or Extending Tools
+1. Implement a new tool in [internal/pkg/tools/](internal/pkg/tools/).
+2. Register it in [internal/app/aiguide/assistant/agent.go](internal/app/aiguide/assistant/agent.go).
+3. If the tool requires DB/auth context, use middleware utilities in [internal/pkg/middleware/](internal/pkg/middleware/).
 
 ## Important Files
-- [internal/app/aiguide/aiguide.go](internal/app/aiguide/aiguide.go): Main application logic and launcher setup.
-- [internal/app/aiguide/summary.go](internal/app/aiguide/summary.go): Example agent implementations (`SummaryAgent`, `SearchAgent`).
+- [cmd/aiguide/aiguide.go](cmd/aiguide/aiguide.go): App entry point.
+- [internal/app/aiguide/aiguide.go](internal/app/aiguide/aiguide.go): Config + service wiring.
+- [internal/app/aiguide/router.go](internal/app/aiguide/router.go): API routes (auth, sessions, assistant chat, settings).
+- [internal/app/aiguide/assistant/](internal/app/aiguide/assistant/): Agent, runner, SSE, session APIs.
+- [internal/pkg/tools/](internal/pkg/tools/): Image generation + email query tools.
+- [frontend/app/](frontend/app/): Next.js UI (login, chat, settings).
 - [go.mod](go.mod): Module definition and dependencies.
 
 ## When to write code

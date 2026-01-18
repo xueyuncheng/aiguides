@@ -14,7 +14,7 @@ import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
-import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu, RotateCcw } from 'lucide-react';
+import { ArrowUp, Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, Menu, RotateCcw, ImagePlus } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 interface Message {
@@ -27,6 +27,12 @@ interface Message {
   isStreaming?: boolean;
   images?: string[];
   isError?: boolean;
+}
+
+interface SelectedImage {
+  id: string;
+  dataUrl: string;
+  name: string;
 }
 
 interface AgentInfo {
@@ -427,6 +433,8 @@ export default function ChatPage() {
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
+  const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
+  const [imageError, setImageError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string>(urlSessionId || '');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -441,6 +449,7 @@ export default function ChatPage() {
   const messagesStartRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const titlePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -471,6 +480,15 @@ export default function ChatPage() {
 
   // Debounce delay (in milliseconds) for scroll direction detection
   const SCROLL_DEBOUNCE_DELAY = 50;
+
+  // Keep these limits aligned with backend validation in assistant/sse.go.
+  const MAX_IMAGE_COUNT = 4;
+  const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+  const MAX_IMAGE_SIZE_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
+  const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 张图片`;
+  const IMAGE_SIZE_ERROR = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
+  const IMAGE_TYPE_ERROR = '仅支持图片文件';
+  const IMAGE_READ_ERROR = '读取图片失败';
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -513,6 +531,8 @@ export default function ChatPage() {
     setIsLoadingHistory(true);
     setShouldScrollInstantly(true); // Enable instant scroll for history loading
     setIsInputVisible(true); // Always show input when switching sessions
+    setSelectedImages([]);
+    setImageError(null);
 
     // Clear any pending timeout from previous session switch
     if (scrollResetTimeoutRef.current) {
@@ -615,6 +635,8 @@ export default function ChatPage() {
 
     // Clear input
     setInputValue('');
+    setSelectedImages([]);
+    setImageError(null);
 
     // Focus input
     setTimeout(() => {
@@ -813,10 +835,125 @@ export default function ChatPage() {
     setIsLoading(false);
   };
 
-  const sendMessage = async (content: string) => {
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const createImageId = () => {
+    if (typeof crypto !== 'undefined') {
+      if ('randomUUID' in crypto) {
+        return (crypto as Crypto).randomUUID();
+      }
+      if ('getRandomValues' in crypto) {
+        const bytes = new Uint8Array(16);
+        (crypto as Crypto).getRandomValues(bytes);
+        const hex = Array.from(bytes)
+          .map((value) => value.toString(16).padStart(2, '0'))
+          .join('');
+        return `img-${hex}`;
+      }
+    }
+    return `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
+
+  const addImagesFromFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setImageError(null);
+    const remainingSlots = MAX_IMAGE_COUNT - selectedImages.length;
+    if (remainingSlots <= 0) {
+      setImageError(IMAGE_COUNT_ERROR);
+      return;
+    }
+
+    const nextImages: SelectedImage[] = [];
+    let errorMessage: string | null = null;
+    const limitedFiles = files.slice(0, remainingSlots);
+
+    for (const [index, file] of limitedFiles.entries()) {
+      if (!file.type.startsWith('image/')) {
+        if (!errorMessage) {
+          errorMessage = IMAGE_TYPE_ERROR;
+        }
+        continue;
+      }
+      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+        if (!errorMessage) {
+          errorMessage = IMAGE_SIZE_ERROR;
+        }
+        continue;
+      }
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const imageId = createImageId();
+        const fallbackName = `clipboard-image-${index + 1}`;
+        nextImages.push({
+          id: imageId,
+          dataUrl,
+          name: file.name || fallbackName,
+        });
+      } catch (error) {
+        console.error('Error reading image file:', error);
+        if (!errorMessage) {
+          errorMessage = IMAGE_READ_ERROR;
+        }
+      }
+    }
+
+    if (files.length > remainingSlots) {
+      if (!errorMessage) {
+        errorMessage = IMAGE_COUNT_ERROR;
+      }
+    }
+
+    if (nextImages.length > 0) {
+      setSelectedImages((prev) => [...prev, ...nextImages]);
+    }
+    if (errorMessage) {
+      setImageError(errorMessage);
+    }
+  };
+
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    await addImagesFromFiles(files);
+    event.target.value = '';
+  };
+
+  const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items || items.length === 0) return;
+
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          files.push(file);
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      event.preventDefault();
+      await addImagesFromFiles(files);
+    }
+  };
+
+  const handleRemoveImage = (imageId: string) => {
+    setSelectedImages((prev) => prev.filter((image) => image.id !== imageId));
+  };
+
+  const sendMessage = async (content: string, images: SelectedImage[]) => {
     if (isLoading) return;
 
-    const isRetry = !content.trim();
+    const trimmedContent = content.trim();
+    const hasImages = images.length > 0;
+    const isRetry = !trimmedContent && !hasImages;
     if (isRetry && messages.length === 0) return;
 
     if (isRetry) {
@@ -829,14 +966,18 @@ export default function ChatPage() {
       });
     } else {
       // 正常发送新消息
+      const imageData = images.map((image) => image.dataUrl);
       const userMessage: Message = {
         id: `msg-${Date.now()}`,
         role: 'user',
-        content: content.trim(),
+        content: trimmedContent,
+        images: imageData,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, userMessage]);
       setInputValue('');
+      setSelectedImages([]);
+      setImageError(null);
     }
 
     setIsLoading(true);
@@ -878,6 +1019,7 @@ export default function ChatPage() {
     }
 
     try {
+      const imageData = isRetry ? [] : images.map((image) => image.dataUrl);
       const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -885,7 +1027,8 @@ export default function ChatPage() {
         body: JSON.stringify({
           user_id: user?.user_id,
           session_id: sessionId,
-          message: content.trim(),
+          message: trimmedContent,
+          images: imageData,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -1065,23 +1208,26 @@ export default function ChatPage() {
     }
   };
 
+  const canSend = inputValue.trim().length > 0 || selectedImages.length > 0;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(inputValue);
+    sendMessage(inputValue, selectedImages);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Submit on Enter without Shift, but NOT while composing (IME)
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      if (!canSend) return;
       e.preventDefault();
-      sendMessage(inputValue);
+      sendMessage(inputValue, selectedImages);
     }
     // Allow Shift+Enter for new line (default behavior)
   };
 
   const handleExampleClick = (example: string) => {
     if (isLoading) return;
-    sendMessage(example);
+    sendMessage(example, []);
   };
 
   if (loading || !agentInfo) {
@@ -1213,10 +1359,27 @@ export default function ChatPage() {
                               isStreaming={message.isStreaming}
                               images={message.images}
                               isError={message.isError}
-                              onRetry={() => sendMessage("")}
+                              onRetry={() => sendMessage("", [])}
                             />
                           ) : (
-                            <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                            <div className="space-y-2">
+                              {message.images && message.images.length > 0 && (
+                                <div className="space-y-2">
+                                  {message.images.map((imageData, index) => (
+                                    <img
+                                      key={index}
+                                      src={imageData}
+                                      alt={`用户上传图片 ${index + 1}`}
+                                      className="max-w-full h-auto rounded-lg border shadow-sm"
+                                      loading="lazy"
+                                    />
+                                  ))}
+                                </div>
+                              )}
+                              {message.content && (
+                                <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1252,13 +1415,60 @@ export default function ChatPage() {
           !isInputVisible && "translate-y-full"
         )}>
           <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6">
-            <div className="relative flex items-center w-full bg-zinc-50/50 dark:bg-zinc-900/30 backdrop-blur-xl rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-within:border-zinc-300 dark:focus-within:border-zinc-600 focus-within:ring-4 focus-within:ring-zinc-900/5 dark:focus-within:ring-zinc-100/5 transition-all duration-300 overflow-hidden">
+            <div className="relative flex flex-col w-full bg-zinc-50/50 dark:bg-zinc-900/30 backdrop-blur-xl rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-within:border-zinc-300 dark:focus-within:border-zinc-600 focus-within:ring-4 focus-within:ring-zinc-900/5 dark:focus-within:ring-zinc-100/5 transition-all duration-300 overflow-hidden">
+              {selectedImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 px-3 pt-3">
+                  {selectedImages.map((image, index) => (
+                    <div key={image.id} className="relative group">
+                      <img
+                        src={image.dataUrl}
+                        alt={image.name || `已选图片 ${index + 1}`}
+                        className="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(image.id)}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-900/80 text-white flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="移除图片"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {imageError && (
+                <div className="px-3 pt-2 text-xs text-red-500" role="alert" aria-live="polite">
+                  {imageError}
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="w-full flex items-center p-2 gap-2">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleImageSelect}
+                />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={isLoading || isLoadingHistory}
+                  className="h-8 w-8 sm:h-7 sm:w-7 rounded-full text-muted-foreground hover:text-foreground"
+                  title="添加图片"
+                  aria-label="添加图片"
+                >
+                  <ImagePlus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                </Button>
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
                   className="flex-1 min-h-[44px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3.5 py-3 text-base sm:text-sm overflow-y-auto resize-none placeholder:text-zinc-500/60 dark:placeholder:text-zinc-400/50 no-scrollbar leading-relaxed transition-colors"
@@ -1280,10 +1490,10 @@ export default function ChatPage() {
                   <Button
                     type="submit"
                     size="icon"
-                    disabled={!inputValue.trim()}
+                    disabled={!canSend}
                     className={cn(
                       "h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-300 tap-highlight-transparent min-h-[36px] min-w-[36px] sm:min-h-[28px] sm:min-w-[28px] flex items-center justify-center",
-                      inputValue.trim()
+                      canSend
                         ? "bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:scale-105 active:scale-95 shadow-sm"
                         : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 opacity-50"
                     )}
