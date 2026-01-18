@@ -5,11 +5,13 @@ import (
 	"aiguide/internal/pkg/constant"
 	"aiguide/internal/pkg/tools"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -23,9 +25,76 @@ import (
 
 // ChatRequest 定义通用的聊天请求结构
 type ChatRequest struct {
-	UserID    int    `json:"user_id"`
-	SessionID string `json:"session_id"`
-	Message   string `json:"message"`
+	UserID    int      `json:"user_id"`
+	SessionID string   `json:"session_id"`
+	Message   string   `json:"message"`
+	Images    []string `json:"images,omitempty"`
+}
+
+const (
+	maxUserImageSizeBytes = 5 * 1024 * 1024
+	maxUserImageCount     = 4
+)
+
+var allowedUserImageMimeTypes = map[string]bool{
+	"image/jpeg": true,
+	"image/jpg":  true,
+	"image/png":  true,
+	"image/gif":  true,
+	"image/webp": true,
+}
+
+func parseImageDataURI(dataURI string) ([]byte, string, error) {
+	if dataURI == "" {
+		return nil, "", errors.New("empty image data")
+	}
+	if !strings.HasPrefix(dataURI, "data:") {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	parts := strings.SplitN(dataURI, ",", 2)
+	if len(parts) != 2 {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	header := strings.TrimPrefix(parts[0], "data:")
+	payload := parts[1]
+	if header == "" || payload == "" {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	headerParts := strings.Split(header, ";")
+	mimeType := strings.TrimSpace(headerParts[0])
+	if mimeType == "" {
+		return nil, "", errors.New("missing image MIME type")
+	}
+
+	isBase64 := false
+	for _, part := range headerParts[1:] {
+		if strings.TrimSpace(part) == "base64" {
+			isBase64 = true
+			break
+		}
+	}
+	if !isBase64 {
+		return nil, "", errors.New("image data must be base64 encoded")
+	}
+	if !allowedUserImageMimeTypes[mimeType] {
+		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
+	}
+	if len(decoded) == 0 {
+		return nil, "", errors.New("empty image data")
+	}
+	if len(decoded) > maxUserImageSizeBytes {
+		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
+	}
+
+	return decoded, mimeType, nil
 }
 
 // Chat 处理通用的 agent 聊天请求，支持 SSE 流式响应
@@ -41,7 +110,38 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 
 	userID := strconv.Itoa(req.UserID)
 	sessionID := req.SessionID
-	message := genai.NewContentFromText(req.Message, genai.RoleUser)
+	messageText := strings.TrimSpace(req.Message)
+
+	if len(req.Images) > maxUserImageCount {
+		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserImageCount)})
+		return
+	}
+
+	parts := make([]*genai.Part, 0, 1+len(req.Images))
+	if messageText != "" {
+		parts = append(parts, genai.NewPartFromText(messageText))
+	}
+
+	for _, image := range req.Images {
+		imageBytes, mimeType, err := parseImageDataURI(image)
+		if err != nil {
+			slog.Error("parseImageDataURI error", "err", err)
+			ctx.JSON(400, gin.H{"error": err.Error()})
+			return
+		}
+		parts = append(parts, genai.NewPartFromBytes(imageBytes, mimeType))
+	}
+
+	if len(parts) == 0 {
+		ctx.JSON(400, gin.H{"error": "message or images required"})
+		return
+	}
+
+	message := genai.NewContentFromParts(parts, genai.RoleUser)
+	titleMessage := messageText
+	if titleMessage == "" && len(req.Images) > 0 {
+		titleMessage = fmt.Sprintf("用户发送了 %d 张图片", len(req.Images))
+	}
 
 	// 检查或创建 session
 	if err := a.ensureSession(ctx, userID, sessionID); err != nil {
@@ -53,7 +153,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	go func() {
 		// 创建一个新的 context，因为 request context 会被取消
 		bgCtx := context.Background()
-		if err := a.generateTitle(bgCtx, sessionID, req.Message); err != nil {
+		if err := a.generateTitle(bgCtx, sessionID, titleMessage); err != nil {
 			slog.Error("a.generateTitle failed", "err", err)
 		}
 	}()

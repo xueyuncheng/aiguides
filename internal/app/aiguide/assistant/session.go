@@ -3,10 +3,13 @@ package assistant
 import (
 	"aiguide/internal/app/aiguide/table"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -211,6 +214,18 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 					thought += part.Text
 				} else if part.Text != "" {
 					content += part.Text
+				}
+
+				if part.InlineData != nil && len(part.InlineData.Data) > 0 {
+					mimeType := strings.TrimSpace(part.InlineData.MIMEType)
+					if mimeType == "" {
+						mimeType = "image/png"
+					}
+					if strings.HasPrefix(mimeType, "image/") {
+						base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
+						imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
+						images = append(images, imageDataURI)
+					}
 				}
 
 				// 处理 FunctionResponse 中的图片数据
