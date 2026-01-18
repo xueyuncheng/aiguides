@@ -845,11 +845,11 @@ export default function ChatPage() {
   const createImageId = () => {
     if (typeof crypto !== 'undefined') {
       if ('randomUUID' in crypto) {
-        return crypto.randomUUID();
+        return (crypto as Crypto).randomUUID();
       }
       if ('getRandomValues' in crypto) {
         const bytes = new Uint8Array(16);
-        crypto.getRandomValues(bytes);
+        (crypto as Crypto).getRandomValues(bytes);
         const hex = Array.from(bytes)
           .map((value) => value.toString(16).padStart(2, '0'))
           .join('');
@@ -859,15 +859,13 @@ export default function ChatPage() {
     return `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   };
 
-  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
+  const addImagesFromFiles = async (files: File[]) => {
     if (files.length === 0) return;
 
     setImageError(null);
     const remainingSlots = MAX_IMAGE_COUNT - selectedImages.length;
     if (remainingSlots <= 0) {
       setImageError(IMAGE_COUNT_ERROR);
-      event.target.value = '';
       return;
     }
 
@@ -875,7 +873,7 @@ export default function ChatPage() {
     let errorMessage: string | null = null;
     const limitedFiles = files.slice(0, remainingSlots);
 
-    for (const file of limitedFiles) {
+    for (const [index, file] of limitedFiles.entries()) {
       if (!file.type.startsWith('image/')) {
         if (!errorMessage) {
           errorMessage = IMAGE_TYPE_ERROR;
@@ -892,10 +890,11 @@ export default function ChatPage() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         const imageId = createImageId();
+        const fallbackName = `clipboard-image-${index + 1}`;
         nextImages.push({
           id: imageId,
           dataUrl,
-          name: file.name,
+          name: file.name || fallbackName,
         });
       } catch (error) {
         console.error('Error reading image file:', error);
@@ -917,8 +916,32 @@ export default function ChatPage() {
     if (errorMessage) {
       setImageError(errorMessage);
     }
+  };
 
+  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    await addImagesFromFiles(files);
     event.target.value = '';
+  };
+
+  const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = event.clipboardData?.items;
+    if (!items || items.length === 0) return;
+
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          files.push(file);
+        }
+      }
+    }
+
+    if (files.length > 0) {
+      event.preventDefault();
+      await addImagesFromFiles(files);
+    }
   };
 
   const handleRemoveImage = (imageId: string) => {
@@ -1445,6 +1468,7 @@ export default function ChatPage() {
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                   onFocus={() => setIsInputVisible(true)}
                   placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentInfo.name} 发送消息`}
                   className="flex-1 min-h-[44px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3.5 py-3 text-base sm:text-sm overflow-y-auto resize-none placeholder:text-zinc-500/60 dark:placeholder:text-zinc-400/50 no-scrollbar leading-relaxed transition-colors"

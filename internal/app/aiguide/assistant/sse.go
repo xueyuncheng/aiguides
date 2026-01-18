@@ -48,62 +48,6 @@ var imageMimeAliases = map[string]string{
 	"image/jpg": "image/jpeg",
 }
 
-func parseImageDataURI(dataURI string) ([]byte, string, error) {
-	if dataURI == "" {
-		return nil, "", errors.New("empty image data")
-	}
-	if !strings.HasPrefix(dataURI, "data:") {
-		return nil, "", errors.New("invalid image data URI")
-	}
-
-	parts := strings.SplitN(dataURI, ",", 2)
-	if len(parts) != 2 {
-		return nil, "", errors.New("invalid image data URI")
-	}
-
-	header := strings.TrimPrefix(parts[0], "data:")
-	payload := parts[1]
-	if header == "" || payload == "" {
-		return nil, "", errors.New("invalid image data URI")
-	}
-
-	headerParts := strings.Split(header, ";")
-	mimeType := strings.TrimSpace(headerParts[0])
-	if mimeType == "" {
-		return nil, "", errors.New("missing image MIME type")
-	}
-	if alias, ok := imageMimeAliases[mimeType]; ok {
-		mimeType = alias
-	}
-
-	isBase64 := false
-	for _, part := range headerParts[1:] {
-		if strings.TrimSpace(part) == "base64" {
-			isBase64 = true
-			break
-		}
-	}
-	if !isBase64 {
-		return nil, "", errors.New("image data must be base64 encoded")
-	}
-	if !allowedUserImageMimeTypes[mimeType] {
-		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
-	}
-
-	decoded, err := base64.StdEncoding.DecodeString(payload)
-	if err != nil {
-		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
-	}
-	if len(decoded) == 0 {
-		return nil, "", errors.New("empty image data")
-	}
-	if len(decoded) > maxUserImageSizeBytes {
-		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
-	}
-
-	return decoded, mimeType, nil
-}
-
 // Chat 处理通用的 agent 聊天请求，支持 SSE 流式响应
 // appName: 应用名称（如 "travel", "email" 等）
 // runnerName: runner 的名称（用于从 runnerMap 中获取）
@@ -174,6 +118,62 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	a.setupSSEResponse(ctx)
 
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
+}
+
+func parseImageDataURI(dataURI string) ([]byte, string, error) {
+	if dataURI == "" {
+		return nil, "", errors.New("empty image data")
+	}
+	if !strings.HasPrefix(dataURI, "data:") {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	parts := strings.SplitN(dataURI, ",", 2)
+	if len(parts) != 2 {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	header := strings.TrimPrefix(parts[0], "data:")
+	payload := parts[1]
+	if header == "" || payload == "" {
+		return nil, "", errors.New("invalid image data URI")
+	}
+
+	headerParts := strings.Split(header, ";")
+	mimeType := strings.TrimSpace(headerParts[0])
+	if mimeType == "" {
+		return nil, "", errors.New("missing image MIME type")
+	}
+	if alias, ok := imageMimeAliases[mimeType]; ok {
+		mimeType = alias
+	}
+
+	isBase64 := false
+	for _, part := range headerParts[1:] {
+		if strings.TrimSpace(part) == "base64" {
+			isBase64 = true
+			break
+		}
+	}
+	if !isBase64 {
+		return nil, "", errors.New("image data must be base64 encoded")
+	}
+	if !allowedUserImageMimeTypes[mimeType] {
+		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
+	}
+
+	decoded, err := base64.StdEncoding.DecodeString(payload)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
+	}
+	if len(decoded) == 0 {
+		return nil, "", errors.New("empty image data")
+	}
+	if len(decoded) > maxUserImageSizeBytes {
+		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
+	}
+
+	return decoded, mimeType, nil
 }
 
 // ensureSession 确保 session 存在，不存在则创建

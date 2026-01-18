@@ -1,4 +1,5 @@
 *.local
+*.local.yaml
 __debug_*
 /aiguide
 *.db

@@ -17,6 +17,10 @@ import (
 )
 
 const defaultImageMimeType = "image/png"
+const (
+	defaultHistoryLimit = 50
+	maxHistoryLimit     = 100
+)
 
 // SessionInfo 定义会话信息的响应结构
 type SessionInfo struct {
@@ -152,34 +156,12 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
-	userIDStr := ctx.Query("user_id")
-
-	if userIDStr == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+	userIDStr, userIDInt, ok := parseUserID(ctx)
+	if !ok {
 		return
 	}
 
-	userIDInt, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-		return
-	}
-
-	// 解析分页参数
-	limit := 50 // 默认返回最近50条消息
-	if limitStr := ctx.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			// 限制最大值防止性能问题
-			limit = min(parsedLimit, 100)
-		}
-	}
-
-	offset := 0
-	if offsetStr := ctx.Query("offset"); offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
+	limit, offset := parsePagination(ctx)
 
 	getReq := &session.GetRequest{
 		AppName:   agentID,
@@ -195,78 +177,10 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	}
 
 	sess := getResp.Session
-	events := sess.Events()
 
-	// 将所有事件转换为消息格式
-	allMessages := make([]MessageEvent, 0)
-	for event := range events.All() {
-		if event.Content != nil {
-			role := "assistant"
-			if event.Content.Role == "user" {
-				role = "user"
-			}
-
-			content := ""
-			thought := ""
-			var images []string
-			// 如果本条消息包含 FunctionResponse，则将其视为 assistant 输出进行展示
-			hasFunctionResponse := false
-			for _, part := range event.Content.Parts {
-				if part.Thought {
-					thought += part.Text
-				} else if part.Text != "" {
-					content += part.Text
-				}
-
-				if part.InlineData != nil && len(part.InlineData.Data) > 0 {
-					mimeType := strings.TrimSpace(part.InlineData.MIMEType)
-					if mimeType == "" {
-						mimeType = defaultImageMimeType
-					}
-					if strings.HasPrefix(mimeType, "image/") {
-						base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
-						imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
-						images = append(images, imageDataURI)
-					}
-				}
-
-				// 处理 FunctionResponse 中的图片数据
-				if part.FunctionResponse != nil {
-					hasFunctionResponse = true
-					response := part.FunctionResponse.Response
-					if imageList, ok := response["images"].([]any); ok {
-						for _, img := range imageList {
-							if imgStr, ok := img.(string); ok {
-								images = append(images, imgStr)
-							}
-						}
-					}
-				}
-			}
-
-			// GenAI 协议中工具响应以 user 角色回传，但前端展示应归为 assistant
-			if hasFunctionResponse {
-				role = "assistant"
-			}
-
-			if content != "" || thought != "" || len(images) > 0 {
-				allMessages = append(allMessages, MessageEvent{
-					ID:        event.ID,
-					Timestamp: event.Timestamp,
-					Role:      role,
-					Content:   content,
-					Thought:   thought,
-					Images:    images,
-				})
-			}
-		}
-	}
-
+	allMessages := buildMessageEvents(sess.Events())
 	totalCount := len(allMessages)
-
-	// 验证 offset 是否超出范围
 	if offset >= totalCount {
-		// offset 超出范围，返回空消息列表
 		response := SessionHistoryResponse{
 			SessionID: sess.ID(),
 			AppName:   sess.AppName(),
@@ -281,17 +195,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 		return
 	}
 
-	// 应用分页：从最新消息开始，offset=0表示最新的消息
-	// 为了返回最近的消息，我们从末尾开始取
-	messages := make([]MessageEvent, 0)
-	startIdx := max(totalCount-offset-limit, 0)
-	endIdx := totalCount - offset
-
-	if startIdx < endIdx {
-		messages = allMessages[startIdx:endIdx]
-	}
-
-	hasMore := startIdx > 0
+	messages, hasMore := paginateMessages(allMessages, limit, offset)
 
 	response := SessionHistoryResponse{
 		SessionID: sess.ID(),
@@ -305,6 +209,119 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, response)
+}
+
+func parseUserID(ctx *gin.Context) (string, int, bool) {
+	userIDStr := ctx.Query("user_id")
+	if userIDStr == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return "", 0, false
+	}
+
+	userIDInt, err := strconv.Atoi(userIDStr)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
+		return "", 0, false
+	}
+
+	return userIDStr, userIDInt, true
+}
+
+func parsePagination(ctx *gin.Context) (int, int) {
+	limit := defaultHistoryLimit
+	if limitStr := ctx.Query("limit"); limitStr != "" {
+		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
+			limit = min(parsedLimit, maxHistoryLimit)
+		}
+	}
+
+	offset := 0
+	if offsetStr := ctx.Query("offset"); offsetStr != "" {
+		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
+			offset = parsedOffset
+		}
+	}
+
+	return limit, offset
+}
+
+func buildMessageEvents(events session.Events) []MessageEvent {
+	allMessages := make([]MessageEvent, 0)
+	for event := range events.All() {
+		if event.Content == nil {
+			continue
+		}
+
+		role := "assistant"
+		if event.Content.Role == "user" {
+			role = "user"
+		}
+
+		content := ""
+		thought := ""
+		var images []string
+		hasFunctionResponse := false
+		for _, part := range event.Content.Parts {
+			if part.Thought {
+				thought += part.Text
+			} else if part.Text != "" {
+				content += part.Text
+			}
+
+			if part.InlineData != nil && len(part.InlineData.Data) > 0 {
+				mimeType := strings.TrimSpace(part.InlineData.MIMEType)
+				if mimeType == "" {
+					mimeType = defaultImageMimeType
+				}
+				if strings.HasPrefix(mimeType, "image/") {
+					base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
+					imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
+					images = append(images, imageDataURI)
+				}
+			}
+
+			if part.FunctionResponse != nil {
+				hasFunctionResponse = true
+				response := part.FunctionResponse.Response
+				if imageList, ok := response["images"].([]any); ok {
+					for _, img := range imageList {
+						if imgStr, ok := img.(string); ok {
+							images = append(images, imgStr)
+						}
+					}
+				}
+			}
+		}
+
+		if hasFunctionResponse {
+			role = "assistant"
+		}
+
+		if content != "" || thought != "" || len(images) > 0 {
+			allMessages = append(allMessages, MessageEvent{
+				ID:        event.ID,
+				Timestamp: event.Timestamp,
+				Role:      role,
+				Content:   content,
+				Thought:   thought,
+				Images:    images,
+			})
+		}
+	}
+
+	return allMessages
+}
+
+func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageEvent, bool) {
+	startIdx := max(len(allMessages)-offset-limit, 0)
+	endIdx := len(allMessages) - offset
+	if startIdx >= endIdx {
+		return []MessageEvent{}, false
+	}
+
+	messages := allMessages[startIdx:endIdx]
+	hasMore := startIdx > 0
+	return messages, hasMore
 }
 
 // CreateSession 处理创建新会话的请求
