@@ -837,6 +837,23 @@ export default function ChatPage() {
     reader.readAsDataURL(file);
   });
 
+  const createImageId = () => {
+    if (typeof crypto !== 'undefined') {
+      if ('randomUUID' in crypto) {
+        return crypto.randomUUID();
+      }
+      if ('getRandomValues' in crypto) {
+        const bytes = new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        const hex = Array.from(bytes)
+          .map((value) => value.toString(16).padStart(2, '0'))
+          .join('');
+        return `img-${hex}`;
+      }
+    }
+    return `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  };
+
   const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) return;
@@ -865,9 +882,7 @@ export default function ChatPage() {
 
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        const imageId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
-          ? crypto.randomUUID()
-          : `img-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const imageId = createImageId();
         nextImages.push({
           id: imageId,
           dataUrl,
@@ -1387,7 +1402,7 @@ export default function ChatPage() {
                 </div>
               )}
               {imageError && (
-                <div className="px-3 pt-2 text-xs text-red-500">
+                <div className="px-3 pt-2 text-xs text-red-500" role="alert" aria-live="polite">
                   {imageError}
                 </div>
               )}

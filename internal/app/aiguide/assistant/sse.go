@@ -43,6 +43,10 @@ var allowedUserImageMimeTypes = map[string]bool{
 	"image/webp": true,
 }
 
+var imageMimeAliases = map[string]string{
+	"image/jpg": "image/jpeg",
+}
+
 func parseImageDataURI(dataURI string) ([]byte, string, error) {
 	if dataURI == "" {
 		return nil, "", errors.New("empty image data")
@@ -67,8 +71,8 @@ func parseImageDataURI(dataURI string) ([]byte, string, error) {
 	if mimeType == "" {
 		return nil, "", errors.New("missing image MIME type")
 	}
-	if mimeType == "image/jpg" {
-		mimeType = "image/jpeg"
+	if alias, ok := imageMimeAliases[mimeType]; ok {
+		mimeType = alias
 	}
 
 	isBase64 := false
