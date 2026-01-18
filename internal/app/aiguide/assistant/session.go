@@ -16,6 +16,8 @@ import (
 	"google.golang.org/adk/session"
 )
 
+const defaultImageMimeType = "image/png"
+
 // SessionInfo 定义会话信息的响应结构
 type SessionInfo struct {
 	SessionID      string    `json:"session_id"`
@@ -219,7 +221,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 				if part.InlineData != nil && len(part.InlineData.Data) > 0 {
 					mimeType := strings.TrimSpace(part.InlineData.MIMEType)
 					if mimeType == "" {
-						mimeType = "image/png"
+						mimeType = defaultImageMimeType
 					}
 					if strings.HasPrefix(mimeType, "image/") {
 						base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)

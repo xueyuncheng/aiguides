@@ -1191,7 +1191,7 @@ export default function ChatPage() {
 
   const handleExampleClick = (example: string) => {
     if (isLoading) return;
-    sendMessage(example, selectedImages);
+    sendMessage(example, []);
   };
 
   if (loading || !agentInfo) {
