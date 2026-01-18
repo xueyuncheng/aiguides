@@ -32,6 +32,7 @@ type ChatRequest struct {
 }
 
 const (
+	// Limits align with frontend validation to prevent oversized uploads.
 	maxUserImageSizeBytes = 5 * 1024 * 1024
 	maxUserImageCount     = 4
 )

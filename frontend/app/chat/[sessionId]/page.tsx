@@ -481,9 +481,14 @@ export default function ChatPage() {
   // Debounce delay (in milliseconds) for scroll direction detection
   const SCROLL_DEBOUNCE_DELAY = 50;
 
+  // Keep these limits aligned with backend validation in assistant/sse.go.
   const MAX_IMAGE_COUNT = 4;
   const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
   const MAX_IMAGE_SIZE_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
+  const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 张图片`;
+  const IMAGE_SIZE_ERROR = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
+  const IMAGE_TYPE_ERROR = '仅支持图片文件';
+  const IMAGE_READ_ERROR = '读取图片失败';
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -861,7 +866,7 @@ export default function ChatPage() {
     setImageError(null);
     const remainingSlots = MAX_IMAGE_COUNT - selectedImages.length;
     if (remainingSlots <= 0) {
-      setImageError(`最多只能上传 ${MAX_IMAGE_COUNT} 张图片`);
+      setImageError(IMAGE_COUNT_ERROR);
       event.target.value = '';
       return;
     }
@@ -872,11 +877,15 @@ export default function ChatPage() {
 
     for (const file of limitedFiles) {
       if (!file.type.startsWith('image/')) {
-        errorMessage = '仅支持图片文件';
+        if (!errorMessage) {
+          errorMessage = IMAGE_TYPE_ERROR;
+        }
         continue;
       }
       if (file.size > MAX_IMAGE_SIZE_BYTES) {
-        errorMessage = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
+        if (!errorMessage) {
+          errorMessage = IMAGE_SIZE_ERROR;
+        }
         continue;
       }
 
@@ -890,12 +899,16 @@ export default function ChatPage() {
         });
       } catch (error) {
         console.error('Error reading image file:', error);
-        errorMessage = '读取图片失败';
+        if (!errorMessage) {
+          errorMessage = IMAGE_READ_ERROR;
+        }
       }
     }
 
     if (files.length > remainingSlots) {
-      errorMessage = `最多只能上传 ${MAX_IMAGE_COUNT} 张图片`;
+      if (!errorMessage) {
+        errorMessage = IMAGE_COUNT_ERROR;
+      }
     }
 
     if (nextImages.length > 0) {
