@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -149,6 +149,63 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
 
 CodeBlock.displayName = 'CodeBlock';
 
+const markdownRemarkPlugins = [remarkGfm, remarkMath];
+const markdownRehypePlugins = [rehypeKatex];
+const markdownTableStyles = {
+  wrapper: "my-4 w-full overflow-x-auto",
+  table: "w-full border-collapse border border-border text-sm",
+  th: "border border-border bg-muted/60 px-3 py-2 text-left font-semibold",
+  td: "border border-border px-3 py-2 align-top",
+};
+const markdownComponents: Components = {
+  a: (props) => (
+    <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
+  ),
+  img: ({ src, ...props }) => {
+    if (!src) return null;
+    return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
+  },
+  table: ({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
+    <div className={markdownTableStyles.wrapper}>
+      <table
+        {...props}
+        className={cn(markdownTableStyles.table, className)}
+      />
+    </div>
+  ),
+  th: ({ className, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
+    <th
+      {...props}
+      className={cn(markdownTableStyles.th, className)}
+    />
+  ),
+  td: ({ className, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
+    <td
+      {...props}
+      className={cn(markdownTableStyles.td, className)}
+    />
+  ),
+  code: ({ className, children, ...props }) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const isInline = !match;
+    return isInline ? (
+      <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
+        {children}
+      </code>
+    ) : (
+      <CodeBlock className={className}>
+        {children}
+      </CodeBlock>
+    );
+  },
+  ul: ({ ...props }) => (
+    <ul {...props} className="list-disc pl-6 space-y-1 my-4 text-sm" />
+  ),
+  ol: ({ ...props }) => (
+    <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
+  ),
+};
+
 // Feedback timeout duration in milliseconds
 const FEEDBACK_TIMEOUT_MS = 2000;
 
@@ -290,38 +347,11 @@ const AIMessageContent = memo(({
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold">
+          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold prose-table:border-collapse prose-table:w-full prose-th:border prose-td:border prose-th:border-border prose-td:border-border prose-th:bg-muted/60 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                a: ({ ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
-                ),
-                img: ({ src, ...props }) => {
-                  if (!src) return null;
-                  return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
-                },
-                code: ({ className, children, ...props }) => {
-                  const match = /language-(\w+)/.exec(className || '')
-                  const isInline = !match;
-                  return isInline ? (
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
-                      {children}
-                    </code>
-                  ) : (
-                    <CodeBlock className={className}>
-                      {children}
-                    </CodeBlock>
-                  )
-                },
-                ul: ({ ...props }) => (
-                  <ul {...props} className="list-disc pl-6 space-y-1 my-4 text-sm" />
-                ),
-                ol: ({ ...props }) => (
-                  <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
-                ),
-              }}
+              remarkPlugins={markdownRemarkPlugins}
+              rehypePlugins={markdownRehypePlugins}
+              components={markdownComponents}
             >
               {content}
             </ReactMarkdown>
@@ -1377,7 +1407,15 @@ export default function ChatPage() {
                                 </div>
                               )}
                               {message.content && (
-                                <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                                <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold break-words">
+                                  <ReactMarkdown
+                                    remarkPlugins={markdownRemarkPlugins}
+                                    rehypePlugins={markdownRehypePlugins}
+                                    components={markdownComponents}
+                                  >
+                                    {message.content}
+                                  </ReactMarkdown>
+                                </div>
                               )}
                             </div>
                           )}
