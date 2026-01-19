@@ -149,6 +149,37 @@ const CodeBlock = memo(({ className, children }: { className?: string; children:
 
 CodeBlock.displayName = 'CodeBlock';
 
+const markdownRemarkPlugins = [remarkGfm, remarkMath];
+const markdownRehypePlugins = [rehypeKatex];
+const markdownComponents = {
+  a: ({ ...props }) => (
+    <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
+  ),
+  img: ({ src, ...props }) => {
+    if (!src) return null;
+    return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
+  },
+  code: ({ className, children, ...props }) => {
+    const match = /language-(\w+)/.exec(className || '');
+    const isInline = !match;
+    return isInline ? (
+      <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
+        {children}
+      </code>
+    ) : (
+      <CodeBlock className={className}>
+        {children}
+      </CodeBlock>
+    );
+  },
+  ul: ({ ...props }) => (
+    <ul {...props} className="list-disc pl-6 space-y-1 my-4 text-sm" />
+  ),
+  ol: ({ ...props }) => (
+    <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
+  ),
+};
+
 // Feedback timeout duration in milliseconds
 const FEEDBACK_TIMEOUT_MS = 2000;
 
@@ -292,36 +323,9 @@ const AIMessageContent = memo(({
         ) : (
           <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold">
             <ReactMarkdown
-              remarkPlugins={[remarkGfm, remarkMath]}
-              rehypePlugins={[rehypeKatex]}
-              components={{
-                a: ({ ...props }) => (
-                  <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
-                ),
-                img: ({ src, ...props }) => {
-                  if (!src) return null;
-                  return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
-                },
-                code: ({ className, children, ...props }) => {
-                  const match = /language-(\w+)/.exec(className || '')
-                  const isInline = !match;
-                  return isInline ? (
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
-                      {children}
-                    </code>
-                  ) : (
-                    <CodeBlock className={className}>
-                      {children}
-                    </CodeBlock>
-                  )
-                },
-                ul: ({ ...props }) => (
-                  <ul {...props} className="list-disc pl-6 space-y-1 my-4 text-sm" />
-                ),
-                ol: ({ ...props }) => (
-                  <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
-                ),
-              }}
+              remarkPlugins={markdownRemarkPlugins}
+              rehypePlugins={markdownRehypePlugins}
+              components={markdownComponents}
             >
               {content}
             </ReactMarkdown>
@@ -1377,7 +1381,15 @@ export default function ChatPage() {
                                 </div>
                               )}
                               {message.content && (
-                                <div className="whitespace-pre-wrap break-words">{message.content}</div>
+                                <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold whitespace-pre-wrap break-words">
+                                  <ReactMarkdown
+                                    remarkPlugins={markdownRemarkPlugins}
+                                    rehypePlugins={markdownRehypePlugins}
+                                    components={markdownComponents}
+                                  >
+                                    {message.content}
+                                  </ReactMarkdown>
+                                </div>
                               )}
                             </div>
                           )}
