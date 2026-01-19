@@ -1381,7 +1381,7 @@ export default function ChatPage() {
                                 </div>
                               )}
                               {message.content && (
-                                <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold whitespace-pre-wrap break-words">
+                                <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold break-words">
                                   <ReactMarkdown
                                     remarkPlugins={markdownRemarkPlugins}
                                     rehypePlugins={markdownRehypePlugins}
