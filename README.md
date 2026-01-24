@@ -44,7 +44,7 @@ go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml
 
 前端：
 ```bash
-cd frontend && npm install && npm run dev
+cd frontend && pnpm install && pnpm dev
 ```
 
 ## Docker 部署

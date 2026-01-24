@@ -16,7 +16,13 @@ fi
 
 # 检查 Node.js 是否安装
 if ! command -v node &> /dev/null; then
-    echo "❌ Node.js 未安装。请先安装 Node.js 20+ 和 npm。"
+    echo "❌ Node.js 未安装。请先安装 Node.js 20+。"
+    exit 1
+fi
+
+# 检查 pnpm 是否安装
+if ! command -v pnpm &> /dev/null; then
+    echo "❌ pnpm 未安装。请运行: npm install -g pnpm"
     exit 1
 fi
 
@@ -30,7 +36,7 @@ fi
 if [ ! -d "frontend/node_modules" ]; then
     echo "📦 安装前端依赖..."
     cd frontend
-    npm install
+    pnpm install
     cd ..
     echo "✅ 前端依赖安装完成"
     echo ""
@@ -49,7 +55,7 @@ sleep 3
 # 启动前端服务
 echo "🎨 启动前端服务 (端口 3000)..."
 cd frontend
-npm run dev &
+pnpm dev &
 FRONTEND_PID=$!
 echo "✅ 前端服务已启动 (PID: $FRONTEND_PID)"
 echo ""
