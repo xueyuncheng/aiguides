@@ -81,6 +81,18 @@ go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.local.yaml
 3. 给出确切答案和发布时间
 4. 提供官方发布公告链接
 
+### 示例 4：搜索后深入阅读
+
+**用户提问：**
+> 搜索 Go 1.23 的新特性，并详细告诉我 range over func 是怎么用的
+
+**Agent 行为：**
+1. 调用 `web_search` 搜索 "Go 1.23 新特性"
+2. 获得官方博客链接
+3. 调用 `web_fetch` 获取博客完整内容
+4. 分析纯文本内容，找到 "range over func" 相关段落
+5. 生成详细解答并附上具体代码示例
+
 ## 触发条件
 
 Agent 会在以下情况自动使用 web_search 工具：
@@ -349,12 +361,85 @@ web_search:
 ### Q6: 可以限制搜索某些网站吗？
 **A:** SearXNG 支持站点过滤，可以通过搜索语法实现，如 `site:go.dev golang`。
 
+## Web Fetch Tool 使用指南
+
+Web Fetch Tool 用于获取网页的完整内容和元数据，适合在 `web_search` 返回结果后进行深入阅读。
+
+### 功能特点
+
+- ✅ 自动抓取网页内容
+- ✅ 提取纯文本正文（优先）
+- ✅ 提取元数据（标题、作者、发布时间等）
+- ✅ 自动过滤广告和无关内容
+
+### 使用示例
+
+#### 示例 1：直接抓取文章
+
+**用户提问：**
+> 帮我总结这篇文章 https://go.dev/blog/go1.23
+
+**Agent 行为：**
+1. 调用 `web_fetch` 获取网页完整内容
+2. 使用纯文本正文进行分析
+3. 输出文章摘要
+
+#### 示例 2：搜索后抓取
+
+**用户提问：**
+> 搜索 Go 1.23 的新特性，并详细解释 range over func
+
+**Agent 行为：**
+1. 使用 `web_search` 搜索相关链接
+2. 调用 `web_fetch` 抓取官方博客正文
+3. 从纯文本中提取相关段落并解答
+
+### 输入参数
+
+```json
+{
+  "url": "https://example.com/article"
+}
+```
+
+### 返回结果格式
+
+```json
+{
+  "success": true,
+  "url": "https://example.com/article",
+  "title": "文章标题",
+  "text_content": "正文纯文本内容...",
+  "content": "<article>...</article>",
+  "byline": "作者",
+  "excerpt": "摘要...",
+  "length": 1234,
+  "site_name": "站点名称",
+  "published_time": "2026-01-24T10:00:00Z",
+  "modified_time": "2026-01-24T12:00:00Z",
+  "image": "https://example.com/cover.jpg",
+  "favicon": "https://example.com/favicon.ico",
+  "language": "zh-CN",
+  "message": "成功获取网页内容，共 1234 字"
+}
+```
+
+### 使用建议
+
+- 优先使用 `text_content`（纯文本）进行分析和总结
+- 如果需要保留原文格式，可使用 `content`（HTML）
+- 对于无法提取正文的页面，会返回错误信息
+
 ## 下一步计划
 
-### 阶段二：Web Fetch Tool（计划中）
-- 获取完整网页内容
-- 提取正文（使用 go-readability）
-- Agent 可以深入阅读搜索结果
+### 阶段二：Web Fetch Tool（✅ 已实现）
+- ✅ 获取完整网页内容
+- ✅ 提取正文（使用 go-readability v2）
+- ✅ Agent 可以深入阅读搜索结果
+- ✅ 提取元数据（标题、作者、发布时间等）
+- ✅ 自动过滤广告和无关内容
+
+详细说明请参考下方的 [Web Fetch Tool 使用指南](#web-fetch-tool-使用指南)。
 
 ### 阶段三：Real-time Data APIs（计划中）
 - 天气 API
