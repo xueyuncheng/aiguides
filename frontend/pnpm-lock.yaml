@@ -29,6 +29,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      katex:
+        specifier: ^0.16.27
+        version: 0.16.27
       lucide-react:
         specifier: ^0.562.0
         version: 0.562.0(react@19.2.3)
