@@ -13,7 +13,7 @@
 services:
   # SearXNG 搜索引擎服务
   searxng:
-    image: searxng/searxng:latest
+    image: searxng/searxng:2026.1.24-eea189286
     container_name: aiguides-searxng
     ports:
       - "8888:8080"  # 外部端口 8888（避免与 AIGuides 的 8080 冲突）
@@ -38,7 +38,7 @@ services:
 
   # Redis 缓存服务
   redis:
-    image: redis:alpine
+    image: redis:8.4
     container_name: aiguides-redis
     volumes:
       - ./redis:/data                    # Redis 数据持久化目录
@@ -58,3 +58,4 @@ networks:
   searxng-network:
     driver: bridge
     name: aiguides-searxng-network
+
