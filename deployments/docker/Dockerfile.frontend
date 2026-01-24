@@ -3,21 +3,27 @@ FROM node:20-alpine AS deps
 
 WORKDIR /app
 
+# 安装 pnpm
+RUN npm install -g pnpm
+
 # 复制 package 文件
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+RUN pnpm install --frozen-lockfile
 
 # 构建阶段
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# 安装 pnpm
+RUN npm install -g pnpm
+
 # 复制依赖
 COPY --from=deps /app/node_modules ./node_modules
 COPY frontend/ ./
 
 # 构建应用
-RUN npm run build
+RUN pnpm build
 
 # 运行阶段
 FROM node:20-alpine AS runner

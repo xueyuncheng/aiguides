@@ -4,6 +4,7 @@ __debug_*
 /aiguide
 *.db
 *.png
+.claude/
 
 # Docker artifacts
 *.tar
@@ -17,3 +18,4 @@ frontend/.next
 frontend/out
 frontend/build
 frontend/.env*.local
+frontend/package-lock.json

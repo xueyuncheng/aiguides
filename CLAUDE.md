@@ -34,16 +34,16 @@ go test -v ./internal/app/aiguide/assistant -run TestAgentCreation
 cd frontend
 
 # Install dependencies
-npm install
+pnpm install
 
 # Development server
-npm run dev
+pnpm dev
 
 # Production build
-npm run build
+pnpm build
 
 # Lint
-npm run lint
+pnpm lint
 ```
 
 ### Full Stack
