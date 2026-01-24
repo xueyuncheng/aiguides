@@ -38,6 +38,13 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 		return nil, fmt.Errorf("tools.NewWebSearchTool() error, err = %w", err)
 	}
 
+	// 创建网页抓取工具
+	webFetchTool, err := tools.NewWebFetchTool()
+	if err != nil {
+		slog.Error("tools.NewWebFetchTool() error", "err", err)
+		return nil, fmt.Errorf("tools.NewWebFetchTool() error, err = %w", err)
+	}
+
 	searchAgentConfig := llmagent.Config{
 		Name:        "root_agent",
 		Model:       model,
@@ -52,6 +59,7 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 			imageGenTool,
 			emailQueryTool,
 			webSearchTool,
+			webFetchTool,
 		},
 	}
 	agent, err := llmagent.New(searchAgentConfig)
