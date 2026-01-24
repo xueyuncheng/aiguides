@@ -30,3 +30,28 @@ gin_port: 8080
 # - JWT Secret 应该是一个强随机字符串，至少 32 字符
 # - 生产环境应使用 HTTPS 和相应的重定向 URL
 # - 保护好 Client Secret 和 JWT Secret，不要提交到版本控制系统
+
+# 实时信息查询配置（可选）
+# 使用 SearXNG 开源搜索引擎聚合服务
+# 
+# SearXNG 特点：
+# - 完全免费，无需 API Key
+# - 搜索全网，无域名限制
+# - 聚合 Google、Bing、DuckDuckGo 等多个搜索引擎
+# - 保护隐私，不追踪用户
+#
+# 推荐方式：自建 SearXNG 实例（稳定、无速率限制）
+# 部署文档：deployments/searxng/README.md
+#
+# 自建实例配置（推荐）：
+# web_search:
+#   instance_url: "http://localhost:8888"  # 本地 SearXNG 实例
+#
+# 使用公共实例（不推荐，可能不稳定）：
+# web_search:
+#   instance_url: "https://searx.be"       # 公共实例（可能被墙或限流）
+#
+# 默认配置（无需显式指定）：
+# - 搜索语言：zh-CN（中文）
+# - 超时时间：30 秒
+# - 最大结果数：10

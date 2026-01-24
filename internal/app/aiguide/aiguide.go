@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/assistant"
 	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
 	"log/slog"
@@ -20,21 +21,28 @@ import (
 )
 
 type Config struct {
-	DBFile              string   `yaml:"db_file"`
-	APIKey              string   `yaml:"api_key"`
-	ModelName           string   `yaml:"model_name"`
-	BaseURL             string   `yaml:"base_url"`
-	Proxy               string   `yaml:"proxy"`
-	UseGin              bool     `yaml:"use_gin"`
-	GinPort             string   `yaml:"gin_port"`
-	GoogleClientID      string   `yaml:"google_client_id"`
-	GoogleClientSecret  string   `yaml:"google_client_secret"`
-	GoogleRedirectURL   string   `yaml:"google_redirect_url"`
-	JWTSecret           string   `yaml:"jwt_secret"`
-	FrontendURL         string   `yaml:"frontend_url"`
-	AllowedEmails       []string `yaml:"allowed_emails"`
-	SecureCookie        *bool    `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
-	MockImageGeneration bool     `yaml:"mock_image_generation"`
+	DBFile              string    `yaml:"db_file"`
+	APIKey              string    `yaml:"api_key"`
+	ModelName           string    `yaml:"model_name"`
+	BaseURL             string    `yaml:"base_url"`
+	Proxy               string    `yaml:"proxy"`
+	UseGin              bool      `yaml:"use_gin"`
+	GinPort             string    `yaml:"gin_port"`
+	GoogleClientID      string    `yaml:"google_client_id"`
+	GoogleClientSecret  string    `yaml:"google_client_secret"`
+	GoogleRedirectURL   string    `yaml:"google_redirect_url"`
+	JWTSecret           string    `yaml:"jwt_secret"`
+	FrontendURL         string    `yaml:"frontend_url"`
+	AllowedEmails       []string  `yaml:"allowed_emails"`
+	SecureCookie        *bool     `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
+	MockImageGeneration bool      `yaml:"mock_image_generation"`
+	WebSearch           WebSearch `yaml:"web_search"` // Web 搜索配置
+}
+
+// WebSearch Web 搜索 YAML 配置（用于解析配置文件）
+// 用户只需配置 instance_url，其他参数使用默认值
+type WebSearch struct {
+	InstanceURL string `yaml:"instance_url"`
 }
 
 type AIGuide struct {
@@ -99,7 +107,15 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	migrator := migration.New(db)
 
-	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration, config.FrontendURL)
+	// 转换 WebSearch 配置为 tools.WebSearchConfig
+	// 默认值（语言、超时等）已在 websearch.go 中硬编码
+	webSearchConfig := tools.WebSearchConfig{
+		SearXNG: tools.SearXNGConfig{
+			InstanceURL: config.WebSearch.InstanceURL,
+		},
+	}
+
+	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration, config.FrontendURL, webSearchConfig)
 	if err != nil {
 		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
 	}

@@ -16,7 +16,7 @@ import (
 //go:embed assistant_agent_prompt.md
 var assistantAgentInstruction string
 
-func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool) (agent.Agent, error) {
+func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, webSearchConfig tools.WebSearchConfig) (agent.Agent, error) {
 	// 创建图片生成工具
 	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
 	if err != nil {
@@ -29,6 +29,13 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 	if err != nil {
 		slog.Error("tools.NewEmailQueryTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewEmailQueryTool() error, err = %w", err)
+	}
+
+	// 创建网页搜索工具
+	webSearchTool, err := tools.NewWebSearchTool(webSearchConfig)
+	if err != nil {
+		slog.Error("tools.NewWebSearchTool() error", "err", err)
+		return nil, fmt.Errorf("tools.NewWebSearchTool() error, err = %w", err)
 	}
 
 	searchAgentConfig := llmagent.Config{
@@ -44,6 +51,7 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 		Tools: []tool.Tool{
 			imageGenTool,
 			emailQueryTool,
+			webSearchTool,
 		},
 	}
 	agent, err := llmagent.New(searchAgentConfig)

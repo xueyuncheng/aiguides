@@ -1,4 +1,5 @@
 services:
+  # AIGuides 后端服务
   backend:
     image: aiguide-backend:latest
     container_name: aiguide-backend
@@ -13,6 +14,7 @@ services:
     networks:
       - aiguide-network
 
+  # AIGuides 前端服务
   frontend:
     image: aiguide-frontend:latest
     container_name: aiguide-frontend
@@ -28,6 +30,65 @@ services:
     networks:
       - aiguide-network
 
+  # SearXNG 搜索引擎服务
+  searxng:
+    image: searxng/searxng:2026.1.24-eea189286
+    container_name: aiguide-searxng
+    ports:
+      - "8888:8080" # 外部端口 8888（避免与 AIGuides 的 8080 冲突）
+    volumes:
+      - ./searxng:/etc/searxng:rw # 配置文件目录
+      - searxng-data:/var/cache/searxng # 数据缓存目录（使用命名卷）
+    environment:
+      - SEARXNG_SECRET=240df9176259d6b8864de585fbb85bb829eb0e3e6554fcdd0db3236ecb9be9f4
+      - SEARXNG_BASE_URL=http://localhost:8888/
+      - FORCE_OWNERSHIP=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - aiguide-network
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:8080/healthz",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis 缓存服务（SearXNG 依赖）
+  redis:
+    image: redis:8.4
+    container_name: aiguide-redis
+    volumes:
+      - redis-data:/data # Redis 数据持久化（使用命名卷）
+    command: redis-server --save 60 1 --loglevel warning
+    # 说明：每 60 秒如果有至少 1 次写入操作，则保存数据到磁盘
+    restart: unless-stopped
+    networks:
+      - aiguide-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 networks:
   aiguide-network:
     driver: bridge
+    name: aiguide-network
+
+volumes:
+  searxng-data:
+    name: aiguide-searxng-data
+  redis-data:
+    name: aiguide-redis-data

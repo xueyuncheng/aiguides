@@ -1,0 +1,23 @@
+# SearXNG 配置文件  
+# 为 AIGuides 优化的搜索引擎配置
+
+use_default_settings: true
+
+search:
+  # 启用 JSON 格式输出（默认只有 html）
+  formats:
+    - html
+    - json
+
+outgoing:
+  request_timeout: 10.0      # 增加到 10 秒（默认 3 秒太短）
+  max_request_timeout: 30.0
+
+server:
+  secret_key: "240df9176259d6b8864de585fbb85bb829eb0e3e6554fcdd0db3236ecb9be9f4"
+  limiter: false             # 禁用限流（本地使用）
+  image_proxy: true
+  method: "GET"              # 允许 GET 请求（AIGuides 使用 GET）
+
+redis:
+  url: redis://redis:6379/0

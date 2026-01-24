@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
 	"log/slog"
@@ -23,12 +24,13 @@ type Assistant struct {
 	db                  *gorm.DB
 	genaiClient         *genai.Client
 	frontendURL         string
+	webSearchConfig     tools.WebSearchConfig
 
 	runner      *runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string) (*Assistant, error) {
+func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string, webSearchConfig tools.WebSearchConfig) (*Assistant, error) {
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
@@ -53,6 +55,7 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 		db:                  db,
 		genaiClient:         genaiClient,
 		frontendURL:         frontendURL,
+		webSearchConfig:     webSearchConfig,
 	}
 
 	runner, err := assistant.createRunner()

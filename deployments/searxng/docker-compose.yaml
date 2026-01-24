@@ -1,0 +1,61 @@
+# SearXNG 本地搜索引擎部署配置
+# 为 AIGuides 提供实时网络搜索能力
+#
+# 快速启动：
+#   docker compose up -d
+#
+# 查看日志：
+#   docker compose logs -f
+#
+# 停止服务：
+#   docker compose down
+
+services:
+  # SearXNG 搜索引擎服务
+  searxng:
+    image: searxng/searxng:2026.1.24-eea189286
+    container_name: aiguides-searxng
+    ports:
+      - "8888:8080"  # 外部端口 8888（避免与 AIGuides 的 8080 冲突）
+    volumes:
+      - ./searxng:/etc/searxng:rw        # 配置文件目录
+      - ./data:/var/cache/searxng:rw     # 数据缓存目录
+    environment:
+      - SEARXNG_SECRET=240df9176259d6b8864de585fbb85bb829eb0e3e6554fcdd0db3236ecb9be9f4
+      - SEARXNG_BASE_URL=http://localhost:8888/
+      - FORCE_OWNERSHIP=true
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis 缓存服务
+  redis:
+    image: redis:8.4
+    container_name: aiguides-redis
+    volumes:
+      - ./redis:/data                    # Redis 数据持久化目录
+    command: redis-server --save 60 1 --loglevel warning
+    # 说明：每 60 秒如果有至少 1 次写入操作，则保存数据到磁盘
+    restart: unless-stopped
+    networks:
+      - searxng-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  searxng-network:
+    driver: bridge
+    name: aiguides-searxng-network
+

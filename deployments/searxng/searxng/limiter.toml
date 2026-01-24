@@ -1,0 +1,5 @@
+# 最小化 limiter 配置
+# 禁用所有限制
+
+[botdetection.ip_limit]
+link_token = false
