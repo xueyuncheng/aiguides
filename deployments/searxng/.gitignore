@@ -1,0 +1,13 @@
+# Redis 数据目录
+redis/
+
+# SearXNG 数据缓存目录
+data/
+
+# Docker 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.swp
+*~

@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"aiguide/internal/pkg/tools"
 	"testing"
 
 	"google.golang.org/adk/model"
@@ -9,7 +10,13 @@ import (
 func TestNewSearchAgent(t *testing.T) {
 	// This test verifies that the search agent can be created
 	// without errors when a nil genaiClient is passed (basic structure test)
-	agent, err := NewAssistantAgent(nil, nil, true)
+	webSearchConfig := tools.WebSearchConfig{
+		SearXNG: tools.SearXNGConfig{
+			InstanceURL: "https://searx.be",
+		},
+	}
+
+	agent, err := NewAssistantAgent(nil, nil, true, webSearchConfig)
 	if err != nil {
 		t.Fatalf("NewSearchAgent() error = %v", err)
 	}
@@ -22,7 +29,13 @@ func TestNewSearchAgent(t *testing.T) {
 func TestNewSearchAgentWithModel(t *testing.T) {
 	// Test with a mock model to verify the structure
 	// In a real scenario, you would use a proper mock model
-	agent, err := NewAssistantAgent(model.LLM(nil), nil, true)
+	webSearchConfig := tools.WebSearchConfig{
+		SearXNG: tools.SearXNGConfig{
+			InstanceURL: "https://searx.be",
+		},
+	}
+
+	agent, err := NewAssistantAgent(model.LLM(nil), nil, true, webSearchConfig)
 	if err != nil {
 		t.Fatalf("NewSearchAgent() with model error = %v", err)
 	}

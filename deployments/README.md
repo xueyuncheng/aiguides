@@ -6,14 +6,24 @@ This directory contains deployment configurations and related files for containe
 
 ```
 deployments/
-└── docker/
-    ├── Dockerfile.backend      # Backend Docker image definition
-    ├── Dockerfile.frontend     # Frontend Docker image definition
-    ├── docker-compose.yml      # Service orchestration
-    └── .dockerignore          # Docker build context exclusions
+├── docker/
+│   ├── Dockerfile.backend      # Backend Docker image definition
+│   ├── Dockerfile.frontend     # Frontend Docker image definition
+│   ├── docker-compose.yml      # Service orchestration
+│   └── .dockerignore          # Docker build context exclusions
+└── searxng/
+    ├── docker-compose.yml      # SearXNG service orchestration
+    ├── searxng/
+    │   └── settings.yml        # SearXNG configuration
+    ├── .env                    # Environment variables (gitignored)
+    ├── .gitignore              # Exclude sensitive files
+    └── README.md               # SearXNG deployment guide (中文)
 ```
 
 ## Docker Configuration
+
+### `docker/`
+AIGuides application containerization.
 
 ### `docker/Dockerfile.backend`
 Multi-stage Docker build for the Go backend application.
@@ -41,6 +51,24 @@ Orchestrates frontend and backend services.
 - Volume mounts for config and data persistence
 - Service dependencies (frontend depends on backend)
 - Auto-restart policies
+
+### `searxng/`
+Local SearXNG search engine deployment for providing real-time web search capabilities to AIGuides.
+
+**Features:**
+- Aggregates 3 major search engines (Google, Bing, DuckDuckGo)
+- Completely free, no API key required
+- Local deployment, no rate limits
+- Redis caching for performance
+- Chinese language optimized
+
+**Quick Start:**
+```bash
+cd deployments/searxng
+docker compose up -d
+```
+
+**Detailed Documentation:** [searxng/README.md](searxng/README.md) (中文)
 
 ## Building Images
 
