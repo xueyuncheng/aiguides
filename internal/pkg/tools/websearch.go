@@ -110,15 +110,10 @@ func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearc
 		numResults = 20
 	}
 
-	language := input.Language
-	if language == "" {
-		language = "zh-CN" // 默认使用中文
-	}
-
-	slog.Info("执行网页搜索", "query", input.Query, "num_results", numResults, "language", language)
+	slog.Info("执行网页搜索", "query", input.Query, "num_results", numResults)
 
 	// 直接使用配置的实例
-	result, err := searchSearXNG(ctx, config.SearXNG.InstanceURL, input.Query, numResults, language)
+	result, err := searchSearXNG(ctx, config.SearXNG.InstanceURL, input.Query, numResults)
 	if err == nil {
 		slog.Info("搜索成功", "instance", config.SearXNG.InstanceURL, "results_count", len(result.Results))
 		return result, nil
@@ -133,13 +128,12 @@ func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearc
 }
 
 // searchSearXNG 调用单个 SearXNG 实例进行搜索
-func searchSearXNG(ctx context.Context, instanceURL, query string, numResults int, language string) (*WebSearchOutput, error) {
+func searchSearXNG(ctx context.Context, instanceURL, query string, numResults int) (*WebSearchOutput, error) {
 	// 构建请求 URL
 	apiURL := fmt.Sprintf("%s/search", instanceURL)
 	params := url.Values{}
 	params.Add("q", query)
 	params.Add("format", "json")
-	params.Add("language", language)
 	params.Add("pageno", "1")
 
 	fullURL := fmt.Sprintf("%s?%s", apiURL, params.Encode())

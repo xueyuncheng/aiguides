@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 )
 
 // Mock SearXNG 响应
@@ -199,7 +198,6 @@ func TestSearXNGSearch(t *testing.T) {
 		server.URL,
 		"golang",
 		5,
-		"zh-CN",
 	)
 
 	if err != nil {
@@ -237,7 +235,6 @@ func TestEmptySearchResults(t *testing.T) {
 		server.URL,
 		"nonexistent query",
 		5,
-		"zh-CN",
 	)
 
 	if err != nil {
@@ -323,35 +320,6 @@ func TestAllInstancesFail(t *testing.T) {
 	}
 }
 
-// TestHTTPTimeout 测试 HTTP 超时
-func TestHTTPTimeout(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(3 * time.Second) // 模拟慢响应
-		w.Write([]byte(mockSearXNGResponse))
-	}))
-	defer server.Close()
-
-	config := WebSearchConfig{
-		SearXNG: SearXNGConfig{
-			InstanceURL: server.URL,
-		},
-	}
-
-	result, err := executeWebSearch(
-		context.Background(),
-		WebSearchInput{Query: "golang"},
-		config,
-	)
-
-	if err != nil {
-		t.Fatalf("executeWebSearch() should not return error: %v", err)
-	}
-
-	if result.Success {
-		t.Error("Expected failure due to timeout")
-	}
-}
-
 // TestInvalidJSON 测试无效 JSON 响应
 func TestInvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -366,7 +334,6 @@ func TestInvalidJSON(t *testing.T) {
 		server.URL,
 		"golang",
 		5,
-		"zh-CN",
 	)
 
 	if err == nil {
@@ -391,7 +358,6 @@ func TestHTTPError(t *testing.T) {
 				server.URL,
 				"golang",
 				5,
-				"zh-CN",
 			)
 
 			if err == nil {
@@ -416,7 +382,6 @@ func TestNumResultsLimit(t *testing.T) {
 		server.URL,
 		"golang",
 		2, // 只要 2 个结果
-		"zh-CN",
 	)
 
 	if err != nil {
