@@ -1,7 +1,6 @@
 package assistant
 
 import (
-	"aiguide/internal/pkg/tools"
 	_ "embed"
 	"fmt"
 	"log/slog"
@@ -11,62 +10,93 @@ import (
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 	"google.golang.org/genai"
+	"gorm.io/gorm"
+
+	"aiguide/internal/pkg/tools"
 )
 
 //go:embed assistant_agent_prompt.md
 var assistantAgentInstruction string
 
-func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, webSearchConfig tools.WebSearchConfig) (agent.Agent, error) {
-	// 创建图片生成工具
-	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
+// AssistantAgentConfig contains configuration for the root agent and its subagents
+type AssistantAgentConfig struct {
+	Model             model.LLM
+	GenaiClient       *genai.Client
+	DB                *gorm.DB
+	MockImageGen      bool
+	MockEmailIMAPConn bool
+	WebSearchConfig   tools.WebSearchConfig
+}
+
+// NewAssistantAgent creates the root agent with Planner and Executor as subagents
+func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
+	if config == nil {
+		slog.Error("config parameter is nil")
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+	// 创建 Planner Agent（任务规划）
+	plannerConfig := &PlannerAgentConfig{
+		Model: config.Model,
+		DB:    config.DB,
+	}
+	plannerAgent, err := NewPlannerAgent(plannerConfig)
 	if err != nil {
-		slog.Error("tools.NewImageGenTool() error", "err", err)
-		return nil, fmt.Errorf("tools.NewImageGenTool() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create planner agent: %w", err)
 	}
 
-	// 创建邮件查询工具
-	emailQueryTool, err := tools.NewEmailQueryTool()
+	// 创建 Executor Agent（任务执行）
+	executorConfig := &ExecutorAgentConfig{
+		Model:           config.Model,
+		GenaiClient:     config.GenaiClient,
+		DB:              config.DB,
+		MockImageGen:    config.MockImageGen,
+		WebSearchConfig: config.WebSearchConfig,
+	}
+	executorAgent, err := NewExecutorAgent(executorConfig)
 	if err != nil {
-		slog.Error("tools.NewEmailQueryTool() error", "err", err)
-		return nil, fmt.Errorf("tools.NewEmailQueryTool() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create executor agent: %w", err)
 	}
 
-	// 创建网页搜索工具
-	webSearchTool, err := tools.NewWebSearchTool(webSearchConfig)
+	// Root Agent 只有查询工具，用于查看任务状态
+	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
-		slog.Error("tools.NewWebSearchTool() error", "err", err)
-		return nil, fmt.Errorf("tools.NewWebSearchTool() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create task_list tool: %w", err)
 	}
 
-	// 创建网页抓取工具
-	webFetchTool, err := tools.NewWebFetchTool()
+	taskGetTool, err := tools.NewTaskGetTool(config.DB)
 	if err != nil {
-		slog.Error("tools.NewWebFetchTool() error", "err", err)
-		return nil, fmt.Errorf("tools.NewWebFetchTool() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create task_get tool: %w", err)
 	}
 
-	searchAgentConfig := llmagent.Config{
+	// 创建 Root Agent 配置
+	rootAgentConfig := llmagent.Config{
 		Name:        "root_agent",
-		Model:       model,
-		Description: "专业的信息检索助手，擅长通过搜索获取准确、全面的信息并提供详细解答，也可以生成图片和查询邮件",
+		Model:       config.Model,
+		Description: "Main conversational agent that coordinates between planning and execution",
 		Instruction: assistantAgentInstruction,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: true,
 			},
 		},
+		// Root Agent 的工具：只有任务查询
 		Tools: []tool.Tool{
-			imageGenTool,
-			emailQueryTool,
-			webSearchTool,
-			webFetchTool,
+			taskListTool,
+			taskGetTool,
+		},
+		// 关键：注册 SubAgents
+		SubAgents: []agent.Agent{
+			plannerAgent,
+			executorAgent,
 		},
 	}
-	agent, err := llmagent.New(searchAgentConfig)
+
+	rootAgent, err := llmagent.New(rootAgentConfig)
 	if err != nil {
-		slog.Error("llmagent.New() error", "err", err)
-		return nil, fmt.Errorf("llmagent.New() error, err = %w", err)
+		slog.Error("failed to create root agent", "err", err)
+		return nil, fmt.Errorf("failed to create root agent: %w", err)
 	}
 
-	return agent, nil
+	slog.Info("root agent created successfully with planner and executor subagents")
+	return rootAgent, nil
 }

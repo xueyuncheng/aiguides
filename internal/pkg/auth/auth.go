@@ -194,7 +194,7 @@ func (s *AuthService) ValidateRefreshToken(tokenString string) (*Claims, error) 
 // ValidateToken 验证 JWT token（通用方法）
 func (s *AuthService) ValidateToken(tokenString string, expectedType string) (*Claims, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}

@@ -10,21 +10,21 @@ import (
 
 // GetUserID 从上下文中获取用户 ID
 func GetUserID(ctx context.Context) (int, bool) {
-	userID, ok := ctx.Value("user_id").(int)
+	userID, ok := ctx.Value(constant.ContextKeyUserID).(int)
 
 	return userID, ok
 }
 
 // GetUserEmail 从上下文中获取 Google 用户邮箱
 func GetUserEmail(ctx context.Context) (string, bool) {
-	email, ok := ctx.Value("google_user_email").(string)
+	email, ok := ctx.Value(constant.ContextKeyGoogleUserEmail).(string)
 
 	return email, ok
 }
 
 // GetGoogleUserID 从上下文中获取 Google 用户 ID
 func GetGoogleUserID(c *gin.Context) (string, bool) {
-	googleUserID, exists := c.Get("google_user_id")
+	googleUserID, exists := c.Get(constant.ContextKeyGoogleUserID)
 	if !exists {
 		return "", false
 	}
@@ -34,7 +34,7 @@ func GetGoogleUserID(c *gin.Context) (string, bool) {
 
 // GetUserName 从上下文中获取用户名
 func GetUserName(c *gin.Context) (string, bool) {
-	name, exists := c.Get("user_name")
+	name, exists := c.Get(constant.ContextKeyUserName)
 	if !exists {
 		return "", false
 	}

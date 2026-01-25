@@ -117,6 +117,8 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	// 设置 SSE 响应
 	a.setupSSEResponse(ctx)
 
+	ctx.Set(constant.ContextKeySessionID, sessionID)
+
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
