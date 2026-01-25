@@ -64,6 +64,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	messageText := strings.TrimSpace(req.Message)
 
 	if len(req.Images) > maxUserImageCount {
+		slog.Error("too many images", "count", len(req.Images), "max", maxUserImageCount)
 		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserImageCount)})
 		return
 	}
@@ -84,6 +85,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	if len(parts) == 0 {
+		slog.Error("message or images required")
 		ctx.JSON(400, gin.H{"error": "message or images required"})
 		return
 	}
@@ -117,31 +119,38 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	// 设置 SSE 响应
 	a.setupSSEResponse(ctx)
 
+	ctx.Set(constant.ContextKeySessionID, sessionID)
+
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
 func parseImageDataURI(dataURI string) ([]byte, string, error) {
 	if dataURI == "" {
+		slog.Error("empty image data")
 		return nil, "", errors.New("empty image data")
 	}
 	if !strings.HasPrefix(dataURI, "data:") {
+		slog.Error("invalid image data URI", "prefix", "missing data:")
 		return nil, "", errors.New("invalid image data URI")
 	}
 
 	parts := strings.SplitN(dataURI, ",", 2)
 	if len(parts) != 2 {
+		slog.Error("invalid image data URI", "parts_count", len(parts))
 		return nil, "", errors.New("invalid image data URI")
 	}
 
 	header := strings.TrimPrefix(parts[0], "data:")
 	payload := parts[1]
 	if header == "" || payload == "" {
+		slog.Error("invalid image data URI", "header_empty", header == "", "payload_empty", payload == "")
 		return nil, "", errors.New("invalid image data URI")
 	}
 
 	headerParts := strings.Split(header, ";")
 	mimeType := strings.TrimSpace(headerParts[0])
 	if mimeType == "" {
+		slog.Error("missing image MIME type")
 		return nil, "", errors.New("missing image MIME type")
 	}
 	if alias, ok := imageMimeAliases[mimeType]; ok {
@@ -156,20 +165,25 @@ func parseImageDataURI(dataURI string) ([]byte, string, error) {
 		}
 	}
 	if !isBase64 {
+		slog.Error("image data must be base64 encoded")
 		return nil, "", errors.New("image data must be base64 encoded")
 	}
 	if !allowedUserImageMimeTypes[mimeType] {
+		slog.Error("unsupported image type", "mime_type", mimeType)
 		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
+		slog.Error("base64.StdEncoding.DecodeString() error", "err", err)
 		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
 	}
 	if len(decoded) == 0 {
+		slog.Error("empty image data after decoding")
 		return nil, "", errors.New("empty image data")
 	}
 	if len(decoded) > maxUserImageSizeBytes {
+		slog.Error("image size exceeds limit", "size", len(decoded), "max", maxUserImageSizeBytes)
 		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
 	}
 
@@ -396,6 +410,7 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	}
 
 	if generatedTitle == "" {
+		slog.Error("no content generated for title")
 		return errors.New("no content generated")
 	}
 

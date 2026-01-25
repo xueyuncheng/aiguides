@@ -86,15 +86,18 @@ func isValidImageMimeType(mimeType string) bool {
 // downloadAvatar downloads the avatar image from the given URL
 func downloadAvatar(urlStr string) ([]byte, string, error) {
 	if urlStr == "" {
+		slog.Error("empty avatar URL")
 		return nil, "", fmt.Errorf("empty avatar URL")
 	}
 
 	// Validate URL scheme to prevent SSRF attacks
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
+		slog.Error("url.Parse() error", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("invalid URL: %w", err)
 	}
 	if parsedURL.Scheme != "https" {
+		slog.Error("invalid URL scheme", "url", urlStr, "scheme", parsedURL.Scheme)
 		return nil, "", fmt.Errorf("only HTTPS URLs are allowed, got: %s", parsedURL.Scheme)
 	}
 
@@ -105,6 +108,7 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
+		slog.Error("http.NewRequestWithContext() error", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -112,17 +116,20 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
+		slog.Error("http.DefaultClient.Do() error", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("failed to download avatar: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Check status code
 	if resp.StatusCode != http.StatusOK {
+		slog.Error("unexpected status code", "status", resp.StatusCode, "url", urlStr)
 		return nil, "", fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	// Check Content-Length if available to avoid downloading oversized files
 	if resp.ContentLength > 0 && resp.ContentLength > MaxAvatarSizeBytes {
+		slog.Error("avatar too large", "content_length", resp.ContentLength, "max", MaxAvatarSizeBytes, "url", urlStr)
 		return nil, "", fmt.Errorf("avatar too large: %d bytes (max %d bytes)", resp.ContentLength, MaxAvatarSizeBytes)
 	}
 
@@ -134,11 +141,13 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	}
 
 	if mimeType == "" {
+		slog.Error("missing Content-Type header", "url", urlStr)
 		return nil, "", fmt.Errorf("missing Content-Type header")
 	}
 
 	// Validate MIME type is an allowed image format
 	if !allowedImageMimeTypes[mimeType] {
+		slog.Error("invalid MIME type", "mime_type", mimeType, "url", urlStr)
 		return nil, "", fmt.Errorf("invalid MIME type: %s (expected image/jpeg, image/png, image/gif, or image/webp)", mimeType)
 	}
 
@@ -147,11 +156,13 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	// Limit reading to MaxAvatarSizeBytes+1 to detect oversized responses
 	limitedReader := io.LimitReader(resp.Body, MaxAvatarSizeBytes+1)
 	if _, err := io.Copy(&buf, limitedReader); err != nil {
+		slog.Error("io.Copy() error", "err", err)
 		return nil, "", fmt.Errorf("failed to read avatar data: %w", err)
 	}
 
 	// Check if the image was truncated
 	if buf.Len() > MaxAvatarSizeBytes {
+		slog.Error("avatar too large after reading", "size", buf.Len(), "max", MaxAvatarSizeBytes, "url", urlStr)
 		return nil, "", fmt.Errorf("avatar too large: exceeds %d bytes", MaxAvatarSizeBytes)
 	}
 

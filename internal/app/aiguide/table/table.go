@@ -3,7 +3,7 @@ package table
 import (
 	"time"
 
-	"gorm.io/gorm"
+	"aiguide/internal/pkg/constant"
 )
 
 // Model 自定义模型，与 gorm.Model 类似但 ID 使用 int 类型
@@ -11,7 +11,7 @@ type Model struct {
 	ID        int `gorm:"primarykey"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
-	DeletedAt gorm.DeletedAt `gorm:"index"`
+	DeletedAt *time.Time `gorm:"index"`
 }
 
 type User struct {
@@ -45,11 +45,26 @@ type EmailServerConfig struct {
 	IsDefault bool   `gorm:"default:false"` // 是否为默认邮箱
 }
 
+// Task represents a subtask in a plan
+type Task struct {
+	Model
+
+	SessionID   string                `gorm:"index" json:"session_id"`
+	ParentID    int                   `json:"parent_id"` // 父任务ID，支持层级关系，0 表示无父任务
+	Title       string                `json:"title"`
+	Description string                `json:"description"`
+	Status      constant.TaskStatus   `gorm:"type:varchar(20);default:pending" json:"status"` // pending, in_progress, completed, failed
+	DependsOn   string                `json:"depends_on"`                                     // JSON array of task IDs
+	Priority    constant.TaskPriority `gorm:"type:int;default:0" json:"priority"`             // 0=low, 1=medium, 2=high
+	Result      string                `json:"result,omitempty"`                               // 任务执行结果
+}
+
 // GetAllModels 获取所有已注册的数据库模型
 func GetAllModels() []any {
 	return []any{
 		&User{},
 		&SessionMeta{},
 		&EmailServerConfig{},
+		&Task{},
 	}
 }
