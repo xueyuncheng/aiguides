@@ -52,7 +52,7 @@ type MessageEvent struct {
 	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
 	Thought   string    `json:"thought,omitempty"`
-	Images    []string  `json:"images,omitempty"` // Base64编码的图片数据列表
+	Images    []string  `json:"images,omitempty"` // Base64编码的图片或PDF数据列表
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -273,7 +273,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				if mimeType == "" {
 					mimeType = defaultImageMimeType
 				}
-				if strings.HasPrefix(mimeType, "image/") {
+				if strings.HasPrefix(mimeType, "image/") || mimeType == pdfMimeType {
 					base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
 					imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
 					images = append(images, imageDataURI)

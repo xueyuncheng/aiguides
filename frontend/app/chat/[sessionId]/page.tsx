@@ -33,6 +33,7 @@ interface SelectedImage {
   id: string;
   dataUrl: string;
   name: string;
+  isPdf?: boolean;
 }
 
 interface AgentInfo {
@@ -514,11 +515,14 @@ export default function ChatPage() {
   // Keep these limits aligned with backend validation in assistant/sse.go.
   const MAX_IMAGE_COUNT = 4;
   const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+  const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
   const MAX_IMAGE_SIZE_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
-  const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 张图片`;
+  const MAX_PDF_SIZE_MB = Math.round(MAX_PDF_SIZE_BYTES / (1024 * 1024));
+  const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 个文件`;
   const IMAGE_SIZE_ERROR = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
-  const IMAGE_TYPE_ERROR = '仅支持图片文件';
-  const IMAGE_READ_ERROR = '读取图片失败';
+  const PDF_SIZE_ERROR = `PDF 大小不能超过 ${MAX_PDF_SIZE_MB}MB`;
+  const IMAGE_TYPE_ERROR = '仅支持图片或 PDF 文件';
+  const IMAGE_READ_ERROR = '读取文件失败';
 
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
@@ -904,13 +908,21 @@ export default function ChatPage() {
     const limitedFiles = files.slice(0, remainingSlots);
 
     for (const [index, file] of limitedFiles.entries()) {
-      if (!file.type.startsWith('image/')) {
+      const isPdf = file.type === 'application/pdf';
+      const isImage = file.type.startsWith('image/');
+      if (!isImage && !isPdf) {
         if (!errorMessage) {
           errorMessage = IMAGE_TYPE_ERROR;
         }
         continue;
       }
-      if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      if (isPdf && file.size > MAX_PDF_SIZE_BYTES) {
+        if (!errorMessage) {
+          errorMessage = PDF_SIZE_ERROR;
+        }
+        continue;
+      }
+      if (isImage && file.size > MAX_IMAGE_SIZE_BYTES) {
         if (!errorMessage) {
           errorMessage = IMAGE_SIZE_ERROR;
         }
@@ -920,14 +932,15 @@ export default function ChatPage() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         const imageId = createImageId();
-        const fallbackName = `clipboard-image-${index + 1}`;
+        const fallbackName = isPdf ? `file-${index + 1}.pdf` : `clipboard-image-${index + 1}`;
         nextImages.push({
           id: imageId,
           dataUrl,
           name: file.name || fallbackName,
+          isPdf,
         });
       } catch (error) {
-        console.error('Error reading image file:', error);
+        console.error('Error reading file:', error);
         if (!errorMessage) {
           errorMessage = IMAGE_READ_ERROR;
         }
@@ -1458,11 +1471,17 @@ export default function ChatPage() {
                 <div className="flex flex-wrap gap-2 px-3 pt-3">
                   {selectedImages.map((image, index) => (
                     <div key={image.id} className="relative group">
-                      <img
-                        src={image.dataUrl}
-                        alt={image.name || `已选图片 ${index + 1}`}
-                        className="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
-                      />
+                      {image.isPdf ? (
+                        <div className="h-16 w-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                          PDF
+                        </div>
+                      ) : (
+                        <img
+                          src={image.dataUrl}
+                          alt={image.name || `已选图片 ${index + 1}`}
+                          className="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
+                        />
+                      )}
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(image.id)}
@@ -1484,7 +1503,7 @@ export default function ChatPage() {
                 <input
                   ref={imageInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/*,.pdf"
                   multiple
                   className="hidden"
                   onChange={handleImageSelect}

@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
 	"aiguide/internal/pkg/tools"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -34,14 +35,17 @@ type ChatRequest struct {
 const (
 	// Limits align with frontend validation to prevent oversized uploads.
 	maxUserImageSizeBytes = 5 * 1024 * 1024
-	maxUserImageCount     = 4
+	maxUserPDFSizeBytes   = 20 * 1024 * 1024
+	maxUserFileCount      = 4
+	pdfMimeType           = "application/pdf"
 )
 
-var allowedUserImageMimeTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
+var allowedUserUploadMimeTypes = map[string]bool{
+	"image/jpeg":      true,
+	"image/png":       true,
+	"image/gif":       true,
+	"image/webp":      true,
+	"application/pdf": true,
 }
 
 var imageMimeAliases = map[string]string{
@@ -63,8 +67,8 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	sessionID := req.SessionID
 	messageText := strings.TrimSpace(req.Message)
 
-	if len(req.Images) > maxUserImageCount {
-		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserImageCount)})
+	if len(req.Images) > maxUserFileCount {
+		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserFileCount)})
 		return
 	}
 
@@ -74,9 +78,9 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	for _, image := range req.Images {
-		imageBytes, mimeType, err := parseImageDataURI(image)
+		imageBytes, mimeType, err := parseDataURI(image)
 		if err != nil {
-			slog.Error("parseImageDataURI error", "err", err)
+			slog.Error("parseDataURI error", "err", err)
 			ctx.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
@@ -91,7 +95,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	message := genai.NewContentFromParts(parts, genai.RoleUser)
 	titleMessage := messageText
 	if titleMessage == "" && len(req.Images) > 0 {
-		titleMessage = fmt.Sprintf("用户发送了 %d 张图片", len(req.Images))
+		titleMessage = fmt.Sprintf("用户发送了 %d 个文件", len(req.Images))
 	}
 
 	// 检查或创建 session
@@ -120,29 +124,29 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
-func parseImageDataURI(dataURI string) ([]byte, string, error) {
+func parseDataURI(dataURI string) ([]byte, string, error) {
 	if dataURI == "" {
-		return nil, "", errors.New("empty image data")
+		return nil, "", errors.New("empty file data")
 	}
 	if !strings.HasPrefix(dataURI, "data:") {
-		return nil, "", errors.New("invalid image data URI")
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	parts := strings.SplitN(dataURI, ",", 2)
 	if len(parts) != 2 {
-		return nil, "", errors.New("invalid image data URI")
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	header := strings.TrimPrefix(parts[0], "data:")
 	payload := parts[1]
 	if header == "" || payload == "" {
-		return nil, "", errors.New("invalid image data URI")
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	headerParts := strings.Split(header, ";")
 	mimeType := strings.TrimSpace(headerParts[0])
 	if mimeType == "" {
-		return nil, "", errors.New("missing image MIME type")
+		return nil, "", errors.New("missing file MIME type")
 	}
 	if alias, ok := imageMimeAliases[mimeType]; ok {
 		mimeType = alias
@@ -156,21 +160,28 @@ func parseImageDataURI(dataURI string) ([]byte, string, error) {
 		}
 	}
 	if !isBase64 {
-		return nil, "", errors.New("image data must be base64 encoded")
+		return nil, "", errors.New("file data must be base64 encoded")
 	}
-	if !allowedUserImageMimeTypes[mimeType] {
-		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
+	if !allowedUserUploadMimeTypes[mimeType] {
+		return nil, "", fmt.Errorf("unsupported file type: %s", mimeType)
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
+		return nil, "", fmt.Errorf("invalid base64 data: %w", err)
 	}
 	if len(decoded) == 0 {
-		return nil, "", errors.New("empty image data")
+		return nil, "", errors.New("empty file data")
 	}
-	if len(decoded) > maxUserImageSizeBytes {
-		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
+	maxSize := maxUserImageSizeBytes
+	if mimeType == pdfMimeType {
+		if !bytes.HasPrefix(decoded, []byte("%PDF-")) {
+			return nil, "", errors.New("invalid PDF data")
+		}
+		maxSize = maxUserPDFSizeBytes
+	}
+	if len(decoded) > maxSize {
+		return nil, "", fmt.Errorf("file size exceeds %d bytes", maxSize)
 	}
 
 	return decoded, mimeType, nil
