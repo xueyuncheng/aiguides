@@ -10,7 +10,7 @@ import (
 
 func (a *Assistant) createRunner() (*runner.Runner, error) {
 	// 创建信息检索和事实核查的 Agent
-	assistantAgent, err := NewAssistantAgent(a.model, a.genaiClient, a.mockImageGeneration, a.webSearchConfig)
+	assistantAgent, err := NewAssistantAgent(a.model, a.genaiClient, a.db, a.mockImageGeneration, a.webSearchConfig)
 	if err != nil {
 		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}

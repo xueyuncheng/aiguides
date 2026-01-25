@@ -45,11 +45,23 @@ type EmailServerConfig struct {
 	IsDefault bool   `gorm:"default:false"` // 是否为默认邮箱
 }
 
+// UserMemory 用户记忆，用于跨会话记住用户特征
+type UserMemory struct {
+	Model
+
+	UserID     int    `gorm:"not null;index"`             // 关联的用户 ID
+	MemoryType string `gorm:"not null;index"`             // 记忆类型：fact(事实), preference(偏好), context(上下文)
+	Content    string `gorm:"not null;type:text"`         // 记忆内容
+	Importance int    `gorm:"default:5"`                  // 重要性（1-10），用于后续优先级排序
+	Metadata   string `gorm:"type:text"`                  // 额外的元数据（JSON格式）
+}
+
 // GetAllModels 获取所有已注册的数据库模型
 func GetAllModels() []any {
 	return []any{
 		&User{},
 		&SessionMeta{},
 		&EmailServerConfig{},
+		&UserMemory{},
 	}
 }

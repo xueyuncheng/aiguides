@@ -11,12 +11,13 @@ import (
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 	"google.golang.org/genai"
+	"gorm.io/gorm"
 )
 
 //go:embed assistant_agent_prompt.md
 var assistantAgentInstruction string
 
-func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGeneration bool, webSearchConfig tools.WebSearchConfig) (agent.Agent, error) {
+func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, db *gorm.DB, mockImageGeneration bool, webSearchConfig tools.WebSearchConfig) (agent.Agent, error) {
 	// 创建图片生成工具
 	imageGenTool, err := tools.NewImageGenTool(genaiClient, mockImageGeneration)
 	if err != nil {
@@ -45,6 +46,13 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 		return nil, fmt.Errorf("tools.NewWebFetchTool() error, err = %w", err)
 	}
 
+	// 创建记忆管理工具
+	memoryTool, err := tools.NewMemoryTool(db)
+	if err != nil {
+		slog.Error("tools.NewMemoryTool() error", "err", err)
+		return nil, fmt.Errorf("tools.NewMemoryTool() error, err = %w", err)
+	}
+
 	searchAgentConfig := llmagent.Config{
 		Name:        "root_agent",
 		Model:       model,
@@ -60,6 +68,7 @@ func NewAssistantAgent(model model.LLM, genaiClient *genai.Client, mockImageGene
 			emailQueryTool,
 			webSearchTool,
 			webFetchTool,
+			memoryTool,
 		},
 	}
 	agent, err := llmagent.New(searchAgentConfig)
