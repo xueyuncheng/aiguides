@@ -68,6 +68,7 @@ func NewWebFetchTool() (tool.Tool, error) {
 func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput, error) {
 	// 1. 参数验证
 	if input.URL == "" {
+		slog.Error("URL 不能为空")
 		return &WebFetchOutput{
 			Success: false,
 			Error:   "URL 不能为空",
@@ -91,6 +92,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	req, err := http.NewRequestWithContext(ctx, "GET", input.URL, nil)
 	if err != nil {
+		slog.Error("http.NewRequestWithContext() error", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -101,6 +103,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("http.DefaultClient.Do() error", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -111,6 +114,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	// 4. 检查状态码
 	if resp.StatusCode != http.StatusOK {
+		slog.Error("HTTP status code error", "status", resp.StatusCode, "url", input.URL)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -121,6 +125,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 	// 5. 使用 go-readability v2 解析
 	article, err := readability.FromReader(resp.Body, parsedURL)
 	if err != nil {
+		slog.Error("readability.FromReader() error", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -130,6 +135,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	// 6. 检查是否有有效内容
 	if article.Node == nil {
+		slog.Error("网页内容为空或无法提取可读内容", "url", input.URL)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,

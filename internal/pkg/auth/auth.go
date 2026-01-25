@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -91,6 +92,7 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 	client := s.oauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
+		slog.Error("client.Get() error", "err", err)
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 	defer resp.Body.Close()
@@ -103,6 +105,7 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 
 	var user GoogleUser
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		slog.Error("json.NewDecoder().Decode() error", "err", err)
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
@@ -194,7 +197,7 @@ func (s *AuthService) ValidateRefreshToken(tokenString string) (*Claims, error) 
 // ValidateToken 验证 JWT token（通用方法）
 func (s *AuthService) ValidateToken(tokenString string, expectedType string) (*Claims, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
@@ -221,6 +224,7 @@ func (s *AuthService) ValidateToken(tokenString string, expectedType string) (*C
 func GenerateStateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
+		slog.Error("rand.Read() error", "err", err)
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil

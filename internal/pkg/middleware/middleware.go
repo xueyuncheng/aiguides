@@ -38,10 +38,10 @@ func Auth(db *gorm.DB, authService *auth.AuthService) gin.HandlerFunc {
 		}
 
 		// 将用户信息存储到上下文中
-		c.Set("user_id", claims.UserID)              // Internal database user ID
-		c.Set("google_user_id", claims.GoogleUserID) // Google user ID
-		c.Set("google_user_email", claims.Email)     // Google email
-		c.Set("user_name", claims.Name)              // User name
+		c.Set(constant.ContextKeyUserID, claims.UserID)             // Internal database user ID
+		c.Set(constant.ContextKeyGoogleUserID, claims.GoogleUserID) // Google user ID
+		c.Set(constant.ContextKeyGoogleUserEmail, claims.Email)     // Google email
+		c.Set(constant.ContextKeyUserName, claims.Name)             // User name
 
 		c.Set(constant.ContextKeyTx, db)
 

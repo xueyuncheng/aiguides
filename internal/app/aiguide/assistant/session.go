@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -52,7 +53,8 @@ type MessageEvent struct {
 	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
 	Thought   string    `json:"thought,omitempty"`
-	Images    []string  `json:"images,omitempty"` // Base64编码的图片数据列表
+	Images    []string  `json:"images,omitempty"`  // Base64编码的图片或PDF数据列表
+	FileNames []string  `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -73,12 +75,14 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 	userIDStr := ctx.Query("user_id")
 
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
 	}
 
 	userIDInt, err := strconv.Atoi(userIDStr)
 	if err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
@@ -214,12 +218,14 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 func parseUserID(ctx *gin.Context) (string, int, bool) {
 	userIDStr := ctx.Query("user_id")
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return "", 0, false
 	}
 
 	userIDInt, err := strconv.Atoi(userIDStr)
 	if err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return "", 0, false
 	}
@@ -260,12 +266,28 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		content := ""
 		thought := ""
 		var images []string
+		var fileNames []string
 		hasFunctionResponse := false
+
 		for _, part := range event.Content.Parts {
 			if part.Thought {
 				thought += part.Text
 			} else if part.Text != "" {
-				content += part.Text
+				// 解析文件名元数据
+				text := part.Text
+				if strings.HasPrefix(text, "<!-- FILE_NAMES:") {
+					// 提取文件名 JSON
+					endIdx := strings.Index(text, "-->")
+					if endIdx > 0 {
+						metaStr := text[len("<!-- FILE_NAMES:"):endIdx]
+						metaStr = strings.TrimSpace(metaStr)
+						if err := json.Unmarshal([]byte(metaStr), &fileNames); err == nil {
+							// 移除元数据，只保留实际消息内容
+							text = strings.TrimPrefix(text[endIdx+3:], "\n")
+						}
+					}
+				}
+				content += text
 			}
 
 			if part.InlineData != nil && len(part.InlineData.Data) > 0 {
@@ -273,7 +295,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				if mimeType == "" {
 					mimeType = defaultImageMimeType
 				}
-				if strings.HasPrefix(mimeType, "image/") {
+				if strings.HasPrefix(mimeType, "image/") || mimeType == pdfMimeType {
 					base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
 					imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
 					images = append(images, imageDataURI)
@@ -305,6 +327,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				Content:   content,
 				Thought:   thought,
 				Images:    images,
+				FileNames: fileNames,
 			})
 		}
 	}
@@ -368,11 +391,13 @@ func (a *Assistant) DeleteSession(ctx *gin.Context) {
 	userIDStr := ctx.Query("user_id")
 
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
 	}
 
 	if _, err := strconv.Atoi(userIDStr); err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
