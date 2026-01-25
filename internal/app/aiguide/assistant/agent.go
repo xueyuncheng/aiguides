@@ -57,7 +57,7 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create executor agent: %w", err)
 	}
 
-	// Root Agent 只有查询工具，用于查看任务状态
+	// Root Agent 的工具：任务查询 + 记忆管理
 	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task_list tool: %w", err)
@@ -66,6 +66,12 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 	taskGetTool, err := tools.NewTaskGetTool(config.DB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task_get tool: %w", err)
+	}
+
+	// 创建记忆管理工具
+	memoryTool, err := tools.NewMemoryTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("tools.NewMemoryTool() error, err = %w", err)
 	}
 
 	// 创建 Root Agent 配置
@@ -79,10 +85,11 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 				IncludeThoughts: true,
 			},
 		},
-		// Root Agent 的工具：只有任务查询
+		// Root Agent 的工具：任务查询 + 记忆管理
 		Tools: []tool.Tool{
 			taskListTool,
 			taskGetTool,
+			memoryTool,
 		},
 		// 关键：注册 SubAgents
 		SubAgents: []agent.Agent{

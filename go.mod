@@ -3,6 +3,7 @@ module aiguide
 go 1.25.5
 
 require (
+	codeberg.org/readeck/go-readability/v2 v2.1.0
 	github.com/emersion/go-imap/v2 v2.0.0-beta.7
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -10,11 +11,11 @@ require (
 	google.golang.org/adk v0.3.0
 	google.golang.org/genai v1.40.0
 	gopkg.in/yaml.v3 v3.0.1
+	gorm.io/driver/sqlite v1.6.0
 	gorm.io/gorm v1.31.0
 )
 
 require (
-	codeberg.org/readeck/go-readability/v2 v2.1.0 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -25,6 +26,7 @@ require (
 	github.com/gogs/chardet v0.0.0-20211120154057-b7413eaefb8f // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
