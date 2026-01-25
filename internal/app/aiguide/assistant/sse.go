@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
 	"aiguide/internal/pkg/tools"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -29,19 +30,23 @@ type ChatRequest struct {
 	SessionID string   `json:"session_id"`
 	Message   string   `json:"message"`
 	Images    []string `json:"images,omitempty"`
+	FileNames []string `json:"file_names,omitempty"` // 文件名列表，与 Images 数组对应
 }
 
 const (
 	// Limits align with frontend validation to prevent oversized uploads.
 	maxUserImageSizeBytes = 5 * 1024 * 1024
-	maxUserImageCount     = 4
+	maxUserPDFSizeBytes   = 20 * 1024 * 1024
+	maxUserFileCount      = 4
+	pdfMimeType           = "application/pdf"
 )
 
-var allowedUserImageMimeTypes = map[string]bool{
-	"image/jpeg": true,
-	"image/png":  true,
-	"image/gif":  true,
-	"image/webp": true,
+var allowedUserUploadMimeTypes = map[string]bool{
+	"image/jpeg":      true,
+	"image/png":       true,
+	"image/gif":       true,
+	"image/webp":      true,
+	"application/pdf": true,
 }
 
 var imageMimeAliases = map[string]string{
@@ -63,21 +68,29 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	sessionID := req.SessionID
 	messageText := strings.TrimSpace(req.Message)
 
-	if len(req.Images) > maxUserImageCount {
-		slog.Error("too many images", "count", len(req.Images), "max", maxUserImageCount)
-		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserImageCount)})
+	if len(req.Images) > maxUserFileCount {
+		slog.Error("too many images", "count", len(req.Images), "max", maxUserFileCount)
+		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserFileCount)})
 		return
 	}
 
 	parts := make([]*genai.Part, 0, 1+len(req.Images))
-	if messageText != "" {
-		parts = append(parts, genai.NewPartFromText(messageText))
+
+	// 如果有文件名，添加到消息文本前面作为元数据
+	actualMessageText := messageText
+	if len(req.FileNames) > 0 && len(req.FileNames) == len(req.Images) {
+		fileNamesJSON, _ := json.Marshal(req.FileNames)
+		actualMessageText = fmt.Sprintf("<!-- FILE_NAMES: %s -->\n%s", fileNamesJSON, messageText)
+	}
+
+	if actualMessageText != "" {
+		parts = append(parts, genai.NewPartFromText(actualMessageText))
 	}
 
 	for _, image := range req.Images {
-		imageBytes, mimeType, err := parseImageDataURI(image)
+		imageBytes, mimeType, err := parseDataURI(image)
 		if err != nil {
-			slog.Error("parseImageDataURI error", "err", err)
+			slog.Error("parseDataURI error", "err", err)
 			ctx.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
@@ -93,7 +106,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	message := genai.NewContentFromParts(parts, genai.RoleUser)
 	titleMessage := messageText
 	if titleMessage == "" && len(req.Images) > 0 {
-		titleMessage = fmt.Sprintf("用户发送了 %d 张图片", len(req.Images))
+		titleMessage = fmt.Sprintf("用户发送了 %d 个文件", len(req.Images))
 	}
 
 	// 检查或创建 session
@@ -124,34 +137,34 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
-func parseImageDataURI(dataURI string) ([]byte, string, error) {
+func parseDataURI(dataURI string) ([]byte, string, error) {
 	if dataURI == "" {
-		slog.Error("empty image data")
-		return nil, "", errors.New("empty image data")
+		slog.Error("empty file data")
+		return nil, "", errors.New("empty file data")
 	}
 	if !strings.HasPrefix(dataURI, "data:") {
-		slog.Error("invalid image data URI", "prefix", "missing data:")
-		return nil, "", errors.New("invalid image data URI")
+		slog.Error("invalid data URI", "prefix", "missing data:")
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	parts := strings.SplitN(dataURI, ",", 2)
 	if len(parts) != 2 {
-		slog.Error("invalid image data URI", "parts_count", len(parts))
-		return nil, "", errors.New("invalid image data URI")
+		slog.Error("invalid data URI", "parts_count", len(parts))
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	header := strings.TrimPrefix(parts[0], "data:")
 	payload := parts[1]
 	if header == "" || payload == "" {
-		slog.Error("invalid image data URI", "header_empty", header == "", "payload_empty", payload == "")
-		return nil, "", errors.New("invalid image data URI")
+		slog.Error("invalid data URI", "header_empty", header == "", "payload_empty", payload == "")
+		return nil, "", errors.New("invalid data URI")
 	}
 
 	headerParts := strings.Split(header, ";")
 	mimeType := strings.TrimSpace(headerParts[0])
 	if mimeType == "" {
-		slog.Error("missing image MIME type")
-		return nil, "", errors.New("missing image MIME type")
+		slog.Error("missing file MIME type")
+		return nil, "", errors.New("missing file MIME type")
 	}
 	if alias, ok := imageMimeAliases[mimeType]; ok {
 		mimeType = alias
@@ -165,26 +178,34 @@ func parseImageDataURI(dataURI string) ([]byte, string, error) {
 		}
 	}
 	if !isBase64 {
-		slog.Error("image data must be base64 encoded")
-		return nil, "", errors.New("image data must be base64 encoded")
+		slog.Error("file data must be base64 encoded")
+		return nil, "", errors.New("file data must be base64 encoded")
 	}
-	if !allowedUserImageMimeTypes[mimeType] {
-		slog.Error("unsupported image type", "mime_type", mimeType)
-		return nil, "", fmt.Errorf("unsupported image type: %s", mimeType)
+	if !allowedUserUploadMimeTypes[mimeType] {
+		slog.Error("unsupported file type", "mime_type", mimeType)
+		return nil, "", fmt.Errorf("unsupported file type: %s", mimeType)
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
 		slog.Error("base64.StdEncoding.DecodeString() error", "err", err)
-		return nil, "", fmt.Errorf("invalid base64 image data: %w", err)
+		return nil, "", fmt.Errorf("invalid base64 data: %w", err)
 	}
 	if len(decoded) == 0 {
-		slog.Error("empty image data after decoding")
-		return nil, "", errors.New("empty image data")
+		slog.Error("empty file data after decoding")
+		return nil, "", errors.New("empty file data")
 	}
-	if len(decoded) > maxUserImageSizeBytes {
-		slog.Error("image size exceeds limit", "size", len(decoded), "max", maxUserImageSizeBytes)
-		return nil, "", fmt.Errorf("image size exceeds %d bytes", maxUserImageSizeBytes)
+	maxSize := maxUserImageSizeBytes
+	if mimeType == pdfMimeType {
+		if !bytes.HasPrefix(decoded, []byte("%PDF-")) {
+			slog.Error("invalid PDF data")
+			return nil, "", errors.New("invalid PDF data")
+		}
+		maxSize = maxUserPDFSizeBytes
+	}
+	if len(decoded) > maxSize {
+		slog.Error("file size exceeds limit", "size", len(decoded), "max", maxSize)
+		return nil, "", fmt.Errorf("file size exceeds %d bytes", maxSize)
 	}
 
 	return decoded, mimeType, nil
