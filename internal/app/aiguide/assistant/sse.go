@@ -30,6 +30,7 @@ type ChatRequest struct {
 	SessionID string   `json:"session_id"`
 	Message   string   `json:"message"`
 	Images    []string `json:"images,omitempty"`
+	FileNames []string `json:"file_names,omitempty"` // 文件名列表，与 Images 数组对应
 }
 
 const (
@@ -74,8 +75,16 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	parts := make([]*genai.Part, 0, 1+len(req.Images))
-	if messageText != "" {
-		parts = append(parts, genai.NewPartFromText(messageText))
+
+	// 如果有文件名，添加到消息文本前面作为元数据
+	actualMessageText := messageText
+	if len(req.FileNames) > 0 && len(req.FileNames) == len(req.Images) {
+		fileNamesJSON, _ := json.Marshal(req.FileNames)
+		actualMessageText = fmt.Sprintf("<!-- FILE_NAMES: %s -->\n%s", fileNamesJSON, messageText)
+	}
+
+	if actualMessageText != "" {
+		parts = append(parts, genai.NewPartFromText(actualMessageText))
 	}
 
 	for _, image := range req.Images {
