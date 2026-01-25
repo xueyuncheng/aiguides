@@ -115,12 +115,6 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	// 检查是否是该会话的第一条消息，如果是则注入用户记忆
-	if err := a.injectMemoryIfFirstMessage(ctx, req.UserID, userID, sessionID); err != nil {
-		slog.Error("a.injectMemoryIfFirstMessage failed", "err", err)
-		// 不阻断流程，只记录错误
-	}
-
 	// 异步生成标题
 	go func() {
 		// 创建一个新的 context，因为 request context 会被取消
@@ -451,64 +445,6 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 		slog.Error("db.Save() error", "err", err)
 		return fmt.Errorf("db.Save() error, err = %w", err)
 	}
-
-	return nil
-}
-
-// injectMemoryIfFirstMessage 如果是会话的第一条消息，注入用户记忆
-func (a *Assistant) injectMemoryIfFirstMessage(ctx context.Context, userIDInt int, userIDStr, sessionID string) error {
-	// 获取会话信息
-	getReq := &session.GetRequest{
-		AppName:   constant.AppNameAssistant.String(),
-		UserID:    userIDStr,
-		SessionID: sessionID,
-	}
-
-	getResp, err := a.session.Get(ctx, getReq)
-	if err != nil {
-		return fmt.Errorf("session.Get() error, err = %w", err)
-	}
-
-	sess := getResp.Session
-	events := sess.Events()
-
-	// 统计消息数量
-	messageCount := 0
-	for event := range events.All() {
-		if event.Content != nil {
-			messageCount++
-		}
-	}
-
-	// 如果已经有消息了，说明不是第一条，不需要注入记忆
-	if messageCount > 0 {
-		return nil
-	}
-
-	// 获取用户记忆并注入
-	memoryContext, err := tools.GetUserMemoriesAsContext(a.db, userIDInt)
-	if err != nil {
-		return fmt.Errorf("GetUserMemoriesAsContext() error, err = %w", err)
-	}
-
-	// 如果没有记忆，直接返回
-	if memoryContext == "" {
-		return nil
-	}
-
-	// 将记忆作为系统消息注入到会话中
-	// 构建一个特殊的系统消息来传递记忆信息
-	memoryMessage := genai.NewContentFromText(memoryContext, genai.RoleUser)
-
-	// 使用 runner 发送一个内部消息来注入记忆
-	// 注意：这里我们不直接修改 session，而是通过一个特殊的方式让 agent 知道用户记忆
-	// 由于 ADK 的限制，我们暂时不在这里注入，而是让 agent 在需要时主动调用 retrieve 操作
-
-	slog.Debug("User memories available", "user_id", userIDInt, "session_id", sessionID, "memory_length", len(memoryContext))
-
-	// 实际上，最好的做法是让 agent 在每次对话开始时自动调用 manage_memory 的 retrieve 操作
-	// 这样可以确保 agent 始终能获取到最新的用户记忆
-	_ = memoryMessage // 暂时不使用
 
 	return nil
 }

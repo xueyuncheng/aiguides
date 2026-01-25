@@ -65,3 +65,50 @@ func (p TaskPriority) String() string {
 		return "unknown"
 	}
 }
+
+// MemoryType 记忆类型
+type MemoryType string
+
+const (
+	MemoryTypeFact       MemoryType = "fact"       // 事实
+	MemoryTypePreference MemoryType = "preference" // 偏好
+	MemoryTypeContext    MemoryType = "context"    // 上下文
+)
+
+// Valid 检查记忆类型是否有效
+func (m MemoryType) Valid() bool {
+	switch m {
+	case MemoryTypeFact, MemoryTypePreference, MemoryTypeContext:
+		return true
+	}
+	return false
+}
+
+// String 返回记忆类型的字符串表示
+func (m MemoryType) String() string {
+	return string(m)
+}
+
+// MemoryAction 记忆操作类型
+type MemoryAction string
+
+const (
+	MemoryActionSave     MemoryAction = "save"     // 保存
+	MemoryActionRetrieve MemoryAction = "retrieve" // 检索
+	MemoryActionUpdate   MemoryAction = "update"   // 更新
+	MemoryActionDelete   MemoryAction = "delete"   // 删除
+)
+
+// Valid 检查记忆操作是否有效
+func (a MemoryAction) Valid() bool {
+	switch a {
+	case MemoryActionSave, MemoryActionRetrieve, MemoryActionUpdate, MemoryActionDelete:
+		return true
+	}
+	return false
+}
+
+// String 返回记忆操作的字符串表示
+func (a MemoryAction) String() string {
+	return string(a)
+}

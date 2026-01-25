@@ -2,6 +2,7 @@ package tools
 
 import (
 	"aiguide/internal/app/aiguide/table"
+	"aiguide/internal/pkg/constant"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -13,12 +14,12 @@ import (
 
 // MemoryInput 定义记忆工具的输入参数
 type MemoryInput struct {
-	Action     string `json:"action" jsonschema:"操作类型：save(保存), retrieve(检索), update(更新), delete(删除)"`
-	MemoryType string `json:"memory_type,omitempty" jsonschema:"记忆类型：fact(事实), preference(偏好), context(上下文)"`
-	Content    string `json:"content,omitempty" jsonschema:"记忆内容"`
-	MemoryID   int    `json:"memory_id,omitempty" jsonschema:"记忆ID"`
-	Importance int    `json:"importance,omitempty" jsonschema:"重要性（1-10），默认为5"`
-	UserID     int    `json:"user_id" jsonschema:"用户ID"`
+	Action     constant.MemoryAction `json:"action" jsonschema:"操作类型：save(保存), retrieve(检索), update(更新), delete(删除)"`
+	MemoryType constant.MemoryType   `json:"memory_type,omitempty" jsonschema:"记忆类型：fact(事实), preference(偏好), context(上下文)"`
+	Content    string                `json:"content,omitempty" jsonschema:"记忆内容"`
+	MemoryID   int                   `json:"memory_id,omitempty" jsonschema:"记忆ID"`
+	Importance int                   `json:"importance,omitempty" jsonschema:"重要性（1-10），默认为5"`
+	UserID     int                   `json:"user_id" jsonschema:"用户ID"`
 }
 
 // MemoryOutput 定义记忆工具的输出结果
@@ -32,12 +33,12 @@ type MemoryOutput struct {
 
 // MemoryItem 记忆项
 type MemoryItem struct {
-	ID         int    `json:"id"`
-	MemoryType string `json:"memory_type"`
-	Content    string `json:"content"`
-	Importance int    `json:"importance"`
-	CreatedAt  string `json:"created_at"`
-	UpdatedAt  string `json:"updated_at"`
+	ID         int                 `json:"id"`
+	MemoryType constant.MemoryType `json:"memory_type"`
+	Content    string              `json:"content"`
+	Importance int                 `json:"importance"`
+	CreatedAt  string              `json:"created_at"`
+	UpdatedAt  string              `json:"updated_at"`
 }
 
 // memoryHandler 实现记忆工具的核心逻辑
@@ -48,6 +49,7 @@ type memoryHandler struct {
 // NewMemoryTool 创建新的记忆工具实例
 func NewMemoryTool(db *gorm.DB) (tool.Tool, error) {
 	if db == nil {
+		slog.Error("db is nil")
 		return nil, fmt.Errorf("database connection is required")
 	}
 
@@ -67,9 +69,10 @@ func NewMemoryTool(db *gorm.DB) (tool.Tool, error) {
 
 // handleMemory 处理记忆操作请求
 func (h *memoryHandler) handleMemory(input *MemoryInput) (*MemoryOutput, error) {
-	slog.Debug("Memory tool called", "action", input.Action, "user_id", input.UserID)
+	slog.Info("Memory tool called", "action", input.Action, "user_id", input.UserID)
 
 	if input.UserID == 0 {
+		slog.Error("user_id is emptry")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "user_id is required",
@@ -77,15 +80,16 @@ func (h *memoryHandler) handleMemory(input *MemoryInput) (*MemoryOutput, error) 
 	}
 
 	switch input.Action {
-	case "save":
+	case constant.MemoryActionSave:
 		return h.saveMemory(input)
-	case "retrieve":
+	case constant.MemoryActionRetrieve:
 		return h.retrieveMemories(input)
-	case "update":
+	case constant.MemoryActionUpdate:
 		return h.updateMemory(input)
-	case "delete":
+	case constant.MemoryActionDelete:
 		return h.deleteMemory(input)
 	default:
+		slog.Error("unsupported action", "action", input.Action)
 		return &MemoryOutput{
 			Success: false,
 			Error:   fmt.Sprintf("unknown action: %s. Valid actions: save, retrieve, update, delete", input.Action),
@@ -96,6 +100,7 @@ func (h *memoryHandler) handleMemory(input *MemoryInput) (*MemoryOutput, error) 
 // saveMemory 保存新的记忆
 func (h *memoryHandler) saveMemory(input *MemoryInput) (*MemoryOutput, error) {
 	if input.Content == "" {
+		slog.Error("content is empty")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "content is required for save action",
@@ -103,12 +108,12 @@ func (h *memoryHandler) saveMemory(input *MemoryInput) (*MemoryOutput, error) {
 	}
 
 	if input.MemoryType == "" {
-		input.MemoryType = "fact" // 默认类型
+		input.MemoryType = constant.MemoryTypeFact // 默认类型
 	}
 
 	// 验证记忆类型
-	validTypes := map[string]bool{"fact": true, "preference": true, "context": true}
-	if !validTypes[input.MemoryType] {
+	if !input.MemoryType.Valid() {
+		slog.Error("memory type is not valid")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "invalid memory_type. Valid types: fact, preference, context",
@@ -200,6 +205,7 @@ func (h *memoryHandler) retrieveMemories(input *MemoryInput) (*MemoryOutput, err
 // updateMemory 更新现有记忆
 func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) {
 	if input.MemoryID == 0 {
+		slog.Error("memory_id is empty")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "memory_id is required for update action",
@@ -207,6 +213,7 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 	}
 
 	if input.Content == "" {
+		slog.Error("content is empty")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "content is required for update action",
@@ -216,11 +223,13 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 	var memory table.UserMemory
 	if err := h.db.Where("id = ? AND user_id = ?", input.MemoryID, input.UserID).First(&memory).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
+			slog.Error("memory is not found", "memory_id", input.MemoryID)
 			return &MemoryOutput{
 				Success: false,
 				Error:   fmt.Sprintf("memory with ID %d not found", input.MemoryID),
 			}, nil
 		}
+
 		slog.Error("Failed to find memory", "err", err)
 		return &MemoryOutput{
 			Success: false,
@@ -230,11 +239,8 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 
 	// 更新字段
 	memory.Content = input.Content
-	if input.MemoryType != "" {
-		validTypes := map[string]bool{"fact": true, "preference": true, "context": true}
-		if validTypes[input.MemoryType] {
-			memory.MemoryType = input.MemoryType
-		}
+	if input.MemoryType != "" && input.MemoryType.Valid() {
+		memory.MemoryType = input.MemoryType
 	}
 	if input.Importance > 0 && input.Importance <= 10 {
 		memory.Importance = input.Importance
@@ -267,6 +273,7 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 // deleteMemory 删除记忆
 func (h *memoryHandler) deleteMemory(input *MemoryInput) (*MemoryOutput, error) {
 	if input.MemoryID == 0 {
+		slog.Error("memory_id is required")
 		return &MemoryOutput{
 			Success: false,
 			Error:   "memory_id is required for delete action",
@@ -283,6 +290,7 @@ func (h *memoryHandler) deleteMemory(input *MemoryInput) (*MemoryOutput, error) 
 	}
 
 	if result.RowsAffected == 0 {
+		slog.Error("memory is not found", "memory_id", input.MemoryID)
 		return &MemoryOutput{
 			Success: false,
 			Error:   fmt.Sprintf("memory with ID %d not found", input.MemoryID),
@@ -295,72 +303,13 @@ func (h *memoryHandler) deleteMemory(input *MemoryInput) (*MemoryOutput, error) 
 	}, nil
 }
 
-// GetUserMemoriesAsContext 获取用户记忆并格式化为上下文文本
-// 这个函数用于在聊天开始时将记忆注入到上下文中
-func GetUserMemoriesAsContext(db *gorm.DB, userID int) (string, error) {
-	var memories []table.UserMemory
-	if err := db.Where("user_id = ?", userID).
-		Order("importance DESC, updated_at DESC").
-		Limit(20). // 限制数量以避免上下文过长
-		Find(&memories).Error; err != nil {
-		return "", err
-	}
-
-	if len(memories) == 0 {
-		return "", nil
-	}
-
-	// 按类型分组
-	factMemories := []string{}
-	prefMemories := []string{}
-	contextMemories := []string{}
-
-	for _, mem := range memories {
-		switch mem.MemoryType {
-		case "fact":
-			factMemories = append(factMemories, mem.Content)
-		case "preference":
-			prefMemories = append(prefMemories, mem.Content)
-		case "context":
-			contextMemories = append(contextMemories, mem.Content)
-		}
-	}
-
-	// 构建上下文文本
-	contextText := "## 用户记忆信息\n\n"
-
-	if len(factMemories) > 0 {
-		contextText += "**关于用户的事实：**\n"
-		for _, fact := range factMemories {
-			contextText += fmt.Sprintf("- %s\n", fact)
-		}
-		contextText += "\n"
-	}
-
-	if len(prefMemories) > 0 {
-		contextText += "**用户偏好：**\n"
-		for _, pref := range prefMemories {
-			contextText += fmt.Sprintf("- %s\n", pref)
-		}
-		contextText += "\n"
-	}
-
-	if len(contextMemories) > 0 {
-		contextText += "**相关上下文：**\n"
-		for _, ctx := range contextMemories {
-			contextText += fmt.Sprintf("- %s\n", ctx)
-		}
-		contextText += "\n"
-	}
-
-	return contextText, nil
-}
-
 // SerializeMemoryOutput 序列化记忆输出为 JSON 字符串（用于调试）
 func SerializeMemoryOutput(output *MemoryOutput) string {
 	data, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
+		slog.Error("json.MarshalIndent() error", "err", err)
 		return fmt.Sprintf("error serializing output: %v", err)
 	}
+
 	return string(data)
 }

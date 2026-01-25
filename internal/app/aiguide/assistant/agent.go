@@ -71,7 +71,6 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 	// 创建记忆管理工具
 	memoryTool, err := tools.NewMemoryTool(config.DB)
 	if err != nil {
-		slog.Error("tools.NewMemoryTool() error", "err", err)
 		return nil, fmt.Errorf("tools.NewMemoryTool() error, err = %w", err)
 	}
 
