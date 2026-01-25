@@ -167,8 +167,36 @@ Follow Effective Go (https://go.dev/doc/effective_go) and Google Go Style Guide 
 **Specific conventions:**
 - Use `log/slog` for structured logging: `slog.Error("message", "err", err)`
 - Place main/entry functions above helper functions they call
-- Error handling: `if err != nil { slog.Error(...); return fmt.Errorf("..."); }`
 - Tool handlers return `(*Output, error)` for ADK integration
+
+**Error Handling and Logging Rules:**
+- **At Error Source** (where error is first generated): MUST use `slog.Error()` to log with full context, then return wrapped error
+  - Applies to stdlib/3rd-party library calls that return errors
+  - Applies to business logic validation failures
+  - Applies to any place where an error is first created
+  ```go
+  // Example 1: stdlib call
+  resp, err := http.DefaultClient.Do(req)
+  if err != nil {
+      slog.Error("http.DefaultClient.Do() error", "url", url, "err", err)
+      return nil, fmt.Errorf("请求失败: %w", err)
+  }
+  
+  // Example 2: business validation
+  if parsedURL.Scheme != "https" {
+      slog.Error("invalid URL scheme", "url", urlStr, "scheme", parsedURL.Scheme)
+      return nil, "", fmt.Errorf("only HTTPS URLs are allowed, got: %s", parsedURL.Scheme)
+  }
+  ```
+- **At Error Propagation** (when passing errors up the call stack): DO NOT log, just wrap and return
+  ```go
+  result, err := someInternalFunction()
+  if err != nil {
+      return nil, fmt.Errorf("failed to process: %w", err)  // No slog.Error here
+  }
+  ```
+- **Key principle**: Log once at the source where the error originates, not multiple times as it propagates up
+- Exception: Database errors via GORM should always log at source since GORM errors don't carry full stack traces
 
 **Dependency Management:**
 - Add ADK sub-packages as needed: `go get google.golang.org/adk/...`

@@ -73,12 +73,14 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 	userIDStr := ctx.Query("user_id")
 
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
 	}
 
 	userIDInt, err := strconv.Atoi(userIDStr)
 	if err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}
@@ -214,12 +216,14 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 func parseUserID(ctx *gin.Context) (string, int, bool) {
 	userIDStr := ctx.Query("user_id")
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return "", 0, false
 	}
 
 	userIDInt, err := strconv.Atoi(userIDStr)
 	if err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return "", 0, false
 	}
@@ -368,11 +372,13 @@ func (a *Assistant) DeleteSession(ctx *gin.Context) {
 	userIDStr := ctx.Query("user_id")
 
 	if userIDStr == "" {
+		slog.Error("user_id is required")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
 		return
 	}
 
 	if _, err := strconv.Atoi(userIDStr); err != nil {
+		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
 		return
 	}

@@ -68,6 +68,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	messageText := strings.TrimSpace(req.Message)
 
 	if len(req.Images) > maxUserFileCount {
+		slog.Error("too many images", "count", len(req.Images), "max", maxUserFileCount)
 		ctx.JSON(400, gin.H{"error": fmt.Sprintf("too many images (max %d)", maxUserFileCount)})
 		return
 	}
@@ -88,6 +89,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	if len(parts) == 0 {
+		slog.Error("message or images required")
 		ctx.JSON(400, gin.H{"error": "message or images required"})
 		return
 	}
@@ -121,31 +123,38 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	// 设置 SSE 响应
 	a.setupSSEResponse(ctx)
 
+	ctx.Set(constant.ContextKeySessionID, sessionID)
+
 	a.streamAgentEvents(ctx, a.runner, userID, sessionID, message, runConfig)
 }
 
 func parseDataURI(dataURI string) ([]byte, string, error) {
 	if dataURI == "" {
+		slog.Error("empty file data")
 		return nil, "", errors.New("empty file data")
 	}
 	if !strings.HasPrefix(dataURI, "data:") {
+		slog.Error("invalid data URI", "prefix", "missing data:")
 		return nil, "", errors.New("invalid data URI")
 	}
 
 	parts := strings.SplitN(dataURI, ",", 2)
 	if len(parts) != 2 {
+		slog.Error("invalid data URI", "parts_count", len(parts))
 		return nil, "", errors.New("invalid data URI")
 	}
 
 	header := strings.TrimPrefix(parts[0], "data:")
 	payload := parts[1]
 	if header == "" || payload == "" {
+		slog.Error("invalid data URI", "header_empty", header == "", "payload_empty", payload == "")
 		return nil, "", errors.New("invalid data URI")
 	}
 
 	headerParts := strings.Split(header, ";")
 	mimeType := strings.TrimSpace(headerParts[0])
 	if mimeType == "" {
+		slog.Error("missing file MIME type")
 		return nil, "", errors.New("missing file MIME type")
 	}
 	if alias, ok := imageMimeAliases[mimeType]; ok {
@@ -160,27 +169,33 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 		}
 	}
 	if !isBase64 {
+		slog.Error("file data must be base64 encoded")
 		return nil, "", errors.New("file data must be base64 encoded")
 	}
 	if !allowedUserUploadMimeTypes[mimeType] {
+		slog.Error("unsupported file type", "mime_type", mimeType)
 		return nil, "", fmt.Errorf("unsupported file type: %s", mimeType)
 	}
 
 	decoded, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
+		slog.Error("base64.StdEncoding.DecodeString() error", "err", err)
 		return nil, "", fmt.Errorf("invalid base64 data: %w", err)
 	}
 	if len(decoded) == 0 {
+		slog.Error("empty file data after decoding")
 		return nil, "", errors.New("empty file data")
 	}
 	maxSize := maxUserImageSizeBytes
 	if mimeType == pdfMimeType {
 		if !bytes.HasPrefix(decoded, []byte("%PDF-")) {
+			slog.Error("invalid PDF data")
 			return nil, "", errors.New("invalid PDF data")
 		}
 		maxSize = maxUserPDFSizeBytes
 	}
 	if len(decoded) > maxSize {
+		slog.Error("file size exceeds limit", "size", len(decoded), "max", maxSize)
 		return nil, "", fmt.Errorf("file size exceeds %d bytes", maxSize)
 	}
 
@@ -407,6 +422,7 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	}
 
 	if generatedTitle == "" {
+		slog.Error("no content generated for title")
 		return errors.New("no content generated")
 	}
 

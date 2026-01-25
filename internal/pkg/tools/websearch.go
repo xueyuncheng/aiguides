@@ -95,6 +95,7 @@ func NewWebSearchTool(config WebSearchConfig) (tool.Tool, error) {
 func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearchConfig) (*WebSearchOutput, error) {
 	// 参数验证
 	if input.Query == "" {
+		slog.Error("搜索查询不能为空")
 		return &WebSearchOutput{
 			Success: false,
 			Error:   "搜索查询不能为空",
@@ -144,6 +145,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 创建 HTTP 请求
 	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
+		slog.Error("http.NewRequestWithContext() error", "url", fullURL, "err", err)
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 
@@ -153,6 +155,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 发送请求
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		slog.Error("http.DefaultClient.Do() error", "url", fullURL, "err", err)
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
 	defer resp.Body.Close()
@@ -160,17 +163,20 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
+		slog.Error("io.ReadAll() error", "err", err)
 		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
 	// 检查 HTTP 状态码
 	if resp.StatusCode != http.StatusOK {
+		slog.Error("HTTP status code error", "status", resp.StatusCode, "body", string(body))
 		return nil, fmt.Errorf("HTTP 错误: %d, body: %s", resp.StatusCode, string(body))
 	}
 
 	// 解析 JSON 响应
 	var searxResp SearXNGResponse
 	if err := json.Unmarshal(body, &searxResp); err != nil {
+		slog.Error("json.Unmarshal() error", "err", err)
 		return nil, fmt.Errorf("解析 JSON 失败: %w", err)
 	}
 
@@ -190,6 +196,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 
 	// 检查是否有结果
 	if len(results) == 0 {
+		slog.Error("未找到搜索结果", "query", query)
 		return &WebSearchOutput{
 			Success: false,
 			Query:   query,

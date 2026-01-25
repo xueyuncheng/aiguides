@@ -9,8 +9,16 @@ import (
 )
 
 func (a *Assistant) createRunner() (*runner.Runner, error) {
-	// 创建信息检索和事实核查的 Agent
-	assistantAgent, err := NewAssistantAgent(a.model, a.genaiClient, a.mockImageGeneration, a.webSearchConfig)
+	// 创建 Root Agent 及其 SubAgents
+	assistantConfig := &AssistantAgentConfig{
+		Model:             a.model,
+		GenaiClient:       a.genaiClient,
+		DB:                a.db,
+		MockImageGen:      a.mockImageGeneration,
+		MockEmailIMAPConn: false,
+		WebSearchConfig:   a.webSearchConfig,
+	}
+	assistantAgent, err := NewAssistantAgent(assistantConfig)
 	if err != nil {
 		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}
