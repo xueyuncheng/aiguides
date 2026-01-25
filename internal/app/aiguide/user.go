@@ -14,6 +14,7 @@ import (
 func (a *AIGuide) GetUser(c *gin.Context) {
 	userID, existed := middleware.GetUserID(c)
 	if !existed {
+		slog.Error("user not authenticated in GetUser")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}

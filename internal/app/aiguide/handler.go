@@ -31,6 +31,7 @@ func (a *AIGuide) RefreshToken(c *gin.Context) {
 			RefreshToken string `json:"refresh_token"`
 		}
 		if err := c.ShouldBindJSON(&req); err != nil || req.RefreshToken == "" {
+			slog.Error("refresh token required", "cookieErr", err, "hasRequestToken", req.RefreshToken != "")
 			c.JSON(http.StatusBadRequest, gin.H{"error": "refresh token required"})
 			return
 		}

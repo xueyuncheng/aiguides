@@ -244,6 +244,7 @@ func generateMockImages(numberOfImages int32, aspectRatio string) (*ImageGenOutp
 	}
 
 	if len(images) == 0 {
+		slog.Error("模拟图片生成失败")
 		return &ImageGenOutput{
 			Success: false,
 			Error:   "模拟图片生成失败",

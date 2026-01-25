@@ -46,6 +46,7 @@ func NewTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 		// 验证优先级
 		priority := constant.TaskPriority(input.Priority)
 		if !priority.Valid() {
+			slog.Error("invalid priority", "priority", input.Priority)
 			return nil, fmt.Errorf("invalid priority: %d (must be: %d=%s, %d=%s, %d=%s)",
 				input.Priority,
 				constant.TaskPriorityLow, constant.TaskPriorityLow.String(),
@@ -103,6 +104,7 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 			// 验证状态
 			status := constant.TaskStatus(input.Status)
 			if !status.Valid() {
+				slog.Error("invalid status", "status", input.Status)
 				return nil, fmt.Errorf("invalid status: %s (must be: %s, %s, %s, %s)",
 					input.Status,
 					constant.TaskStatusPending,
@@ -118,6 +120,7 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 		}
 
 		if len(updates) == 0 {
+			slog.Error("no updates provided", "task_id", input.TaskID)
 			return nil, fmt.Errorf("no updates provided")
 		}
 
@@ -128,6 +131,7 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 		}
 
 		if result.RowsAffected == 0 {
+			slog.Error("task not found", "task_id", input.TaskID)
 			return nil, fmt.Errorf("task not found: %d", input.TaskID)
 		}
 
@@ -202,6 +206,7 @@ func NewTaskGetTool(db *gorm.DB) (tool.Tool, error) {
 		var task table.Task
 		if err := db.Where("id = ?", input.TaskID).First(&task).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
+				slog.Error("task not found", "task_id", input.TaskID)
 				return nil, fmt.Errorf("task not found: %d", input.TaskID)
 			}
 			slog.Error("task_get failed", "err", err)

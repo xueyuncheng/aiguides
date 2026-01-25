@@ -5,6 +5,7 @@ package tools
 
 import (
 	"fmt"
+	"log/slog"
 	"time"
 
 	"google.golang.org/adk/tool"
@@ -55,6 +56,7 @@ This tool gives you the exact current datetime so you can make informed decision
 		if input.Timezone != "" {
 			loc, err := time.LoadLocation(input.Timezone)
 			if err != nil {
+				slog.Error("failed to load timezone", "timezone", input.Timezone, "err", err)
 				return nil, fmt.Errorf("invalid timezone '%s': %w", input.Timezone, err)
 			}
 			now = now.In(loc)

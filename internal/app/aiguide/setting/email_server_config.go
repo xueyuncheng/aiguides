@@ -98,6 +98,7 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
+		slog.Error("user not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
@@ -105,12 +106,14 @@ func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 	// 查找用户
 	var user table.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		slog.Error("db.First() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	var configs []table.EmailServerConfig
 	if err := s.db.Where("user_id = ?", user.ID).Order("is_default DESC, created_at DESC").Find(&configs).Error; err != nil {
+		slog.Error("db.Find() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "查询配置失败: " + err.Error()})
 		return
 	}
@@ -139,6 +142,7 @@ func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
+		slog.Error("user not authenticated")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
@@ -146,18 +150,21 @@ func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 	// 查找用户
 	var user table.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		slog.Error("db.First() error", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		slog.Error("strconv.Atoi() error", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return
 	}
 
 	var config table.EmailServerConfig
 	if err := s.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
+		slog.Error("db.First() error", "config_id", id, "user_id", user.ID, "err", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
 		return
 	}
@@ -181,12 +188,14 @@ func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 	var req EmailServerConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		slog.Error("c.ShouldBindJSON() error", "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "请求参数错误: " + err.Error()})
 		return
 	}
 
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
+		slog.Error("user not authenticated in UpdateEmailServerConfig")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
@@ -194,18 +203,21 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 	// 查找用户
 	var user table.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		slog.Error("s.db.Where().First() error in UpdateEmailServerConfig", "userID", userID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		slog.Error("strconv.Atoi() error in UpdateEmailServerConfig", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return
 	}
 
 	var config table.EmailServerConfig
 	if err := s.db.Where("id = ? AND user_id = ?", id, user.ID).First(&config).Error; err != nil {
+		slog.Error("s.db.Where().First() error in UpdateEmailServerConfig", "id", id, "userID", user.ID, "err", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
 		return
 	}
@@ -215,6 +227,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 		if err := s.db.Model(&table.EmailServerConfig{}).
 			Where("user_id = ? AND id != ?", user.ID, id).
 			Update("is_default", false).Error; err != nil {
+			slog.Error("s.db.Model().Where().Update() error in UpdateEmailServerConfig", "userID", user.ID, "id", id, "err", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "更新默认配置失败"})
 			return
 		}
@@ -237,6 +250,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 	config.IsDefault = req.IsDefault
 
 	if err := s.db.Save(&config).Error; err != nil {
+		slog.Error("s.db.Save() error in UpdateEmailServerConfig", "configID", config.ID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新配置失败: " + err.Error()})
 		return
 	}
@@ -260,6 +274,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
 	userID, exists := middleware.GetUserID(c)
 	if !exists {
+		slog.Error("user not authenticated in DeleteEmailServerConfig")
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
@@ -267,23 +282,27 @@ func (s *Setting) DeleteEmailServerConfig(c *gin.Context) {
 	// 查找用户
 	var user table.User
 	if err := s.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		slog.Error("s.db.Where().First() error in DeleteEmailServerConfig", "userID", userID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "用户不存在"})
 		return
 	}
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
+		slog.Error("strconv.Atoi() error in DeleteEmailServerConfig", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的ID"})
 		return
 	}
 
 	result := s.db.Where("id = ? AND user_id = ?", id, user.ID).Delete(&table.EmailServerConfig{})
 	if result.Error != nil {
+		slog.Error("s.db.Where().Delete() error", "id", id, "userID", user.ID, "err", result.Error)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "删除配置失败: " + result.Error.Error()})
 		return
 	}
 
 	if result.RowsAffected == 0 {
+		slog.Error("email server config not found for deletion", "id", id, "userID", user.ID)
 		c.JSON(http.StatusNotFound, gin.H{"error": "配置不存在"})
 		return
 	}
