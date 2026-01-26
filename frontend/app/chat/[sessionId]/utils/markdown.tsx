@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -9,7 +10,7 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
-export const markdownRemarkPlugins = [remarkGfm, remarkMath];
+export const markdownRemarkPlugins = [remarkGfm, remarkBreaks, remarkMath];
 export const markdownRehypePlugins = [rehypeKatex];
 
 // Table styles
