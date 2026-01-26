@@ -53,7 +53,7 @@ type MessageEvent struct {
 	Role      string    `json:"role"` // "user" or "assistant"
 	Content   string    `json:"content"`
 	Thought   string    `json:"thought,omitempty"`
-	Images    []string  `json:"images,omitempty"`  // Base64编码的图片或PDF数据列表
+	Images    []string  `json:"images,omitempty"`     // Base64编码的图片或PDF数据列表
 	FileNames []string  `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
 }
 
