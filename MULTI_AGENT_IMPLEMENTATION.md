@@ -16,6 +16,19 @@ Root Agent (orchestrator)
                    + task_list, task_get, task_update
 ```
 
+### User-Facing Communication Strategy
+
+**Important**: While the internal architecture uses multiple specialized agents, the user experience should be **unified and seamless**. The root agent is instructed to:
+
+- ✅ Never mention internal agent names ("Planner Agent", "Executor Agent") to users
+- ✅ Always use first-person singular ("I", "my") when communicating
+- ✅ Present capabilities as a unified AI assistant, not separate agents
+- ✅ Seamlessly coordinate between sub-agents without exposing delegation
+
+**Example**: Instead of saying "I will delegate to the Executor Agent to search...", the agent says "Let me search for the latest information..."
+
+This approach provides a more natural, less confusing experience while maintaining the technical benefits of the multi-agent architecture.
+
 ### Why SubAgents Instead of Tool Wrapping?
 
 **SubAgent Approach (Used)**:
