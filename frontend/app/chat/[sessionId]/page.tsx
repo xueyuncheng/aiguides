@@ -374,7 +374,8 @@ export default function ChatPage() {
   const sendMessage = async (content: string, images: SelectedImage[]) => {
     if (isLoading) return;
 
-    const trimmedContent = content.trim();
+    // Only trim leading and trailing newlines, preserving internal line breaks
+    const trimmedContent = content.replace(/^[\n\r]+|[\n\r]+$/g, '');
     const hasImages = images.length > 0;
     const isRetry = !trimmedContent && !hasImages;
     if (isRetry && messages.length === 0) return;

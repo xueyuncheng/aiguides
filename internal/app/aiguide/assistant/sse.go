@@ -66,7 +66,8 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 
 	userID := strconv.Itoa(req.UserID)
 	sessionID := req.SessionID
-	messageText := strings.TrimSpace(req.Message)
+	// Only trim leading and trailing newlines, preserving internal line breaks
+	messageText := strings.Trim(req.Message, "\n\r")
 
 	if len(req.Images) > maxUserFileCount {
 		slog.Error("too many images", "count", len(req.Images), "max", maxUserFileCount)

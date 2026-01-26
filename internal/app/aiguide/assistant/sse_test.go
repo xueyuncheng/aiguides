@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -68,5 +69,63 @@ func TestParseDataURIPDFInvalid(t *testing.T) {
 	_, _, err := parseDataURI(dataURI)
 	if err == nil {
 		t.Fatal("expected error for invalid pdf data")
+	}
+}
+
+func TestMessageTextTrimming(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "no newlines",
+			input:    "hello world",
+			expected: "hello world",
+		},
+		{
+			name:     "leading newlines only",
+			input:    "\n\nhello world",
+			expected: "hello world",
+		},
+		{
+			name:     "trailing newlines only",
+			input:    "hello world\n\n",
+			expected: "hello world",
+		},
+		{
+			name:     "both leading and trailing newlines",
+			input:    "\n\nhello world\n\n",
+			expected: "hello world",
+		},
+		{
+			name:     "internal newlines preserved",
+			input:    "hello\nworld",
+			expected: "hello\nworld",
+		},
+		{
+			name:     "multiple internal newlines preserved",
+			input:    "hello\n\nworld\ntest",
+			expected: "hello\n\nworld\ntest",
+		},
+		{
+			name:     "complex multiline with leading/trailing",
+			input:    "\n\nhello\nworld\ntest\n\n",
+			expected: "hello\nworld\ntest",
+		},
+		{
+			name:     "carriage return and newline",
+			input:    "\r\nhello\r\nworld\r\n",
+			expected: "hello\r\nworld",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := strings.Trim(tt.input, "\n\r")
+			if result != tt.expected {
+				t.Errorf("expected %q, got %q", tt.expected, result)
+			}
+		})
 	}
 }
