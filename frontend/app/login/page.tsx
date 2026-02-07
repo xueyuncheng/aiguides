@@ -22,7 +22,10 @@ function LoginForm() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-6 h-6 border-2 border-muted border-t-foreground rounded-full animate-spin"></div>
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-muted-foreground">加载中...</p>
+        </div>
       </div>
     );
   }
@@ -79,8 +82,11 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0d0d0d]">
-        <div className="w-10 h-10 border-2 border-gray-200 dark:border-gray-800 border-t-gray-600 dark:border-t-gray-400 rounded-full animate-spin"></div>
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-sm text-muted-foreground">加载中...</p>
+        </div>
       </div>
     }>
       <LoginForm />
