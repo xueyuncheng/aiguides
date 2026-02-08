@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -320,7 +321,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		}
 
 		if content != "" || thought != "" || len(images) > 0 {
-			allMessages = append(allMessages, MessageEvent{
+			message := MessageEvent{
 				ID:        event.ID,
 				Timestamp: event.Timestamp,
 				Role:      role,
@@ -328,11 +329,31 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				Thought:   thought,
 				Images:    images,
 				FileNames: fileNames,
-			})
+			}
+			if isDuplicateRetryUserMessage(allMessages, message) {
+				continue
+			}
+			allMessages = append(allMessages, message)
 		}
 	}
 
 	return allMessages
+}
+
+func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEvent) bool {
+	if current.Role != "user" || len(allMessages) == 0 {
+		return false
+	}
+
+	last := allMessages[len(allMessages)-1]
+	if last.Role != "user" {
+		return false
+	}
+
+	return last.Content == current.Content &&
+		last.Thought == current.Thought &&
+		slices.Equal(last.Images, current.Images) &&
+		slices.Equal(last.FileNames, current.FileNames)
 }
 
 func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageEvent, bool) {

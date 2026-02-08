@@ -378,7 +378,10 @@ export default function ChatPage() {
     const trimmedContent = content.replace(/^[\n\r]+|[\n\r]+$/g, '');
     const hasImages = images.length > 0;
     const isRetry = !trimmedContent && !hasImages;
-    if (isRetry && messages.length === 0) return;
+    const lastUserMessage = isRetry
+      ? [...messages].reverse().find((msg) => msg.role === 'user')
+      : undefined;
+    if (isRetry && !lastUserMessage) return;
 
     if (isRetry) {
       setMessages((prev) => {
@@ -437,8 +440,10 @@ export default function ChatPage() {
     }
 
     try {
-      const imageData = isRetry ? [] : images.map((image) => image.dataUrl);
-      const fileNames = isRetry ? [] : images.map((image) => image.name);
+      const requestMessage = isRetry ? (lastUserMessage?.content || '') : trimmedContent;
+      const imageData = isRetry ? (lastUserMessage?.images || []) : images.map((image) => image.dataUrl);
+      const fileNames = isRetry ? (lastUserMessage?.fileNames || []) : images.map((image) => image.name);
+
       const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -446,7 +451,7 @@ export default function ChatPage() {
         body: JSON.stringify({
           user_id: user?.user_id,
           session_id: sessionId,
-          message: trimmedContent,
+          message: requestMessage,
           images: imageData,
           file_names: fileNames,
         }),
@@ -454,7 +459,16 @@ export default function ChatPage() {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorDetail = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            errorDetail += ` - ${errorData.error}`;
+          }
+        } catch {
+          // Ignore body parse failure and keep HTTP status message.
+        }
+        throw new Error(errorDetail);
       }
 
       const reader = response.body?.getReader();
