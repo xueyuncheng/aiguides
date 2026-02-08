@@ -100,7 +100,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 
 	if len(parts) == 0 {
 		slog.Error("message or images required")
-		ctx.JSON(400, gin.H{"error": "message or images required"})
+		ctx.JSON(400, gin.H{"error": "message or images required", "code": "retry_payload_missing"})
 		return
 	}
 
