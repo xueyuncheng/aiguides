@@ -391,8 +391,13 @@ Rules:
 func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
 	// 1. 检查数据库中是否已有标题
 	var meta table.SessionMeta
-	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil && meta.Title != "" {
-		return nil
+	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err == nil {
+		if meta.Title != "" {
+			return nil
+		}
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		slog.Error("db.First() error", "err", err, "session_id", sessionID)
+		return fmt.Errorf("db.First() error, err = %w", err)
 	}
 
 	// 2. 调用 LLM 生成标题
@@ -437,10 +442,16 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	}
 
 	// 3. 保存到数据库
-	meta = table.SessionMeta{
-		SessionID: sessionID,
-		Title:     generatedTitle,
+	if meta.SessionID == "" {
+		meta.SessionID = sessionID
 	}
+	if meta.ThreadID == "" {
+		meta.ThreadID = sessionID
+	}
+	if meta.Version == 0 {
+		meta.Version = 1
+	}
+	meta.Title = generatedTitle
 
 	if err := a.db.Save(&meta).Error; err != nil {
 		slog.Error("db.Save() error", "err", err)

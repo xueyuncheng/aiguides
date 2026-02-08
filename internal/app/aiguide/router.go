@@ -38,6 +38,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	{
 		agentGroup.GET("", a.assistant.ListSessions)
 		agentGroup.POST("", a.assistant.CreateSession)
+		agentGroup.POST("/:sessionId/edit", a.assistant.EditSession)
 		agentGroup.GET("/:sessionId/history", a.assistant.GetSessionHistory)
 		agentGroup.DELETE("/:sessionId", a.assistant.DeleteSession)
 	}

@@ -45,12 +45,12 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className={cn(
-      "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background to-transparent pt-4 sm:pt-6 pb-3 sm:pb-4 transition-transform duration-300 ease-in-out",
-      !isVisible && "translate-y-full"
-    )}>
+      <div className={cn(
+        "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background/95 to-transparent pt-4 sm:pt-6 pb-3 sm:pb-4 transition-transform duration-300 ease-in-out",
+        !isVisible && "translate-y-full"
+      )}>
       <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="relative flex flex-col w-full bg-zinc-50/50 dark:bg-zinc-900/30 backdrop-blur-xl rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 focus-within:border-zinc-300 dark:focus-within:border-zinc-600 focus-within:ring-4 focus-within:ring-zinc-900/5 dark:focus-within:ring-zinc-100/5 transition-all duration-300 overflow-hidden">
+        <div className="relative flex flex-col w-full bg-white/95 dark:bg-zinc-950/70 backdrop-blur-xl rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_8px_30px_rgba(15,23,42,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.45)] transition-all duration-300 overflow-hidden">
           {selectedImages.length > 0 && (
             <div className="flex flex-wrap gap-2 px-3 pt-3">
               {selectedImages.map((image, index) => (
@@ -112,7 +112,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
               onPaste={onPaste}
               onFocus={onFocus}
               placeholder={isLoadingHistory ? "正在加载历史记录..." : `给 ${agentName} 发送消息`}
-              className="flex-1 min-h-[44px] max-h-[160px] border-0 bg-transparent shadow-none focus-visible:ring-0 px-3.5 py-3 text-base sm:text-sm overflow-y-auto resize-none placeholder:text-zinc-500/60 dark:placeholder:text-zinc-400/50 no-scrollbar leading-relaxed transition-colors"
+              className="chat-input-textarea flex-1 min-h-[44px] max-h-[160px] rounded-xl border border-zinc-200/80 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] focus-visible:border-zinc-400/80 dark:focus-visible:border-zinc-600/80 focus-visible:ring-2 focus-visible:ring-zinc-300/60 dark:focus-visible:ring-zinc-700/60 px-3.5 py-3 text-base sm:text-sm overflow-y-auto resize-none placeholder:text-zinc-500/70 dark:placeholder:text-zinc-400/60 no-scrollbar leading-relaxed transition-colors"
               disabled={isLoading || isLoadingHistory}
               autoComplete="off"
               rows={1}
