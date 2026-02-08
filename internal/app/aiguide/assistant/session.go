@@ -29,6 +29,8 @@ type SessionInfo struct {
 	SessionID      string    `json:"session_id"`
 	AppName        string    `json:"app_name"`
 	UserID         int       `json:"user_id"`
+	ThreadID       string    `json:"thread_id,omitempty"`
+	Version        int       `json:"version,omitempty"`
 	LastUpdateTime time.Time `json:"last_update_time"`
 	MessageCount   int       `json:"message_count"`
 	FirstMessage   string    `json:"first_message"`
@@ -106,12 +108,25 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 		sessionIDs = append(sessionIDs, sess.ID())
 	}
 
-	metadataMap := make(map[string]string) // sessionID -> title
+	type sessionMetaInfo struct {
+		Title    string
+		ThreadID string
+		Version  int
+	}
+	metadataMap := make(map[string]sessionMetaInfo) // sessionID -> metadata
 	if len(sessionIDs) > 0 {
 		var metadataList []table.SessionMeta
 		if err := a.db.Where("session_id IN ?", sessionIDs).Find(&metadataList).Error; err == nil {
 			for _, meta := range metadataList {
-				metadataMap[meta.SessionID] = meta.Title
+				candidate := sessionMetaInfo{
+					Title:    meta.Title,
+					ThreadID: meta.ThreadID,
+					Version:  meta.Version,
+				}
+				existing, ok := metadataMap[meta.SessionID]
+				if !ok || shouldReplaceSessionMeta(existing, candidate) {
+					metadataMap[meta.SessionID] = candidate
+				}
 			}
 		}
 	}
@@ -142,18 +157,47 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 			}
 		}
 
+		meta := metadataMap[sess.ID()]
+		threadID := meta.ThreadID
+		if threadID == "" {
+			threadID = sess.ID()
+		}
+		version := meta.Version
+		if version <= 0 {
+			version = 1
+		}
+
 		sessions = append(sessions, SessionInfo{
 			SessionID:      sess.ID(),
 			AppName:        sess.AppName(),
 			UserID:         userIDInt,
+			ThreadID:       threadID,
+			Version:        version,
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
 			FirstMessage:   firstMessage,
-			Title:          metadataMap[sess.ID()],
+			Title:          meta.Title,
 		})
 	}
 
 	ctx.JSON(http.StatusOK, sessions)
+}
+
+func shouldReplaceSessionMeta(existing, candidate struct {
+	Title    string
+	ThreadID string
+	Version  int
+}) bool {
+	if existing.ThreadID == "" && candidate.ThreadID != "" {
+		return true
+	}
+	if candidate.Version > existing.Version {
+		return true
+	}
+	if existing.Title == "" && candidate.Title != "" {
+		return true
+	}
+	return false
 }
 
 // GetSessionHistory 处理获取会话历史的请求

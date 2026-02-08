@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
-import { Menu } from 'lucide-react';
+import { Check, Copy, Menu, Pencil, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
@@ -41,6 +41,10 @@ export default function ChatPage() {
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isInputVisible, setIsInputVisible] = useState(true);
+  const [copiedUserMessageId, setCopiedUserMessageId] = useState<string | null>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // 使用文件上传 hook
   const {
@@ -63,6 +67,7 @@ export default function ChatPage() {
   const isAtBottomRef = useRef(true);
   const lastScrollTopRef = useRef(0);
   const scrollDirectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copiedUserMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 会话管理
   const loadSessions = async (silent = false) => {
@@ -105,6 +110,8 @@ export default function ChatPage() {
     setShouldScrollInstantly(true);
     setIsInputVisible(true);
     clearImages();
+    setEditingMessageId(null);
+    setEditingValue('');
 
     if (scrollResetTimeoutRef.current) {
       clearTimeout(scrollResetTimeoutRef.current);
@@ -312,6 +319,9 @@ export default function ChatPage() {
       if (scrollDirectionTimeoutRef.current) {
         clearTimeout(scrollDirectionTimeoutRef.current);
       }
+      if (copiedUserMessageTimeoutRef.current) {
+        clearTimeout(copiedUserMessageTimeoutRef.current);
+      }
     };
   }, []);
 
@@ -370,8 +380,130 @@ export default function ChatPage() {
     setIsLoading(false);
   };
 
+  const handleEditUserMessage = (message: Message) => {
+    if (isLoading || isSavingEdit) return;
+
+    if (message.id.startsWith('msg-')) {
+      const errorMessage: Message = {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: '这条消息还没有同步到历史记录。请刷新页面后再编辑。',
+        timestamp: new Date(),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      return;
+    }
+
+    setEditingMessageId(message.id);
+    setEditingValue(message.content || '');
+  };
+
+  const handleCancelEditUserMessage = () => {
+    if (isSavingEdit) return;
+    setEditingMessageId(null);
+    setEditingValue('');
+  };
+
+  const handleSaveEditedUserMessage = async (message: Message) => {
+    if (isLoading || isSavingEdit) return;
+
+    const trimmedEditedText = editingValue.replace(/^[\n\r]+|[\n\r]+$/g, '');
+    const hasImages = (message.images?.length || 0) > 0;
+    if (!trimmedEditedText && !hasImages) {
+      const errorMessage: Message = {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: '编辑后的消息不能为空。',
+        timestamp: new Date(),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      return;
+    }
+
+    try {
+      setIsSavingEdit(true);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          user_id: user?.user_id,
+          message_id: message.id,
+          new_content: trimmedEditedText,
+          images: message.images || [],
+          file_names: message.fileNames || [],
+        }),
+      });
+
+      if (!response.ok) {
+        let errorDetail = `HTTP error! status: ${response.status}`;
+        try {
+          const errorData = await response.json();
+          if (errorData?.error) {
+            errorDetail += ` - ${errorData.error}`;
+          }
+        } catch {
+          // Keep status message when body is not JSON.
+        }
+        throw new Error(errorDetail);
+      }
+
+      const data = await response.json();
+      const newSessionId = data?.new_session_id;
+      if (!newSessionId) {
+        throw new Error('编辑成功但未返回新会话 ID');
+      }
+
+      const editedImages: SelectedImage[] = (message.images || []).map((dataUrl, index) => ({
+        id: `edited-${Date.now()}-${index}`,
+        dataUrl,
+        name: message.fileNames?.[index] || `文件 ${index + 1}`,
+        isPdf: dataUrl.startsWith('data:application/pdf'),
+      }));
+
+      setEditingMessageId(null);
+      setEditingValue('');
+      await loadSessionHistory(newSessionId, true);
+      await sendMessage(trimmedEditedText, editedImages, newSessionId);
+      await loadSessions(true);
+    } catch (error) {
+      console.error('Error editing message:', error);
+      const errorMessage: Message = {
+        id: `msg-${Date.now()}-error`,
+        role: 'assistant',
+        content: '编辑消息失败，请稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error)),
+        timestamp: new Date(),
+        isError: true,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleCopyUserMessage = async (message: Message) => {
+    const content = message.content || '';
+    if (!content.trim()) return;
+
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedUserMessageId(message.id);
+      if (copiedUserMessageTimeoutRef.current) {
+        clearTimeout(copiedUserMessageTimeoutRef.current);
+      }
+      copiedUserMessageTimeoutRef.current = setTimeout(() => {
+        setCopiedUserMessageId(null);
+        copiedUserMessageTimeoutRef.current = null;
+      }, 1500);
+    } catch (error) {
+      console.error('Failed to copy user message:', error);
+    }
+  };
+
   // 发送消息函数（SSE 流式处理）
-  const sendMessage = async (content: string, images: SelectedImage[]) => {
+  const sendMessage = async (content: string, images: SelectedImage[], targetSessionId: string = sessionId) => {
     if (isLoading) return;
 
     // Only trim leading and trailing newlines, preserving internal line breaks
@@ -419,7 +551,7 @@ export default function ChatPage() {
       const maxPolls = 30;
       titlePollIntervalRef.current = setInterval(async () => {
         const fetchedSessions = await loadSessions(true);
-        const currentSession = fetchedSessions?.find((s: Session) => s.session_id === sessionId);
+        const currentSession = fetchedSessions?.find((s: Session) => s.session_id === targetSessionId);
 
         if (currentSession?.title) {
           if (titlePollIntervalRef.current) {
@@ -444,13 +576,13 @@ export default function ChatPage() {
       const imageData = isRetry ? (lastUserMessage?.images || []) : images.map((image) => image.dataUrl);
       const fileNames = isRetry ? (lastUserMessage?.fileNames || []) : images.map((image) => image.name);
 
-      const response = await authenticatedFetch(`/api/${agentId}/chats/${sessionId}`, {
+      const response = await authenticatedFetch(`/api/${agentId}/chats/${targetSessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           user_id: user?.user_id,
-          session_id: sessionId,
+          session_id: targetSessionId,
           message: requestMessage,
           images: imageData,
           file_names: fileNames,
@@ -739,7 +871,7 @@ export default function ChatPage() {
                     <div
                       key={message.id}
                       className={cn(
-                        "flex w-full",
+                        "flex w-full group/message",
                         message.role === 'user' ? "justify-end" : "justify-start"
                       )}
                     >
@@ -753,13 +885,8 @@ export default function ChatPage() {
                           <UserAvatar user={user} />
                         )}
 
-                        <div className={cn(
-                          "relative text-sm w-full leading-relaxed",
-                          message.role === 'user'
-                            ? "bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-sm self-end max-w-fit"
-                            : "pt-1 flex-1"
-                        )}>
-                          {message.role === 'assistant' ? (
+                        {message.role === 'assistant' ? (
+                          <div className="relative text-sm w-full leading-relaxed pt-1 flex-1">
                             <AIMessageContent
                               content={message.content}
                               thought={message.thought}
@@ -768,14 +895,97 @@ export default function ChatPage() {
                               isError={message.isError}
                               onRetry={() => sendMessage("", [])}
                             />
-                          ) : (
-                            <UserMessage
-                              content={message.content}
-                              images={message.images}
-                              fileNames={message.fileNames}
-                            />
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="relative flex flex-col items-end">
+                            <div className="relative text-sm leading-relaxed bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-fit min-w-[180px]">
+                              {editingMessageId === message.id ? (
+                                <div className="space-y-2">
+                                  {(message.images?.length || 0) > 0 && (
+                                    <div className="text-xs text-muted-foreground">附件保持不变</div>
+                                  )}
+                                  <textarea
+                                    value={editingValue}
+                                    onChange={(e) => setEditingValue(e.target.value)}
+                                    autoFocus
+                                    rows={Math.max(4, Math.min(10, (message.content?.match(/\n/g)?.length || 0) + 2))}
+                                    className="w-[min(520px,82vw)] min-h-[120px] resize-y rounded-md bg-transparent px-3 py-2 text-sm leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-primary/30"
+                                    placeholder="编辑消息内容..."
+                                    disabled={isSavingEdit}
+                                  />
+                                </div>
+                              ) : (
+                                <UserMessage
+                                  content={message.content}
+                                  images={message.images}
+                                  fileNames={message.fileNames}
+                                />
+                              )}
+                            </div>
+
+                            <div className={cn(
+                              "mt-1 flex justify-end gap-1 transition-opacity duration-200",
+                              editingMessageId === message.id
+                                ? "opacity-100"
+                                : "opacity-0 group-hover/message:opacity-100 group-focus-within/message:opacity-100"
+                            )}>
+                              {editingMessageId === message.id ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleSaveEditedUserMessage(message)}
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                    title="保存编辑"
+                                    aria-label="保存编辑"
+                                    disabled={isSavingEdit}
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={handleCancelEditUserMessage}
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                    title="取消编辑"
+                                    aria-label="取消编辑"
+                                    disabled={isSavingEdit}
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditUserMessage(message)}
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                    title="编辑并创建新版本"
+                                    aria-label="编辑并创建新版本"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleCopyUserMessage(message)}
+                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                    title="复制文本"
+                                    aria-label="复制文本"
+                                    disabled={!message.content?.trim()}
+                                  >
+                                    {copiedUserMessageId === message.id ? (
+                                      <Check className="h-3.5 w-3.5 text-green-600" />
+                                    ) : (
+                                      <Copy className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}

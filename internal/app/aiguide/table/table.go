@@ -28,8 +28,12 @@ type User struct {
 type SessionMeta struct {
 	Model
 
-	SessionID string
-	Title     string
+	SessionID           string `gorm:"uniqueIndex"`
+	Title               string
+	ThreadID            string `gorm:"index"`
+	Version             int    `gorm:"default:1"`
+	ParentSessionID     string
+	EditedFromMessageID string
 }
 
 // EmailServerConfig 邮件服务器配置

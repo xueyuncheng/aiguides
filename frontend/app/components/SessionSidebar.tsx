@@ -17,6 +17,8 @@ export interface Session {
   session_id: string;
   app_name: string;
   user_id: string;
+  thread_id?: string;
+  version?: number;
   last_update_time: string;
   message_count: number;
   first_message?: string;
@@ -47,11 +49,40 @@ const SessionSidebar = memo(({
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  // Memoize filtered sessions to avoid redundant filtering
-  const filteredSessions = useMemo(
-    () => sessions.filter(s => s.title || s.first_message),
-    [sessions]
-  );
+  const filteredSessions = useMemo(() => {
+    const sessionWithContent = sessions.filter((s) => s.title || s.first_message);
+    const byThread = new Map<string, Session>();
+
+    sessionWithContent.forEach((session) => {
+      const threadId = session.thread_id || session.session_id;
+      const existing = byThread.get(threadId);
+      if (!existing) {
+        byThread.set(threadId, session);
+        return;
+      }
+
+      const existingTime = new Date(existing.last_update_time).getTime();
+      const currentTime = new Date(session.last_update_time).getTime();
+      if (currentTime > existingTime) {
+        byThread.set(threadId, session);
+        return;
+      }
+
+      if (currentTime === existingTime && (session.version || 1) > (existing.version || 1)) {
+        byThread.set(threadId, session);
+      }
+    });
+
+    return Array.from(byThread.values()).sort((a, b) =>
+      new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
+    );
+  }, [sessions]);
+
+  const currentThreadId = useMemo(() => {
+    const current = sessions.find((s) => s.session_id === currentSessionId);
+    if (!current) return currentSessionId;
+    return current.thread_id || current.session_id;
+  }, [sessions, currentSessionId]);
 
   const handleSessionClick = (sessionId: string) => {
     onSessionSelect(sessionId);
@@ -179,7 +210,7 @@ const SessionSidebar = memo(({
                   onClick={() => handleSessionClick(session.session_id)}
                   className={cn(
                     "group relative p-2 rounded-md cursor-pointer transition-colors text-sm",
-                    session.session_id === currentSessionId
+                    (session.thread_id || session.session_id) === currentThreadId
                       ? "bg-zinc-900 text-zinc-100"
                       : "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-900"
                   )}
@@ -188,15 +219,18 @@ const SessionSidebar = memo(({
                     <span className="truncate flex-1">
                       {session.title || session.first_message || '新对话'}
                     </span>
+                    {(session.version || 1) > 1 && (
+                      <span className="text-[10px] text-zinc-500">v{session.version}</span>
+                    )}
 
                     {/* Delete button only visible on hover */}
                     <div className={cn(
                       "flex items-center opacity-0 group-hover:opacity-100",
-                      session.session_id === currentSessionId && "opacity-100"
+                      (session.thread_id || session.session_id) === currentThreadId && "opacity-100"
                     )}>
                       {/* Shadow gradient to cover text */}
                       <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-zinc-950 to-transparent pointer-events-none group-hover:from-zinc-900 group-hover:via-zinc-900"></div>
-                      {session.session_id === currentSessionId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-zinc-900 to-transparent pointer-events-none"></div>}
+                      {(session.thread_id || session.session_id) === currentThreadId && <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-zinc-900 to-transparent pointer-events-none"></div>}
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
