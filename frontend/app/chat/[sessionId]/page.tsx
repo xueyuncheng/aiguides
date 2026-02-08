@@ -11,7 +11,7 @@ import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
 import type { Message, SelectedImage } from './types';
-import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, MIN_SCROLL_THRESHOLD, MIN_SCROLL_DISTANCE, SCROLL_RESET_DELAY } from './constants';
+import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
 import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput } from './components';
@@ -40,7 +40,6 @@ export default function ChatPage() {
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [isInputVisible, setIsInputVisible] = useState(true);
   const [copiedUserMessageId, setCopiedUserMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
@@ -66,7 +65,6 @@ export default function ChatPage() {
   const previousScrollHeightRef = useRef<number>(0);
   const isAtBottomRef = useRef(true);
   const lastScrollTopRef = useRef(0);
-  const scrollDirectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const copiedUserMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 会话管理
@@ -108,7 +106,6 @@ export default function ChatPage() {
     setTotalMessageCount(0);
     setIsLoadingHistory(true);
     setShouldScrollInstantly(true);
-    setIsInputVisible(true);
     clearImages();
     setEditingMessageId(null);
     setEditingValue('');
@@ -201,7 +198,6 @@ export default function ChatPage() {
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
-    setIsInputVisible(true);
     setInputValue('');
     clearImages();
     setTimeout(() => {
@@ -259,28 +255,6 @@ export default function ChatPage() {
         loadOlderMessages();
       }
 
-      const scrollDelta = scrollTop - lastScrollTopRef.current;
-
-      if (atBottom) {
-        setIsInputVisible(true);
-        lastScrollTopRef.current = scrollTop;
-        return;
-      }
-
-      if (Math.abs(scrollDelta) > MIN_SCROLL_THRESHOLD && scrollTop > MIN_SCROLL_DISTANCE) {
-        if (scrollDirectionTimeoutRef.current) {
-          clearTimeout(scrollDirectionTimeoutRef.current);
-        }
-
-        if (scrollDelta < 0) {
-          setIsInputVisible(false);
-        } else if (scrollDelta > 0) {
-          scrollDirectionTimeoutRef.current = setTimeout(() => {
-            setIsInputVisible(true);
-          }, 100);
-        }
-      }
-
       lastScrollTopRef.current = scrollTop;
     }
   };
@@ -294,30 +268,20 @@ export default function ChatPage() {
         behavior: shouldScrollInstantly ? 'auto' : 'smooth'
       });
     }
-
-    if (isNewUserMessage) {
-      setIsInputVisible(true);
-    }
   }, [messages, shouldScrollInstantly]);
 
-  // 空会话时显示输入框
+  // 空会话时聚焦输入框
   useEffect(() => {
     if (messages.length === 0 && !isLoadingHistory) {
-      if (!isInputVisible) {
-        setIsInputVisible(true);
-      }
       textareaRef.current?.focus();
     }
-  }, [messages.length, isLoadingHistory, isInputVisible]);
+  }, [messages.length, isLoadingHistory]);
 
   // 清理超时
   useEffect(() => {
     return () => {
       if (scrollResetTimeoutRef.current) {
         clearTimeout(scrollResetTimeoutRef.current);
-      }
-      if (scrollDirectionTimeoutRef.current) {
-        clearTimeout(scrollDirectionTimeoutRef.current);
       }
       if (copiedUserMessageTimeoutRef.current) {
         clearTimeout(copiedUserMessageTimeoutRef.current);
@@ -1021,7 +985,7 @@ export default function ChatPage() {
           onPaste={handlePaste}
           onSubmit={handleSubmit}
           onCancel={handleCancelMessage}
-          onFocus={() => setIsInputVisible(true)}
+          onFocus={() => {}}
           selectedImages={selectedImages}
           onRemoveImage={handleRemoveImage}
           onImageSelect={handleImageSelect}
@@ -1030,7 +994,6 @@ export default function ChatPage() {
           isLoadingHistory={isLoadingHistory}
           canSend={canSend}
           agentName={agentInfo.name}
-          isVisible={isInputVisible}
         />
       </div>
     </div>
