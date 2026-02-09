@@ -288,6 +288,13 @@ func (a *Assistant) streamAgentEvents(
 		}
 
 		if err != nil {
+			// ADK 在流式模式下，当模型输出达到 max token 限制时会返回此错误。
+			// 此时 partial 内容已经通过 SSE 流式发送给了前端，所以只需记录警告并正常结束即可。
+			if strings.Contains(err.Error(), "last event is not final") {
+				slog.Warn("runner.Run() reached max token limit, partial content already streamed", "userID", userID, "sessionID", sessionID)
+				return
+			}
+
 			// 发送错误事件，包含详细的错误信息
 			slog.Error("runner.Run() error", "err", err, "userID", userID, "sessionID", sessionID)
 			errorMsg := err.Error()
