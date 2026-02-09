@@ -76,7 +76,7 @@ export const AIMessageContent = memo(({
         <div className="mb-4">
           <button
             onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border bg-muted/50"
+            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border border-muted-foreground/20 bg-muted/50"
             aria-expanded={isThoughtExpanded}
           >
             {isThoughtExpanded ? (
