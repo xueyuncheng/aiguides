@@ -365,13 +365,13 @@ func TestCreateShareRequestValidation(t *testing.T) {
 		}
 		t.Run(tt.name, func(t *testing.T) {
 			router := gin.New()
-			
+
 			// Add middleware to set user ID
 			router.Use(func(c *gin.Context) {
 				c.Set("user_id", 1)
 				c.Next()
 			})
-			
+
 			router.POST("/api/assistant/share", assistant.CreateShare)
 
 			body, _ := json.Marshal(tt.requestBody)

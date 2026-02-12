@@ -19,9 +19,9 @@ const (
 
 // CreateShareRequest defines the request structure for creating a share link
 type CreateShareRequest struct {
-	SessionID   string `json:"session_id" binding:"required"`
-	AgentID     string `json:"agent_id" binding:"required"`
-	ExpiryDays  int    `json:"expiry_days,omitempty"`
+	SessionID  string `json:"session_id" binding:"required"`
+	AgentID    string `json:"agent_id" binding:"required"`
+	ExpiryDays int    `json:"expiry_days,omitempty"`
 }
 
 // CreateShareResponse defines the response structure for creating a share link
@@ -226,14 +226,14 @@ func (a *Assistant) ListShares(ctx *gin.Context) {
 	}
 
 	sessionID := ctx.Query("session_id")
-	
+
 	var shares []table.SharedConversation
 	query := a.db.Where("user_id = ?", userID)
-	
+
 	if sessionID != "" {
 		query = query.Where("session_id = ?", sessionID)
 	}
-	
+
 	if err := query.Order("created_at DESC").Find(&shares).Error; err != nil {
 		slog.Error("query.Find() error", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list share links"})

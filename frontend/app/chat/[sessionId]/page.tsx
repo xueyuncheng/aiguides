@@ -786,13 +786,13 @@ export default function ChatPage() {
               size="icon"
               variant="outline"
               className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
-              aria-label="分享对话"
+              aria-label="Share conversation"
             >
               <Share2 className="h-5 w-5" />
             </Button>
           </div>
         )}
-        
+
         {/* Desktop share button in a header bar */}
         {sessionId && messages.length > 0 && (
           <div className="hidden md:flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-700">
