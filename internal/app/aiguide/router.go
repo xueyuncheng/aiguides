@@ -24,6 +24,9 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	api.POST("/auth/refresh", a.RefreshToken)
 	api.GET("/auth/avatar/:userId", a.GetAvatar)
 
+	// Public shared conversation endpoint (no authentication required)
+	api.GET("/share/:shareId", a.assistant.GetSharedConversation)
+
 	// 应用认证中间件到后续所有接口
 	api.Use(middleware.Auth(a.db, a.authService))
 
@@ -32,6 +35,14 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 
 	// Agent 聊天路由
 	api.POST("/assistant/chats/:id", a.assistant.Chat)
+
+	// Share management routes (authenticated)
+	shareGroup := api.Group("/assistant/share")
+	{
+		shareGroup.POST("", a.assistant.CreateShare)
+		shareGroup.GET("", a.assistant.ListShares)
+		shareGroup.DELETE("/:shareId", a.assistant.DeleteShare)
+	}
 
 	// 会话管理路由
 	agentGroup := api.Group("/:agentId/sessions")

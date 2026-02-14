@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
 import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
-import { Check, Copy, Menu, Pencil, X } from 'lucide-react';
+import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
@@ -15,6 +15,7 @@ import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELA
 
 // 导入组件
 import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput } from './components';
+import { ShareModal } from './components/ShareModal';
 
 // 导入 hooks
 import { useFileUpload } from './hooks/useFileUpload';
@@ -44,6 +45,7 @@ export default function ChatPage() {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // 使用文件上传 hook
   const {
@@ -776,6 +778,36 @@ export default function ChatPage() {
           </Button>
         </div>
 
+        {/* Share button - only show when there's a session with messages */}
+        {sessionId && messages.length > 0 && (
+          <div className="md:hidden fixed top-3 right-3 z-30">
+            <Button
+              onClick={() => setIsShareModalOpen(true)}
+              size="icon"
+              variant="outline"
+              className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
+              aria-label="Share conversation"
+            >
+              <Share2 className="h-5 w-5" />
+            </Button>
+          </div>
+        )}
+
+        {/* Desktop share button in a header bar */}
+        {sessionId && messages.length > 0 && (
+          <div className="hidden md:flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-700">
+            <Button
+              onClick={() => setIsShareModalOpen(true)}
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-2"
+            >
+              <Share2 className="h-4 w-4" />
+              Share Conversation
+            </Button>
+          </div>
+        )}
+
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-y-auto no-scrollbar mobile-scroll"
@@ -996,6 +1028,14 @@ export default function ChatPage() {
           agentName={agentInfo.name}
         />
       </div>
+      
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        sessionId={sessionId}
+        agentId={agentId}
+      />
     </div>
   );
 }

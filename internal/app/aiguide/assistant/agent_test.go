@@ -19,7 +19,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	}
 
 	// 自动迁移
-	if err := db.AutoMigrate(&table.UserMemory{}, &table.Task{}); err != nil {
+	if err := db.AutoMigrate(&table.UserMemory{}, &table.Task{}, &table.SharedConversation{}); err != nil {
 		t.Fatalf("Failed to migrate test database: %v", err)
 	}
 

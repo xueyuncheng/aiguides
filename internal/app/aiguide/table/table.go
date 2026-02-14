@@ -74,6 +74,18 @@ type Task struct {
 	Result      string                `json:"result,omitempty"`                               // 任务执行结果
 }
 
+// SharedConversation represents a shared conversation link
+type SharedConversation struct {
+	Model
+
+	ShareID    string    `gorm:"uniqueIndex;not null"` // UUID for the shareable link
+	SessionID  string    `gorm:"not null;index"`       // Original session ID
+	UserID     int       `gorm:"not null;index"`       // User who created the share
+	AppName    string    `gorm:"not null"`             // Agent/app name
+	ExpiresAt  time.Time `gorm:"not null;index"`       // Link expiration time
+	AccessedAt time.Time // Last access time (optional tracking)
+}
+
 // GetAllModels 获取所有已注册的数据库模型
 func GetAllModels() []any {
 	return []any{
@@ -82,5 +94,6 @@ func GetAllModels() []any {
 		&EmailServerConfig{},
 		&UserMemory{},
 		&Task{},
+		&SharedConversation{},
 	}
 }
