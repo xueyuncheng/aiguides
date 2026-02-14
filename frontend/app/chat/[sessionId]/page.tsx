@@ -300,6 +300,17 @@ export default function ChatPage() {
     }
   }, [inputValue]);
 
+  // 更新浏览器标签页标题
+  const pageTitle = useMemo(() => {
+    const currentSession = sessions.find(s => s.session_id === sessionId);
+    const title = currentSession?.title || currentSession?.first_message || '新对话';
+    return title;
+  }, [sessionId, sessions]);
+
+  useEffect(() => {
+    document.title = pageTitle;
+  }, [pageTitle]);
+
   // 合并连续的 assistant 消息
   const processedMessages = useMemo(() => {
     if (messages.length === 0) return [];
