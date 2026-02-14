@@ -101,7 +101,7 @@ export default function SharedConversationPage() {
       return;
     }
 
-    document.title = `${conversationTitle} - AIGuides`;
+    document.title = conversationTitle;
   }, [isLoading, error, data, conversationTitle]);
 
   if (isLoading) {
