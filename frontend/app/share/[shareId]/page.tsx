@@ -92,12 +92,12 @@ export default function SharedConversationPage() {
     if (typeof document === 'undefined') return;
 
     if (isLoading) {
-      document.title = 'Loading shared conversation - AIGuides';
+      document.title = 'Loading shared conversation';
       return;
     }
 
     if (error || !data) {
-      document.title = 'Shared Conversation - AIGuides';
+      document.title = 'Shared Conversation';
       return;
     }
 

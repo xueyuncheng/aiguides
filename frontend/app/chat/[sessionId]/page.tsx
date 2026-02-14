@@ -304,7 +304,7 @@ export default function ChatPage() {
   const pageTitle = useMemo(() => {
     const currentSession = sessions.find(s => s.session_id === sessionId);
     const title = currentSession?.title || currentSession?.first_message || '新对话';
-    return `${title} - AIGuide`;
+    return title;
   }, [sessionId, sessions]);
 
   useEffect(() => {

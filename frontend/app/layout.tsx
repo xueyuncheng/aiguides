@@ -3,7 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 
 export const metadata: Metadata = {
-  title: "AIGuide - AI 助手平台",
+  title: "AIGuide",
   description: "基于 Google ADK 构建的智能助手服务，提供信息检索、网页总结、邮件分析和旅游规划等功能",
 };
 
