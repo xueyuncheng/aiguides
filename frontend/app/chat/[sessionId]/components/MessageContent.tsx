@@ -13,6 +13,7 @@ interface AIMessageContentProps {
   images?: string[];
   isError?: boolean;
   onRetry?: () => void;
+  thoughtStorageKey?: string;
 }
 
 export const AIMessageContent = memo(({
@@ -21,10 +22,20 @@ export const AIMessageContent = memo(({
   isStreaming,
   images,
   isError,
-  onRetry
+  onRetry,
+  thoughtStorageKey
 }: AIMessageContentProps) => {
   const [showRaw, setShowRaw] = useState(false);
-  const [isThoughtExpanded, setIsThoughtExpanded] = useState(false);
+  const [isThoughtExpanded, setIsThoughtExpanded] = useState(() => {
+    if (!thought || !thoughtStorageKey || typeof window === 'undefined') return false;
+
+    try {
+      return window.localStorage.getItem(thoughtStorageKey) === 'true';
+    } catch (err) {
+      console.error('Failed to read thought expansion state:', err);
+      return false;
+    }
+  });
   const [copied, setCopied] = useState(false);
   const [copyError, setCopyError] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -41,6 +52,16 @@ export const AIMessageContent = memo(({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!thought || !thoughtStorageKey || typeof window === 'undefined') return;
+
+    try {
+      window.localStorage.setItem(thoughtStorageKey, String(isThoughtExpanded));
+    } catch (err) {
+      console.error('Failed to persist thought expansion state:', err);
+    }
+  }, [isThoughtExpanded, thought, thoughtStorageKey]);
 
   const handleCopy = async () => {
     if (copyTimeoutRef.current) {

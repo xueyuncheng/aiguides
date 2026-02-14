@@ -3,6 +3,7 @@ package assistant
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/middleware"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"google.golang.org/adk/session"
+	"gorm.io/gorm"
 )
 
 const (
@@ -36,6 +38,7 @@ type SharedConversationResponse struct {
 	ShareID   string         `json:"share_id"`
 	SessionID string         `json:"session_id"`
 	AppName   string         `json:"app_name"`
+	Title     string         `json:"title,omitempty"`
 	Messages  []MessageEvent `json:"messages"`
 	ExpiresAt time.Time      `json:"expires_at"`
 	IsExpired bool           `json:"is_expired"`
@@ -165,6 +168,14 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 
 	sess := getResp.Session
 
+	var meta table.SessionMeta
+	title := ""
+	if err := a.db.Where("session_id = ?", sharedConv.SessionID).First(&meta).Error; err == nil {
+		title = meta.Title
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		slog.Error("a.db.Where().First() session meta error", "session_id", sharedConv.SessionID, "err", err)
+	}
+
 	// Build message events from session
 	allMessages := buildMessageEvents(sess.Events())
 
@@ -172,6 +183,7 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 		ShareID:   shareID,
 		SessionID: sharedConv.SessionID,
 		AppName:   sharedConv.AppName,
+		Title:     title,
 		Messages:  allMessages,
 		ExpiresAt: sharedConv.ExpiresAt,
 		IsExpired: isExpired,

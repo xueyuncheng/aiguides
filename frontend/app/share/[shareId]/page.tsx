@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Clock, AlertCircle, Lock } from 'lucide-react';
-import { AIAvatar, AIMessageContent, UserMessage } from '@/app/chat/[sessionId]/components';
+import { AIAvatar, AIMessageContent, UserMessage, ChatSkeleton } from '@/app/chat/[sessionId]/components';
 import { agentInfoMap } from '@/app/chat/[sessionId]/constants';
 import type { Message } from '@/app/chat/[sessionId]/types';
+import { cn } from '@/app/lib/utils';
 
 interface SharedConversationResponse {
   share_id: string;
   session_id: string;
   app_name: string;
+  title?: string;
   messages: Message[];
   expires_at: string;
   is_expired: boolean;
@@ -56,12 +58,72 @@ export default function SharedConversationPage() {
     }
   }, [shareId]);
 
+  const processedMessages = useMemo(() => {
+    if (!data?.messages || data.messages.length === 0) return [];
+
+    const result: Message[] = [];
+    data.messages.forEach((msg) => {
+      const last = result[result.length - 1];
+      if (
+        last &&
+        last.role === 'assistant' &&
+        msg.role === 'assistant' &&
+        !last.isError &&
+        !msg.isError
+      ) {
+        const merged = { ...last };
+        merged.content = (merged.content || '') + (msg.content || '');
+        if (msg.thought) {
+          merged.thought = (merged.thought || '') + (merged.thought ? '\n\n' : '') + msg.thought;
+        }
+        if (msg.images && msg.images.length > 0) {
+          merged.images = [...(merged.images || []), ...(msg.images || [])];
+        }
+        result[result.length - 1] = merged;
+      } else {
+        result.push(msg);
+      }
+    });
+    return result;
+  }, [data?.messages]);
+  const conversationTitle = data?.title?.trim() || 'Shared Conversation';
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    if (isLoading) {
+      document.title = 'Loading shared conversation - AIGuides';
+      return;
+    }
+
+    if (error || !data) {
+      document.title = 'Shared Conversation - AIGuides';
+      return;
+    }
+
+    document.title = `${conversationTitle} - AIGuides`;
+  }, [isLoading, error, data, conversationTitle]);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading shared conversation...</p>
+      <div className="min-h-screen bg-background">
+        <div className="flex flex-col h-screen">
+          <header className="border-b border-border">
+            <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary animate-pulse" />
+                <div className="space-y-1">
+                  <div className="h-4 w-40 rounded bg-secondary/70 animate-pulse" />
+                  <div className="h-3 w-24 rounded bg-secondary/50 animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </header>
+          <div className="flex-1 overflow-y-auto no-scrollbar mobile-scroll">
+            <div className="flex flex-col items-center">
+              <ChatSkeleton />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -69,23 +131,47 @@ export default function SharedConversationPage() {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="max-w-md w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600 dark:text-red-400" />
+      <div className="min-h-screen bg-background">
+        <div className="flex flex-col h-screen">
+          <header className="border-b border-border">
+            <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/80 flex items-center justify-center">
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-base font-semibold text-foreground">{conversationTitle}</h1>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Lock className="w-3 h-3" />
+                    <span>Read-only view</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+          <div className="flex-1 overflow-y-auto no-scrollbar mobile-scroll">
+            <div className="flex flex-col items-center">
+              <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 py-10">
+                <div className="rounded-xl border border-border bg-background p-6 sm:p-8 text-center">
+                  <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <AlertCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
+                  </div>
+                  <h1 className="text-lg font-semibold text-foreground mb-2">
+                    Unable to Load Conversation
+                  </h1>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    {error || 'This shared conversation could not be found.'}
+                  </p>
+                  <button
+                    onClick={() => router.push('/')}
+                    className="inline-flex items-center justify-center rounded-md border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-muted/50 transition-colors"
+                  >
+                    Go to Home
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-            Unable to Load Conversation
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {error || 'This shared conversation could not be found.'}
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            Go to Home
-          </button>
         </div>
       </div>
     );
@@ -93,104 +179,125 @@ export default function SharedConversationPage() {
 
   const agentInfo = agentInfoMap[data.app_name] || agentInfoMap['assistant'];
   const expiresAt = new Date(data.expires_at);
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 sm:px-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-                <span className="text-2xl">{agentInfo.icon}</span>
-              </div>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Shared Conversation
-                </h1>
-                <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <Lock className="w-3 h-3" />
-                  <span>Read-only view</span>
+    <div className="min-h-screen bg-background">
+      <div className="flex flex-col h-screen">
+        <header className="border-b border-border">
+          <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-3">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-secondary/70 flex items-center justify-center">
+                  <span className="text-xl">{agentInfo.icon}</span>
+                </div>
+                <div>
+                  <h1 className="text-base font-semibold text-foreground">{conversationTitle}</h1>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Lock className="w-3 h-3" />
+                    <span>Read-only view</span>
+                  </div>
                 </div>
               </div>
+              <button
+                onClick={() => router.push('/')}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Visit AIGuides
+              </button>
             </div>
-            <button
-              onClick={() => router.push('/')}
-              className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              Visit AIGuides
-            </button>
+          </div>
+        </header>
+
+        <div className="border-b border-amber-200/70 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-900/10">
+          <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6 py-2.5">
+            <div className="flex items-center gap-2 text-xs sm:text-sm text-amber-800 dark:text-amber-200">
+              <Clock className="w-4 h-4" />
+              <span>
+                This shared link will expire on{' '}
+                <strong>{expiresAt.toLocaleDateString()}</strong> at{' '}
+                <strong>{expiresAt.toLocaleTimeString()}</strong>
+              </span>
+            </div>
           </div>
         </div>
-      </header>
 
-      {/* Expiry Notice */}
-      <div className="bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800">
-        <div className="max-w-5xl mx-auto px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-2 text-sm text-yellow-800 dark:text-yellow-200">
-            <Clock className="w-4 h-4" />
-            <span>
-              This shared link will expire on{' '}
-              <strong>{expiresAt.toLocaleDateString()}</strong> at{' '}
-              <strong>{expiresAt.toLocaleTimeString()}</strong>
-            </span>
+        <div className="flex-1 overflow-y-auto no-scrollbar mobile-scroll">
+          <div className="flex flex-col items-center">
+            <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10">
+              {processedMessages.length === 0 ? (
+                <div className="text-center py-12 sm:py-16 md:py-20 animate-fade-in px-4">
+                  <div className="flex justify-center mb-4 sm:mb-6">
+                    <div className="p-3 sm:p-4 bg-secondary rounded-xl sm:rounded-2xl">
+                      <span className="text-3xl sm:text-4xl">{agentInfo.icon}</span>
+                    </div>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-semibold mb-2 tracking-tight">
+                    No messages in this conversation
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    This shared conversation does not have any messages yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6 sm:space-y-8 animate-fade-in">
+                  {processedMessages.map((message, index) => (
+                    <div
+                      key={message.id || index}
+                      className={cn(
+                        "flex w-full",
+                        message.role === 'user' ? "justify-end" : "justify-start"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%]",
+                          message.role === 'user' ? "flex-row-reverse" : "flex-row"
+                        )}
+                      >
+                        {message.role === 'assistant' ? (
+                          <AIAvatar icon={agentInfo.icon} />
+                        ) : null}
+
+                        {message.role === 'assistant' ? (
+                          <div className="relative text-sm w-full leading-relaxed pt-1 flex-1">
+                            <AIMessageContent
+                              content={message.content}
+                              thought={message.thought}
+                              images={message.images}
+                              thoughtStorageKey={`share:${data.share_id}:thought:${message.id || index}`}
+                            />
+                          </div>
+                        ) : (
+                          <div className="relative flex flex-col items-end">
+                            <div className="relative text-sm leading-relaxed bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-sm max-w-fit min-w-[180px]">
+                              <UserMessage
+                                content={message.content}
+                                images={message.images}
+                                fileNames={message.fileNames}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-8 text-center text-sm text-muted-foreground">
+                <p>
+                  This is a readonly view of a shared conversation from{' '}
+                  <button
+                    onClick={() => router.push('/')}
+                    className="text-primary hover:underline"
+                  >
+                    AIGuides
+                  </button>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Messages */}
-      <main className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {data.messages.length === 0 ? (
-              <div className="p-12 text-center text-gray-500 dark:text-gray-400">
-                This conversation has no messages.
-              </div>
-            ) : (
-              data.messages.map((message, index) => (
-                <div
-                  key={message.id || index}
-                  className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                >
-                  {message.role === 'user' ? (
-                    <UserMessage
-                      content={message.content}
-                      images={message.images}
-                      fileNames={message.fileNames}
-                    />
-                  ) : (
-                    <div className="flex gap-4">
-                      <div className="flex-shrink-0">
-                        <AIAvatar icon={agentInfo.icon} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <AIMessageContent
-                          content={message.content}
-                          thought={message.thought}
-                          images={message.images}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Footer Info */}
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>
-            This is a readonly view of a shared conversation from{' '}
-            <button
-              onClick={() => router.push('/')}
-              className="text-blue-600 dark:text-blue-400 hover:underline"
-            >
-              AIGuides
-            </button>
-          </p>
-        </div>
-      </main>
     </div>
   );
 }
