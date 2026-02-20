@@ -121,7 +121,17 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		},
 	}
 
-	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration, config.FrontendURL, webSearchConfig, tools.ExaConfig{APIKey: config.ExaSearch.APIKey})
+	assistantConfig := &assistant.Config{
+		Model:               model,
+		DB:                  db,
+		GenaiClient:         genaiClient,
+		MockImageGeneration: config.MockImageGeneration,
+		FrontendURL:         config.FrontendURL,
+		WebSearchConfig:     webSearchConfig,
+		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
+	}
+
+	assistant, err := assistant.New(assistantConfig)
 	if err != nil {
 		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
 	}
