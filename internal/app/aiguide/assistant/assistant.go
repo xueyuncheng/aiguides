@@ -25,19 +25,38 @@ type Assistant struct {
 	genaiClient         *genai.Client
 	frontendURL         string
 	webSearchConfig     tools.WebSearchConfig
+	exaConfig           tools.ExaConfig
 
 	runner      *runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string, webSearchConfig tools.WebSearchConfig) (*Assistant, error) {
+type Config struct {
+	Model               model.LLM
+	DB                  *gorm.DB
+	GenaiClient         *genai.Client
+	MockImageGeneration bool
+	FrontendURL         string
+	WebSearchConfig     tools.WebSearchConfig
+	ExaConfig           tools.ExaConfig
+}
+
+func New(config *Config) (*Assistant, error) {
+	if config == nil {
+		slog.Error("config parameter is nil")
+		return nil, fmt.Errorf("config cannot be nil")
+	}
+	if config.DB == nil {
+		slog.Error("config.DB is nil")
+		return nil, fmt.Errorf("config.DB cannot be nil")
+	}
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
 			SingularTable: true,
 		},
 	}
-	session, err := database.NewSessionService(db.Dialector, gormConfig)
+	session, err := database.NewSessionService(config.DB.Dialector, gormConfig)
 	if err != nil {
 		slog.Error("database.NewSessionService() error", "err", err)
 		return nil, fmt.Errorf("database.NewSessionService() error, err = %w", err)
@@ -49,13 +68,14 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 	}
 
 	assistant := &Assistant{
-		mockImageGeneration: mockImageGeneration,
-		model:               model,
+		mockImageGeneration: config.MockImageGeneration,
+		model:               config.Model,
 		session:             session,
-		db:                  db,
-		genaiClient:         genaiClient,
-		frontendURL:         frontendURL,
-		webSearchConfig:     webSearchConfig,
+		db:                  config.DB,
+		genaiClient:         config.GenaiClient,
+		frontendURL:         config.FrontendURL,
+		webSearchConfig:     config.WebSearchConfig,
+		exaConfig:           config.ExaConfig,
 	}
 
 	runner, err := assistant.createRunner()

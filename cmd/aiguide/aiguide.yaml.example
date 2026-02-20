@@ -55,3 +55,13 @@ gin_port: 8080
 # - 搜索语言：zh-CN（中文）
 # - 超时时间：30 秒
 # - 最大结果数：10
+
+# Exa 搜索配置（可选）
+# Exa 是一个神经网络搜索引擎，擅长深度语义搜索，与 SearXNG 互补：
+# - SearXNG 适合实时性强的事实查询（如"今天的金价是多少"）
+# - Exa 适合需要深度理解、寻找高质量参考资料或直接获取网页正文的任务
+#
+# 获取 API Key：https://exa.ai/
+#
+# exa_search:
+#   api_key: "your_exa_api_key_here"

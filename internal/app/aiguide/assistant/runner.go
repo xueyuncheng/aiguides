@@ -17,6 +17,7 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 		MockImageGen:      a.mockImageGeneration,
 		MockEmailIMAPConn: false,
 		WebSearchConfig:   a.webSearchConfig,
+		ExaConfig:         a.exaConfig,
 	}
 	assistantAgent, err := NewAssistantAgent(assistantConfig)
 	if err != nil {

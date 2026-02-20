@@ -37,12 +37,18 @@ type Config struct {
 	SecureCookie        *bool     `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
 	MockImageGeneration bool      `yaml:"mock_image_generation"`
 	WebSearch           WebSearch `yaml:"web_search"` // Web 搜索配置
+	ExaSearch           ExaSearch `yaml:"exa_search"` // Exa 搜索配置
 }
 
 // WebSearch Web 搜索 YAML 配置（用于解析配置文件）
 // 用户只需配置 instance_url，其他参数使用默认值
 type WebSearch struct {
 	InstanceURL string `yaml:"instance_url"`
+}
+
+// ExaSearch Exa 搜索 YAML 配置
+type ExaSearch struct {
+	APIKey string `yaml:"api_key"`
 }
 
 type AIGuide struct {
@@ -115,7 +121,17 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		},
 	}
 
-	assistant, err := assistant.New(model, db, genaiClient, config.MockImageGeneration, config.FrontendURL, webSearchConfig)
+	assistantConfig := &assistant.Config{
+		Model:               model,
+		DB:                  db,
+		GenaiClient:         genaiClient,
+		MockImageGeneration: config.MockImageGeneration,
+		FrontendURL:         config.FrontendURL,
+		WebSearchConfig:     webSearchConfig,
+		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
+	}
+
+	assistant, err := assistant.New(assistantConfig)
 	if err != nil {
 		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
 	}

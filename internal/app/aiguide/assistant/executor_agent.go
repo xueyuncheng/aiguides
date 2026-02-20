@@ -28,6 +28,7 @@ type ExecutorAgentConfig struct {
 	DB              *gorm.DB
 	MockImageGen    bool
 	WebSearchConfig tools.WebSearchConfig
+	ExaConfig       tools.ExaConfig
 }
 
 // NewExecutorAgent creates a specialized execution agent with all functional tools
@@ -55,6 +56,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 	webFetchTool, err := tools.NewWebFetchTool()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create web fetch tool: %w", err)
+	}
+
+	exaSearchTool, err := tools.NewExaSearchTool(config.ExaConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exa search tool: %w", err)
 	}
 
 	currentTimeTool, err := tools.NewCurrentTimeTool()
@@ -88,6 +94,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			imageGenTool,
 			emailQueryTool,
 			webSearchTool,
+			exaSearchTool,
 			webFetchTool,
 			// 任务管理工具（用于更新执行状态）
 			taskListTool,
