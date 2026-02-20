@@ -26,6 +26,7 @@ type AssistantAgentConfig struct {
 	MockImageGen      bool
 	MockEmailIMAPConn bool
 	WebSearchConfig   tools.WebSearchConfig
+	ExaConfig         tools.ExaConfig
 }
 
 // NewAssistantAgent creates the root agent with Planner and Executor as subagents
@@ -51,6 +52,7 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		DB:              config.DB,
 		MockImageGen:    config.MockImageGen,
 		WebSearchConfig: config.WebSearchConfig,
+		ExaConfig:       config.ExaConfig,
 	}
 	executorAgent, err := NewExecutorAgent(executorConfig)
 	if err != nil {

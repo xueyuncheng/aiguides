@@ -25,12 +25,13 @@ type Assistant struct {
 	genaiClient         *genai.Client
 	frontendURL         string
 	webSearchConfig     tools.WebSearchConfig
+	exaConfig           tools.ExaConfig
 
 	runner      *runner.Runner
 	authService *auth.AuthService
 }
 
-func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string, webSearchConfig tools.WebSearchConfig) (*Assistant, error) {
+func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGeneration bool, frontendURL string, webSearchConfig tools.WebSearchConfig, exaConfig tools.ExaConfig) (*Assistant, error) {
 	gormConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		NamingStrategy: schema.NamingStrategy{
@@ -56,6 +57,7 @@ func New(model model.LLM, db *gorm.DB, genaiClient *genai.Client, mockImageGener
 		genaiClient:         genaiClient,
 		frontendURL:         frontendURL,
 		webSearchConfig:     webSearchConfig,
+		exaConfig:           exaConfig,
 	}
 
 	runner, err := assistant.createRunner()
