@@ -11,8 +11,7 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
-// Note: singleDollarTextMath: false prevents $100 from being parsed as math formula
-export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, [remarkMath, { singleDollarTextMath: false }]];
+export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
 // Table styles
