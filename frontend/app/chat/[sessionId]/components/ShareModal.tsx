@@ -109,9 +109,10 @@ export function ShareModal({ isOpen, onClose, sessionId, agentId }: ShareModalPr
 
             <div className="flex gap-2 justify-end">
               <Button
-                variant="outline"
+                variant="ghost"
                 onClick={onClose}
                 disabled={isLoading}
+                className="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors"
               >
                 Cancel
               </Button>

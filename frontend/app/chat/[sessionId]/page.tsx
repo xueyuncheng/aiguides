@@ -795,8 +795,8 @@ export default function ChatPage() {
             <Button
               onClick={() => setIsShareModalOpen(true)}
               size="icon"
-              variant="outline"
-              className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
+              variant="ghost"
+              className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px] hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
               aria-label="Share conversation"
             >
               <Share2 className="h-5 w-5" />
@@ -809,9 +809,9 @@ export default function ChatPage() {
           <div className="hidden md:flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-700">
             <Button
               onClick={() => setIsShareModalOpen(true)}
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors"
             >
               <Share2 className="h-4 w-4" />
               Share Conversation
