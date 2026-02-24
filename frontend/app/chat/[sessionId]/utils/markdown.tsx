@@ -11,6 +11,8 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
+// Enable single-dollar inline math (e.g. `$T$`) for better LaTeX compatibility in chat responses.
+// Trade-off: bare currency-like text such as `$100` may be interpreted as math by remark-math.
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
