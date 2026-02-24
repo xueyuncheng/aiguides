@@ -1,10 +1,37 @@
 # AIGuide Configuration Example
 # 复制此文件为 aiguide.yaml 并填写实际的配置值
 
-# Gemini API 配置（必需）
-api_key: your_gemini_api_key_here
-model_name: gemini-2.0-flash-exp
-# base_url: https://xxxx.com # 自定义 Gemini API Base URL (可选)
+# 模型后端配置（必需）
+# model_backend 选择模型提供商，支持以下值：
+#   "google"  - 使用 Google Gemini API（默认，留空时也使用此后端）
+#   "openai"  - 使用 OpenAI 兼容 API（OpenAI、DeepSeek、Ollama 等）
+# model_backend: google
+
+# Google Gemini 配置（model_backend 为 google 或未设置时使用）
+# api_key: your_gemini_api_key_here
+# model_name: gemini-2.0-flash-exp
+# base_url: https://xxxx.com   # 自定义 Gemini API Base URL（可选）
+
+# --- 示例：使用 OpenAI ---
+# model_backend: openai
+# api_key: sk-your_openai_api_key_here
+# model_name: gpt-4o
+# base_url: https://api.openai.com/v1  # 可省略，默认为 OpenAI 官方地址
+
+# --- 示例：使用 DeepSeek ---
+# model_backend: openai
+# api_key: sk-your_deepseek_api_key_here
+# model_name: deepseek-chat
+# base_url: https://api.deepseek.com/v1
+
+# --- 示例：使用本地 Ollama ---
+# model_backend: openai
+# api_key: ollama    # Ollama 不需要真实 API Key，填任意值即可
+# model_name: qwen2.5:14b
+# base_url: http://localhost:11434/v1
+
+# 注意：使用非 Google 模型后端时，Imagen 图片生成功能不可用。
+# 可设置 mock_image_generation: true 跳过实际调用。
 
 # 服务器配置
 use_gin: true

@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/assistant"
 	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/model/openai"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"google.golang.org/adk/model"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
@@ -21,9 +23,13 @@ import (
 )
 
 type Config struct {
-	DBFile              string    `yaml:"db_file"`
-	APIKey              string    `yaml:"api_key"`
-	ModelName           string    `yaml:"model_name"`
+	DBFile    string `yaml:"db_file"`
+	APIKey    string `yaml:"api_key"`
+	ModelName string `yaml:"model_name"`
+	// ModelBackend selects the model provider. Supported values:
+	//   "google"  – Google Gemini via the Gemini API (default)
+	//   "openai"  – Any OpenAI-compatible API (OpenAI, DeepSeek, Ollama, etc.)
+	ModelBackend        string    `yaml:"model_backend"`
 	BaseURL             string    `yaml:"base_url"`
 	Proxy               string    `yaml:"proxy"`
 	UseGin              bool      `yaml:"use_gin"`
@@ -91,10 +97,19 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("genai.NewClient() error, err = %w", err)
 	}
 
-	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
-	if err != nil {
-		slog.Error("gemini.NewModel() error", "err", err)
-		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
+	var llm model.LLM
+	switch config.ModelBackend {
+	case "openai":
+		llm = openai.NewModel(config.APIKey, config.BaseURL, config.ModelName, httpClient)
+		slog.Info("using OpenAI-compatible model backend", "model", config.ModelName, "base_url", config.BaseURL)
+	default:
+		// Default to Google Gemini.
+		llm, err = gemini.NewModel(ctx, config.ModelName, genaiConfig)
+		if err != nil {
+			slog.Error("gemini.NewModel() error", "err", err)
+			return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
+		}
+		slog.Info("using Google Gemini model backend", "model", config.ModelName)
 	}
 
 	dialector := sqlite.Open(config.DBFile)
@@ -122,7 +137,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 
 	assistantConfig := &assistant.Config{
-		Model:               model,
+		Model:               llm,
 		DB:                  db,
 		GenaiClient:         genaiClient,
 		MockImageGeneration: config.MockImageGeneration,
