@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import { Button } from '@/app/components/ui/button';
 import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
-import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents } from '../utils/markdown';
+import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
 import { FEEDBACK_TIMEOUT_MS } from '../constants';
 
 interface AIMessageContentProps {
@@ -166,7 +166,7 @@ export const AIMessageContent = memo(({
               rehypePlugins={markdownRehypePlugins}
               components={markdownComponents}
             >
-              {content}
+              {preprocessMarkdown(content)}
             </ReactMarkdown>
           </div>
         )}

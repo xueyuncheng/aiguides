@@ -11,8 +11,18 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
-// Note: singleDollarTextMath: false prevents $100 from being parsed as math formula
-export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, [remarkMath, { singleDollarTextMath: false }]];
+// Enable single-dollar inline math (e.g. `$T$`) for better LaTeX compatibility in chat responses.
+// Preprocess markdown to escape currency dollar signs (e.g. `$100`) before remark-math parses them.
+export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
+
+/**
+ * Escapes dollar signs that look like currency amounts (followed by a digit),
+ * preventing remark-math from treating them as LaTeX delimiters.
+ * e.g. "$100" → "\$100", but "$T$" remains unchanged.
+ */
+export function preprocessMarkdown(content: string): string {
+  return content.replace(/\$(?=\d)/g, '\\$');
+}
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
 // Table styles
