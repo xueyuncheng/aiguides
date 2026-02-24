@@ -61,10 +61,6 @@ function LoginForm() {
             使用 Google 账号继续
           </Button>
         </div>
-
-        <p className="px-8 text-center text-xs text-muted-foreground">
-          还没有账号？请联系系统管理员获取访问权限。
-        </p>
       </div>
 
       {/* Footer Branding */}
