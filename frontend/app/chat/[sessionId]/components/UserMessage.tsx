@@ -1,5 +1,5 @@
 import ReactMarkdown from 'react-markdown';
-import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents } from '../utils/markdown';
+import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
 
 interface UserMessageProps {
   content: string;
@@ -44,7 +44,7 @@ export function UserMessage({ content, images, fileNames }: UserMessageProps) {
             rehypePlugins={markdownRehypePlugins}
             components={markdownComponents}
           >
-            {content}
+            {preprocessMarkdown(content)}
           </ReactMarkdown>
         </div>
       )}

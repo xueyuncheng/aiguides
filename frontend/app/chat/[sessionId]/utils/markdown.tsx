@@ -12,8 +12,17 @@ import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
 // Enable single-dollar inline math (e.g. `$T$`) for better LaTeX compatibility in chat responses.
-// Trade-off: bare currency-like text such as `$100` may be interpreted as math by remark-math.
+// Preprocess markdown to escape currency dollar signs (e.g. `$100`) before remark-math parses them.
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
+
+/**
+ * Escapes dollar signs that look like currency amounts (followed by a digit),
+ * preventing remark-math from treating them as LaTeX delimiters.
+ * e.g. "$100" → "\$100", but "$T$" remains unchanged.
+ */
+export function preprocessMarkdown(content: string): string {
+  return content.replace(/\$(?=\d)/g, '\\$');
+}
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
 // Table styles
