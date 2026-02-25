@@ -117,9 +117,9 @@ export const AIMessageContent = memo(({
 
           <div className={cn(
             "mt-3 overflow-hidden transition-all duration-300 ease-in-out",
-            isThoughtExpanded ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"
+            isThoughtExpanded ? "max-h-[99999px] opacity-100" : "max-h-0 opacity-0"
           )}>
-            <div className="text-xs text-muted-foreground/90 leading-relaxed pl-4 border-l-2 border-primary/20 py-1 whitespace-pre-wrap bg-muted/20 rounded-r-md">
+            <div className="text-xs text-muted-foreground/90 leading-relaxed pl-4 border-l-2 border-primary/20 py-1 whitespace-pre-wrap bg-muted/20 rounded-r-md max-h-[600px] overflow-y-auto">
               {thought}
               {isStreaming && (
                 <span className="inline-block w-1 h-3 ml-1 bg-primary animate-pulse align-middle" />
