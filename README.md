@@ -18,7 +18,12 @@
 
 ## 快速启动
 
-1. **准备配置**
+1. **安装依赖**
+   - Go 1.25.5+
+   - Node.js 20+
+   - pnpm（`npm install -g pnpm`）
+
+2. **准备配置**
    ```bash
    cp cmd/aiguide/aiguide.yaml.example cmd/aiguide/aiguide.yaml
    ```
@@ -27,8 +32,9 @@
    api_key: "your_gemini_api_key_here"
    model_name: gemini-2.0-flash-exp
    ```
+   如需 Google OAuth、网页搜索或 Exa 搜索，请参考 `cmd/aiguide/aiguide.yaml.example` 中的说明。
 
-2. **启动服务**
+3. **启动服务**
    ```bash
    ./scripts/start.sh
    ```
