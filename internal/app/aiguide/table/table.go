@@ -74,6 +74,24 @@ type Task struct {
 	Result      string                `json:"result,omitempty"`                               // 任务执行结果
 }
 
+// ScheduledTask represents a user-defined timed task.
+type ScheduledTask struct {
+	Model
+
+	UserID       int        `gorm:"not null;index" json:"user_id"`
+	SessionID    string     `gorm:"index" json:"session_id"`
+	Title        string     `gorm:"not null" json:"title"`
+	Action       string     `gorm:"type:text;not null" json:"action"`
+	ScheduleType string     `gorm:"type:varchar(20);not null;index" json:"schedule_type"` // once, daily, weekly
+	RunAt        string     `gorm:"not null" json:"run_at"`                               // once=RFC3339, daily/weekly=HH:MM
+	Weekday      int        `json:"weekday"`                                              // only for weekly: 0(Sun)-6(Sat)
+	Timezone     string     `gorm:"not null" json:"timezone"`
+	TargetEmail  string     `json:"target_email,omitempty"`
+	Enabled      bool       `gorm:"default:true;index" json:"enabled"`
+	LastRunAt    *time.Time `json:"last_run_at,omitempty"`
+	NextRunAt    time.Time  `gorm:"not null;index" json:"next_run_at"`
+}
+
 // SharedConversation represents a shared conversation link
 type SharedConversation struct {
 	Model
@@ -94,6 +112,7 @@ func GetAllModels() []any {
 		&EmailServerConfig{},
 		&UserMemory{},
 		&Task{},
+		&ScheduledTask{},
 		&SharedConversation{},
 	}
 }
