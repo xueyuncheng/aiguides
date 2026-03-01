@@ -4,15 +4,18 @@ import (
 	"aiguide/internal/app/aiguide/assistant"
 	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/middleware"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/adk/model/gemini"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
@@ -38,6 +41,7 @@ type Config struct {
 	MockImageGeneration bool      `yaml:"mock_image_generation"`
 	WebSearch           WebSearch `yaml:"web_search"` // Web 搜索配置
 	ExaSearch           ExaSearch `yaml:"exa_search"` // Exa 搜索配置
+	RateLimit           RateLimit `yaml:"rate_limit"` // 限流配置
 }
 
 // WebSearch Web 搜索 YAML 配置（用于解析配置文件）
@@ -51,13 +55,28 @@ type ExaSearch struct {
 	APIKey string `yaml:"api_key"`
 }
 
+// RateLimit 基于 Redis 令牌桶的限流 YAML 配置
+// 留空（不配置 redis_addr）表示禁用限流
+type RateLimit struct {
+	// RedisAddr Redis 地址，例如 "localhost:6379"；留空则禁用限流
+	RedisAddr string `yaml:"redis_addr"`
+	// RedisPassword Redis 密码（可选）
+	RedisPassword string `yaml:"redis_password"`
+	// Rate 令牌桶容量：每个 period 内允许的最大请求数，默认 60
+	Rate int `yaml:"rate"`
+	// Period 令牌补充周期（秒），默认 60
+	PeriodSeconds int `yaml:"period_seconds"`
+}
+
 type AIGuide struct {
 	config *Config
 
-	migrator    *migration.Migrator
-	db          *gorm.DB
-	assistant   *assistant.Assistant
-	authService *auth.AuthService
+	migrator        *migration.Migrator
+	db              *gorm.DB
+	assistant       *assistant.Assistant
+	authService     *auth.AuthService
+	redisClient     *redis.Client                 // nil 表示未配置 Redis
+	rateLimitConfig *middleware.RateLimiterConfig // nil 表示禁用限流
 }
 
 // secureCookie 返回 cookie 的 secure 标志值，默认为 true（生产环境）
@@ -150,6 +169,35 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		migrator:    migrator,
 		assistant:   assistant,
 		authService: authService,
+	}
+
+	// 初始化 Redis 客户端和限流配置（可选）
+	if config.RateLimit.RedisAddr != "" {
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     config.RateLimit.RedisAddr,
+			Password: config.RateLimit.RedisPassword,
+		})
+
+		// 验证 Redis 连接
+		if err := rdb.Ping(ctx).Err(); err != nil {
+			slog.Error("redis.Ping() error, rate limiting disabled", "addr", config.RateLimit.RedisAddr, "err", err)
+			rdb.Close()
+		} else {
+			rate := config.RateLimit.Rate
+			if rate <= 0 {
+				rate = 60 // 默认每周期 60 次请求
+			}
+			periodSeconds := config.RateLimit.PeriodSeconds
+			if periodSeconds <= 0 {
+				periodSeconds = 60 // 默认周期 60 秒
+			}
+			guide.redisClient = rdb
+			guide.rateLimitConfig = &middleware.RateLimiterConfig{
+				Rate:   rate,
+				Period: time.Duration(periodSeconds) * time.Second,
+			}
+			slog.Info("rate limiting enabled", "addr", config.RateLimit.RedisAddr, "rate", rate, "period_seconds", periodSeconds)
+		}
 	}
 
 	return guide, nil
