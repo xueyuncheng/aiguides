@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	redisclient "aiguide/internal/pkg/redis"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -22,28 +23,97 @@ import (
 // 此处简化为直接测试 rateLimitKey 逻辑。
 func TestRateLimitKey_WithUserID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	c.Set(constant.ContextKeyUserID, 42)
 
-	key := rateLimitKey(c)
-	expected := "ratelimit:user:42"
-	if key != expected {
-		t.Errorf("rateLimitKey() = %q, want %q", key, expected)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/api/assistant/chats/:id", func(c *gin.Context) {
+		c.Set(constant.ContextKeyUserID, 42)
+		key := rateLimitKey(c)
+		c.String(http.StatusOK, key)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/assistant/chats/1", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	expected := "ratelimit:user:42:POST:/api/assistant/chats/:id"
+	if w.Body.String() != expected {
+		t.Errorf("rateLimitKey() = %q, want %q", w.Body.String(), expected)
 	}
 }
 
 func TestRateLimitKey_WithoutUserID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.GET("/", func(c *gin.Context) {
+		key := rateLimitKey(c)
+		c.String(http.StatusOK, key)
+	})
+
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "192.168.1.1:1234"
-	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = req
+	router.ServeHTTP(w, req)
 
-	key := rateLimitKey(c)
-	// key 应当以 "ratelimit:ip:" 开头
-	if len(key) < len("ratelimit:ip:") {
-		t.Errorf("rateLimitKey() = %q, expected ip-based key", key)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	expected := "ratelimit:ip:192.168.1.1:GET:/"
+	if w.Body.String() != expected {
+		t.Errorf("rateLimitKey() = %q, want %q", w.Body.String(), expected)
+	}
+}
+
+func TestRateLimitKey_WithoutUserID_WithRouteTemplatePath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.GET("/api/sessions/:id", func(c *gin.Context) {
+		key := rateLimitKey(c)
+		c.String(http.StatusOK, key)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/abc", nil)
+	req.RemoteAddr = "192.168.1.1:1234"
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	expected := "ratelimit:ip:192.168.1.1:GET:/api/sessions/:id"
+	if w.Body.String() != expected {
+		t.Errorf("rateLimitKey() = %q, want %q", w.Body.String(), expected)
+	}
+}
+
+func TestRateLimitKey_WithRouteTemplatePath(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.POST("/api/assistant/chats/:id", func(c *gin.Context) {
+		c.Set(constant.ContextKeyUserID, 42)
+		key := rateLimitKey(c)
+		c.String(http.StatusOK, key)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/assistant/chats/123", nil)
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	expected := "ratelimit:user:42:POST:/api/assistant/chats/:id"
+	if w.Body.String() != expected {
+		t.Errorf("rateLimitKey() = %q, want %q", w.Body.String(), expected)
 	}
 }
 
@@ -56,12 +126,12 @@ func TestRateLimiter_AllowsRequests(t *testing.T) {
 		Addr: "localhost:16399", // 不存在的端口
 	})
 
-	cfg := RateLimiterConfig{
+	cfg := &RateLimiterConfig{
 		Rate:   10,
 		Period: time.Minute,
 	}
 
-	handler := RateLimiter(rdb, cfg)
+	handler := RateLimiter(redisclient.NewFromGoRedis(rdb), cfg)
 
 	// 构造一个带 auth 信息的请求
 	req := httptest.NewRequest(http.MethodPost, "/api/assistant/chats/1", nil)
@@ -101,8 +171,8 @@ func TestRateLimitHeaders_Set(t *testing.T) {
 		Addr: "localhost:16399",
 	})
 
-	cfg := RateLimiterConfig{Rate: 5, Period: time.Minute}
-	handler := RateLimiter(rdb, cfg)
+	cfg := &RateLimiterConfig{Rate: 5, Period: time.Minute}
+	handler := RateLimiter(redisclient.NewFromGoRedis(rdb), cfg)
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	w := httptest.NewRecorder()
@@ -119,5 +189,29 @@ func TestRateLimitHeaders_Set(t *testing.T) {
 		if err != nil || limit != 5 {
 			t.Errorf("X-RateLimit-Limit header: got %q, expected \"5\"", w.Header().Get("X-RateLimit-Limit"))
 		}
+	}
+}
+
+func TestRateLimiter_HealthCheck_Bypass(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	// 使用不可达的 Redis，确保不会因 Redis 错误而放行掩盖逻辑
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:16399",
+	})
+
+	cfg := &RateLimiterConfig{Rate: 1, Period: time.Minute}
+	handler := RateLimiter(redisclient.NewFromGoRedis(rdb), cfg)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health", nil)
+	w := httptest.NewRecorder()
+	router := gin.New()
+	router.GET("/api/health", handler, func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200 for health bypass, got %d", w.Code)
 	}
 }

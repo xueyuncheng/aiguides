@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"aiguide/internal/pkg/redis"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis_rate/v10"
-	"github.com/redis/go-redis/v9"
 )
 
 // RateLimiterConfig 令牌桶限流配置
@@ -22,19 +22,26 @@ type RateLimiterConfig struct {
 }
 
 // RateLimiter 基于 Redis 的令牌桶限流中间件
-// 按用户 ID 进行限流，未登录请求按 IP 限流
-func RateLimiter(rdb *redis.Client, cfg RateLimiterConfig) gin.HandlerFunc {
-	limiter := redis_rate.NewLimiter(rdb)
+// 按用户 ID, 请求方法，请求路径进行限流
+// 暂时只对需要登录的接口生效
+func RateLimiter(rdb *redis.Client, cfg *RateLimiterConfig) gin.HandlerFunc {
+	limiter := redis_rate.NewLimiter(rdb.Raw())
 
 	return func(c *gin.Context) {
+		if c.Request.Method == http.MethodGet && c.Request.URL.Path == "/api/health" {
+			c.Next()
+			return
+		}
+
 		// 优先使用用户 ID 作为限流 key，否则回退到 IP 地址
 		key := rateLimitKey(c)
 
-		res, err := limiter.Allow(c.Request.Context(), key, redis_rate.Limit{
+		limit := redis_rate.Limit{
 			Rate:   cfg.Rate,
 			Burst:  cfg.Rate,
 			Period: cfg.Period,
-		})
+		}
+		res, err := limiter.Allow(c.Request.Context(), key, limit)
 		if err != nil {
 			slog.Error("rate limiter Allow() error", "key", key, "err", err)
 			// Redis 不可用时放行请求，避免影响正常服务
@@ -61,10 +68,15 @@ func RateLimiter(rdb *redis.Client, cfg RateLimiterConfig) gin.HandlerFunc {
 	}
 }
 
-// rateLimitKey 生成限流 key：已认证用户用 user:<id>，否则用 ip:<addr>
+// rateLimitKey 生成限流 key：
+// - 已认证用户：user:<id>:<method>:<path-template>
+// - 未认证用户：ip:<addr>:<method>:<path-template>
 func rateLimitKey(c *gin.Context) string {
 	if userID, exists := c.Get(constant.ContextKeyUserID); exists {
-		return fmt.Sprintf("ratelimit:user:%v", userID)
+		return fmt.Sprintf("ratelimit:user:%v:%s:%s",
+			userID, c.Request.Method, c.FullPath())
 	}
-	return fmt.Sprintf("ratelimit:ip:%s", c.ClientIP())
+
+	return fmt.Sprintf("ratelimit:ip:%s:%s:%s",
+		c.ClientIP(), c.Request.Method, c.FullPath())
 }

@@ -33,12 +33,12 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// 需要认证的用户信息接口
 	api.GET("/auth/user", a.GetUser)
 
-	// Agent 聊天路由（应用限流中间件）
-	chatHandlers := []gin.HandlerFunc{a.assistant.Chat}
-	if a.rateLimitConfig != nil && a.redisClient != nil {
-		chatHandlers = append([]gin.HandlerFunc{middleware.RateLimiter(a.redisClient, *a.rateLimitConfig)}, chatHandlers...)
+	if a.rateLimitConfig != nil {
+		api.Use(middleware.RateLimiter(a.redisClient, a.rateLimitConfig))
 	}
-	api.POST("/assistant/chats/:id", chatHandlers...)
+
+	// Agent 聊天路由
+	api.POST("/assistant/chats/:id", a.assistant.Chat)
 
 	// Share management routes (authenticated)
 	shareGroup := api.Group("/assistant/share")

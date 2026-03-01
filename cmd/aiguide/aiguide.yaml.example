@@ -66,13 +66,14 @@ gin_port: 8080
 # exa_search:
 #   api_key: "your_exa_api_key_here"
 
-# 令牌桶限流配置（可选，基于 Redis）
+# Redis 配置（必填）
+redis:
+  addr: "localhost:6379"         # Redis 地址（必填）
+  password: ""                   # Redis 密码（无密码则留空）
+
+# 令牌桶限流配置（必填）
 # 按用户 ID 进行限流，防止单个用户高频调用聊天接口
-# 留空（不配置 redis_addr）表示禁用限流
-#
-# rate_limit:
-#   redis_addr: "localhost:6379"   # Redis 地址（必填，填写后才启用限流）
-#   redis_password: ""             # Redis 密码（无密码则留空）
-#   rate: 60                       # 令牌桶容量：每个周期内允许的最大请求数（默认 60）
-#   period_seconds: 60             # 令牌补充周期（秒，默认 60）
-#                                  # 以上示例为每分钟最多 60 次请求
+rate_limit:
+  rate: 60                        # 令牌桶容量：每个周期内允许的最大请求数
+  period_seconds: 60              # 令牌补充周期（秒）
+                                   # 以上示例为每分钟最多 60 次请求
