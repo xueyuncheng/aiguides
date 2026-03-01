@@ -27,12 +27,18 @@
    ```bash
    cp cmd/aiguide/aiguide.yaml.example cmd/aiguide/aiguide.yaml
    ```
-   编辑 `cmd/aiguide/aiguide.yaml`，填写 Gemini API Key：
+   编辑 `cmd/aiguide/aiguide.yaml`，填写 Gemini API Key，并配置 Redis 与限流：
    ```yaml
-   api_key: "your_gemini_api_key_here"
-   model_name: gemini-2.0-flash-exp
-   ```
-   如需 Google OAuth、网页搜索或 Exa 搜索，请参考 `cmd/aiguide/aiguide.yaml.example` 中的说明。
+    api_key: "your_gemini_api_key_here"
+    model_name: gemini-2.0-flash-exp
+    redis:
+      addr: "localhost:6379"
+      password: ""
+    rate_limit:
+      rate: 60
+      period_seconds: 60
+    ```
+    如需 Google OAuth、网页搜索或 Exa 搜索，请参考 `cmd/aiguide/aiguide.yaml.example` 中的说明。
 
 3. **启动服务**
    ```bash

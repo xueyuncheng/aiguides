@@ -33,6 +33,10 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// 需要认证的用户信息接口
 	api.GET("/auth/user", a.GetUser)
 
+	if a.rateLimitConfig != nil {
+		api.Use(middleware.RateLimiter(a.redisClient, a.rateLimitConfig))
+	}
+
 	// Agent 聊天路由
 	api.POST("/assistant/chats/:id", a.assistant.Chat)
 
