@@ -14,7 +14,7 @@ import type { Message, SelectedImage } from './types';
 import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
-import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput } from './components';
+import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput, SelectionAskTooltip } from './components';
 import { ShareModal } from './components/ShareModal';
 
 // 导入 hooks
@@ -46,6 +46,7 @@ export default function ChatPage() {
   const [editingValue, setEditingValue] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [quotedText, setQuotedText] = useState('');
 
   // 使用文件上传 hook
   const {
@@ -735,18 +736,34 @@ export default function ChatPage() {
     }
   };
 
-  const canSend = inputValue.trim().length > 0 || selectedImages.length > 0;
+  const canSend = inputValue.trim().length > 0 || selectedImages.length > 0 || quotedText.length > 0;
+
+  const handleAskAI = (text: string) => {
+    setQuotedText(text);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 0);
+  };
+
+  const buildMessageWithQuote = (text: string) =>
+    quotedText
+      ? `> ${quotedText.split('\n').join('\n> ')}\n\n${text}`.trim()
+      : text;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(inputValue, selectedImages);
+    const fullMessage = buildMessageWithQuote(inputValue);
+    setQuotedText('');
+    sendMessage(fullMessage, selectedImages);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
       if (!canSend) return;
       e.preventDefault();
-      sendMessage(inputValue, selectedImages);
+      const fullMessage = buildMessageWithQuote(inputValue);
+      setQuotedText('');
+      sendMessage(fullMessage, selectedImages);
     }
   };
 
@@ -893,7 +910,7 @@ export default function ChatPage() {
                         )}
 
                         {message.role === 'assistant' ? (
-                          <div className="relative text-sm w-full leading-relaxed pt-1 flex-1">
+                          <div className="relative text-sm w-full leading-relaxed pt-1 flex-1" data-ai-message="">
                             <AIMessageContent
                               content={message.content}
                               thought={message.thought}
@@ -1037,9 +1054,13 @@ export default function ChatPage() {
           isLoadingHistory={isLoadingHistory}
           canSend={canSend}
           agentName={agentInfo.name}
+          quotedText={quotedText}
+          onClearQuote={() => setQuotedText('')}
         />
       </div>
-      
+
+      <SelectionAskTooltip onAskAI={handleAskAI} />
+
       {/* Share Modal */}
       <ShareModal
         isOpen={isShareModalOpen}

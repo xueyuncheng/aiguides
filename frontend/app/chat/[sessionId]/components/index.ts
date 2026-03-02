@@ -3,3 +3,4 @@ export { ChatSkeleton } from './ChatSkeleton';
 export { AIMessageContent } from './MessageContent';
 export { UserMessage } from './UserMessage';
 export { ChatInput } from './ChatInput';
+export { SelectionAskTooltip } from './SelectionAskTooltip';
