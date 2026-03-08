@@ -88,6 +88,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		Name:        "executor",
 		Description: "Specialized agent for executing tasks using tools like image generation, email queries, web search, and web fetching",
 		Model:       config.Model,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				IncludeThoughts: true,
+			},
+		},
 		Tools: []tool.Tool{
 			// 功能工具
 			currentTimeTool, // Get current date/time - use before web_search for time-sensitive queries
