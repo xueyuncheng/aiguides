@@ -8,6 +8,7 @@ interface TooltipState {
   x: number;
   y: number;
   text: string;
+  placement: 'top' | 'bottom';
 }
 
 interface SelectionAskTooltipProps {
@@ -15,8 +16,8 @@ interface SelectionAskTooltipProps {
 }
 
 export function SelectionAskTooltip({ onAskAI }: SelectionAskTooltipProps) {
-  const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, text: '' });
-  const tooltipRef = useRef<HTMLButtonElement>(null);
+  const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, text: '', placement: 'top' });
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const updateTooltip = useCallback(() => {
     const selection = window.getSelection();
@@ -52,12 +53,21 @@ export function SelectionAskTooltip({ onAskAI }: SelectionAskTooltipProps) {
 
     const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
+    const estimatedWidth = tooltipRef.current?.offsetWidth ?? 240;
+    const viewportPadding = 16;
+    const placement = rect.top < 96 ? 'bottom' : 'top';
+    const nextX = Math.min(
+      Math.max(rect.left + rect.width / 2, viewportPadding + estimatedWidth / 2),
+      window.innerWidth - viewportPadding - estimatedWidth / 2,
+    );
+    const nextY = placement === 'top' ? rect.top : rect.bottom;
 
     setTooltip({
       visible: true,
-      x: rect.left + rect.width / 2,
-      y: rect.top,
+      x: nextX,
+      y: nextY,
       text: selectedText,
+      placement,
     });
   }, []);
 
@@ -89,24 +99,34 @@ export function SelectionAskTooltip({ onAskAI }: SelectionAskTooltipProps) {
 
   if (!tooltip.visible) return null;
 
+  const isTop = tooltip.placement === 'top';
+
   return (
-    <button
+    <div
       ref={tooltipRef}
-      // Prevent default on mousedown so the text selection isn't cleared before click fires
-      onMouseDown={(e) => e.preventDefault()}
-      onClick={handleClick}
       style={{
         position: 'fixed',
         left: `${tooltip.x}px`,
         top: `${tooltip.y}px`,
-        transform: 'translate(-50%, calc(-100% - 8px))',
+        transform: isTop ? 'translate(-50%, calc(-100% - 14px))' : 'translate(-50%, 14px)',
         zIndex: 50,
       }}
-      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-full shadow-lg hover:bg-zinc-700 dark:hover:bg-zinc-200 transition-colors select-none whitespace-nowrap"
-      aria-label="问 AI"
     >
-      <MessageSquare className="h-3.5 w-3.5" />
-      问 AI
-    </button>
+      <button
+        // Prevent default on mousedown so the text selection isn't cleared before click fires
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={handleClick}
+        className="group relative flex items-center gap-1.5 rounded-xl border border-zinc-300/70 bg-white/96 px-3 py-2 text-left shadow-[0_10px_24px_-18px_rgba(0,0,0,0.28)] backdrop-blur-md transition-all duration-150 hover:border-zinc-400/80 hover:bg-white dark:border-zinc-700/80 dark:bg-zinc-900/96 dark:hover:border-zinc-600/90 dark:hover:bg-zinc-900"
+        aria-label="问 AI"
+      >
+        <MessageSquare className="h-3.5 w-3.5 text-zinc-600 dark:text-zinc-300" />
+        <span className="pr-0.5 text-sm font-medium text-zinc-800 dark:text-zinc-100">问 AI</span>
+      </button>
+
+      <div
+        className="pointer-events-none absolute left-1/2 h-2.5 w-2.5 -translate-x-1/2 rotate-45 border-zinc-300/70 bg-white/96 dark:border-zinc-700/80 dark:bg-zinc-900/96"
+        style={isTop ? { bottom: '-6px', borderRightWidth: '1px', borderBottomWidth: '1px' } : { top: '-6px', borderTopWidth: '1px', borderLeftWidth: '1px' }}
+      />
+    </div>
   );
 }
