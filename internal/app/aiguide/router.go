@@ -48,12 +48,19 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		shareGroup.DELETE("/:shareId", a.assistant.DeleteShare)
 	}
 
+	projectGroup := api.Group("/assistant/projects")
+	{
+		projectGroup.GET("", a.assistant.ListProjects)
+		projectGroup.POST("", a.assistant.CreateProject)
+	}
+
 	// 会话管理路由
 	agentGroup := api.Group("/:agentId/sessions")
 	{
 		agentGroup.GET("", a.assistant.ListSessions)
 		agentGroup.POST("", a.assistant.CreateSession)
 		agentGroup.POST("/:sessionId/edit", a.assistant.EditSession)
+		agentGroup.PATCH("/:sessionId/project", a.assistant.UpdateSessionProject)
 		agentGroup.GET("/:sessionId/history", a.assistant.GetSessionHistory)
 		agentGroup.DELETE("/:sessionId", a.assistant.DeleteSession)
 	}

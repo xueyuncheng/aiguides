@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
-import SessionSidebar, { Session } from '@/app/components/SessionSidebar';
+import SessionSidebar, { Project, Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
@@ -38,6 +38,9 @@ export default function ChatPage() {
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [totalMessageCount, setTotalMessageCount] = useState(0);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState('all');
+  const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -71,6 +74,15 @@ export default function ChatPage() {
   const copiedUserMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 会话管理
+  const getProjectIdFromFilter = (projectId: string) => {
+    if (projectId === 'all' || projectId === 'none') {
+      return null;
+    }
+
+    const parsedProjectId = Number(projectId);
+    return Number.isNaN(parsedProjectId) ? null : parsedProjectId;
+  };
+
   const loadSessions = async (silent = false) => {
     if (!user?.user_id) return;
 
@@ -92,11 +104,31 @@ export default function ChatPage() {
     }
   };
 
+  const loadProjects = async () => {
+    try {
+      const response = await authenticatedFetch('/api/assistant/projects');
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data || []);
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+    }
+  };
+
   useEffect(() => {
     if (user?.user_id) {
       loadSessions();
+      loadProjects();
     }
   }, [user?.user_id]);
+
+  useEffect(() => {
+    const currentSession = sessions.find((item) => item.session_id === sessionId);
+    if (currentSession) {
+      setCurrentProjectId(currentSession.project_id ?? null);
+    }
+  }, [sessionId, sessions]);
 
   const loadSessionHistory = async (targetSessionId: string, updateUrl: boolean = true) => {
     if (updateUrl && targetSessionId !== sessionId) {
@@ -147,6 +179,8 @@ export default function ChatPage() {
 
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
+    const selectedSession = sessions.find((item) => item.session_id === newSessionId);
+    setCurrentProjectId(selectedSession?.project_id ?? null);
     await loadSessionHistory(newSessionId, true);
   };
 
@@ -198,6 +232,7 @@ export default function ChatPage() {
     const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
     window.history.pushState(null, '', `/chat/${newSessionId}`);
     setSessionId(newSessionId);
+    setCurrentProjectId(getProjectIdFromFilter(activeProjectId));
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
@@ -222,6 +257,63 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error deleting session:', error);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    const projectName = window.prompt('请输入项目名称');
+    const trimmedProjectName = projectName?.trim();
+    if (!trimmedProjectName) {
+      return;
+    }
+
+    try {
+      const response = await authenticatedFetch('/api/assistant/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedProjectName,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const project = await response.json();
+      setProjects((prev) => {
+        const nextProjects = prev.filter((item) => item.id !== project.id);
+        return [project, ...nextProjects];
+      });
+      setActiveProjectId(String(project.id));
+      if (messages.length === 0) {
+        setCurrentProjectId(project.id);
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+    }
+  };
+
+  const handleAssignSessionProject = async (targetSessionId: string, projectId: number | null) => {
+    try {
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${targetSessionId}/project`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          project_id: projectId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      await loadSessions(true);
+      await loadProjects();
+
+      if (targetSessionId === sessionId) {
+        setCurrentProjectId(projectId);
+      }
+    } catch (error) {
+      console.error('Error updating session project:', error);
     }
   };
 
@@ -553,20 +645,22 @@ export default function ChatPage() {
       const requestMessage = isRetry ? (lastUserMessage?.content || '') : trimmedContent;
       const imageData = isRetry ? (lastUserMessage?.images || []) : images.map((image) => image.dataUrl);
       const fileNames = isRetry ? (lastUserMessage?.fileNames || []) : images.map((image) => image.name);
+      const sessionProjectId = sessions.find((item) => item.session_id === targetSessionId)?.project_id ?? currentProjectId;
 
       const response = await authenticatedFetch(`/api/${agentId}/chats/${targetSessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          user_id: user?.user_id,
-          session_id: targetSessionId,
-          message: requestMessage,
-          images: imageData,
-          file_names: fileNames,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
+          body: JSON.stringify({
+            user_id: user?.user_id,
+            session_id: targetSessionId,
+            message: requestMessage,
+            images: imageData,
+            file_names: fileNames,
+            project_id: sessionProjectId,
+          }),
+          signal: abortControllerRef.current.signal,
+        });
 
       if (!response.ok) {
         let errorDetail = `HTTP error! status: ${response.status}`;
@@ -784,9 +878,14 @@ export default function ChatPage() {
     <div className="flex h-screen bg-background font-sans text-foreground">
       <SessionSidebar
         sessions={sessions}
+        projects={projects}
+        activeProjectId={activeProjectId}
         isLoading={isSessionsLoading}
         currentSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
+        onProjectSelect={setActiveProjectId}
+        onCreateProject={handleCreateProject}
+        onAssignSessionProject={handleAssignSessionProject}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
         isMobileOpen={isMobileSidebarOpen}

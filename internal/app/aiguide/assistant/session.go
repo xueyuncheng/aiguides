@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -30,6 +31,8 @@ type SessionInfo struct {
 	AppName        string    `json:"app_name"`
 	UserID         int       `json:"user_id"`
 	ThreadID       string    `json:"thread_id,omitempty"`
+	ProjectID      *int      `json:"project_id,omitempty"`
+	ProjectName    string    `json:"project_name,omitempty"`
 	Version        int       `json:"version,omitempty"`
 	LastUpdateTime time.Time `json:"last_update_time"`
 	MessageCount   int       `json:"message_count"`
@@ -62,7 +65,8 @@ type MessageEvent struct {
 
 // CreateSessionRequest 定义创建会话的请求结构
 type CreateSessionRequest struct {
-	UserID int `json:"user_id" binding:"required"`
+	UserID    int  `json:"user_id" binding:"required"`
+	ProjectID *int `json:"project_id,omitempty"`
 }
 
 // CreateSessionResponse 定义创建会话的响应结构
@@ -109,19 +113,48 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 	}
 
 	type sessionMetaInfo struct {
-		Title    string
-		ThreadID string
-		Version  int
+		Title       string
+		ThreadID    string
+		ProjectID   *int
+		ProjectName string
+		Version     int
 	}
 	metadataMap := make(map[string]sessionMetaInfo) // sessionID -> metadata
 	if len(sessionIDs) > 0 {
 		var metadataList []table.SessionMeta
 		if err := a.db.Where("session_id IN ?", sessionIDs).Find(&metadataList).Error; err == nil {
+			projectNameMap := make(map[int]string)
+			projectIDs := make([]int, 0)
+			projectIDSet := make(map[int]struct{})
 			for _, meta := range metadataList {
+				if meta.ProjectID == nil {
+					continue
+				}
+				if _, ok := projectIDSet[*meta.ProjectID]; ok {
+					continue
+				}
+				projectIDSet[*meta.ProjectID] = struct{}{}
+				projectIDs = append(projectIDs, *meta.ProjectID)
+			}
+			if len(projectIDs) > 0 {
+				var projects []table.Project
+				if err := a.db.Where("id IN ? AND user_id = ?", projectIDs, userIDInt).Find(&projects).Error; err == nil {
+					for _, project := range projects {
+						projectNameMap[project.ID] = project.Name
+					}
+				}
+			}
+			for _, meta := range metadataList {
+				projectName := ""
+				if meta.ProjectID != nil {
+					projectName = projectNameMap[*meta.ProjectID]
+				}
 				candidate := sessionMetaInfo{
-					Title:    meta.Title,
-					ThreadID: meta.ThreadID,
-					Version:  meta.Version,
+					Title:       meta.Title,
+					ThreadID:    meta.ThreadID,
+					ProjectID:   meta.ProjectID,
+					ProjectName: projectName,
+					Version:     meta.Version,
 				}
 				existing, ok := metadataMap[meta.SessionID]
 				if !ok || shouldReplaceSessionMeta(existing, candidate) {
@@ -172,6 +205,8 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 			AppName:        sess.AppName(),
 			UserID:         userIDInt,
 			ThreadID:       threadID,
+			ProjectID:      meta.ProjectID,
+			ProjectName:    meta.ProjectName,
 			Version:        version,
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
@@ -184,17 +219,25 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 }
 
 func shouldReplaceSessionMeta(existing, candidate struct {
-	Title    string
-	ThreadID string
-	Version  int
+	Title       string
+	ThreadID    string
+	ProjectID   *int
+	ProjectName string
+	Version     int
 }) bool {
 	if existing.ThreadID == "" && candidate.ThreadID != "" {
+		return true
+	}
+	if existing.ProjectID == nil && candidate.ProjectID != nil {
 		return true
 	}
 	if candidate.Version > existing.Version {
 		return true
 	}
 	if existing.Title == "" && candidate.Title != "" {
+		return true
+	}
+	if existing.ProjectName == "" && candidate.ProjectName != "" {
 		return true
 	}
 	return false
@@ -424,6 +467,15 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		return
 	}
 
+	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
+		if errors.Is(err, errProjectNotFound) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to validate project"})
+		return
+	}
+
 	// 生成新的会话 ID
 	sessionID := generateSessionID()
 
@@ -438,6 +490,13 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		slog.Error("session.Create() error", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if req.ProjectID != nil {
+		if err := a.upsertSessionProjectMeta(sessionID, req.ProjectID); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save session project"})
+			return
+		}
 	}
 
 	response := CreateSessionResponse{

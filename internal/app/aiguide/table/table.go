@@ -31,9 +31,17 @@ type SessionMeta struct {
 	SessionID           string `gorm:"uniqueIndex"`
 	Title               string
 	ThreadID            string `gorm:"index"`
+	ProjectID           *int   `gorm:"index"`
 	Version             int    `gorm:"default:1"`
 	ParentSessionID     string
 	EditedFromMessageID string
+}
+
+type Project struct {
+	Model
+
+	UserID int    `gorm:"not null;uniqueIndex:idx_project_user_name"`
+	Name   string `gorm:"not null;uniqueIndex:idx_project_user_name"`
 }
 
 // EmailServerConfig 邮件服务器配置
@@ -91,6 +99,7 @@ func GetAllModels() []any {
 	return []any{
 		&User{},
 		&SessionMeta{},
+		&Project{},
 		&EmailServerConfig{},
 		&UserMemory{},
 		&Task{},
