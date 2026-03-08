@@ -651,16 +651,16 @@ export default function ChatPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-          body: JSON.stringify({
-            user_id: user?.user_id,
-            session_id: targetSessionId,
-            message: requestMessage,
-            images: imageData,
-            file_names: fileNames,
-            project_id: sessionProjectId,
-          }),
-          signal: abortControllerRef.current.signal,
-        });
+        body: JSON.stringify({
+          user_id: user?.user_id,
+          session_id: targetSessionId,
+          message: requestMessage,
+          images: imageData,
+          file_names: fileNames,
+          project_id: sessionProjectId,
+        }),
+        signal: abortControllerRef.current.signal,
+      });
 
       if (!response.ok) {
         let errorDetail = `HTTP error! status: ${response.status}`;
