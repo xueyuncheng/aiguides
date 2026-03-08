@@ -15,13 +15,15 @@ import { cn } from '@/app/lib/utils';
 // Preprocess markdown to escape currency dollar signs (e.g. `$100`) before remark-math parses them.
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 
+const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),.?!:;%\]])/g;
+
 /**
- * Escapes dollar signs that look like currency amounts (followed by a digit),
+ * Escapes dollar signs that look like standalone currency amounts,
  * preventing remark-math from treating them as LaTeX delimiters.
- * e.g. "$100" → "\$100", but "$T$" remains unchanged.
+ * e.g. "$100" -> "\$100", but "$2^{30} \approx 10^9$" remains unchanged.
  */
 export function preprocessMarkdown(content: string): string {
-  return content.replace(/\$(?=\d)/g, '\\$');
+  return content.replace(currencyPattern, '\\$$1');
 }
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
