@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -10,6 +10,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/app/components/ui/dropdown-menu';
 
@@ -23,12 +30,26 @@ export interface Session {
   message_count: number;
   first_message?: string;
   title?: string;
+  project_id?: number;
+  project_name?: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
 }
 
 interface SessionSidebarProps {
   sessions: Session[];
+  projects: Project[];
+  activeProjectId: string;
   currentSessionId: string;
   onSessionSelect: (sessionId: string) => void;
+  onProjectSelect: (projectId: string) => void;
+  onCreateProject: () => void;
+  onRenameProject: (projectId: number, projectName: string) => void;
+  onDeleteProject: (projectId: number) => void;
+  onAssignSessionProject: (sessionId: string, projectId: number) => void;
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
   isLoading: boolean;
@@ -38,8 +59,15 @@ interface SessionSidebarProps {
 
 const SessionSidebar = memo(({
   sessions,
+  projects,
+  activeProjectId,
   currentSessionId,
   onSessionSelect,
+  onProjectSelect,
+  onCreateProject,
+  onRenameProject,
+  onDeleteProject,
+  onAssignSessionProject,
   onNewSession,
   onDeleteSession,
   isLoading,
@@ -49,8 +77,19 @@ const SessionSidebar = memo(({
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const matchesProjectFilter = (session: Session) => {
+    if (activeProjectId === 'all') {
+      return true;
+    }
+    if (activeProjectId === 'none') {
+      return (session.project_id ?? 0) === 0;
+    }
+
+    return String(session.project_id ?? 0) === activeProjectId;
+  };
+
   const filteredSessions = useMemo(() => {
-    const sessionWithContent = sessions.filter((s) => s.title || s.first_message);
+    const sessionWithContent = sessions.filter((s) => (s.title || s.first_message) && matchesProjectFilter(s));
     const byThread = new Map<string, Session>();
 
     sessionWithContent.forEach((session) => {
@@ -76,7 +115,16 @@ const SessionSidebar = memo(({
     return Array.from(byThread.values()).sort((a, b) =>
       new Date(b.last_update_time).getTime() - new Date(a.last_update_time).getTime()
     );
-  }, [sessions]);
+  }, [activeProjectId, sessions]);
+
+  const projectOptions = useMemo(() => ([
+    { id: 'all', name: '全部会话' },
+    { id: 'none', name: '未归档' },
+    ...projects.map((project) => ({
+      id: String(project.id),
+      name: project.name,
+    })),
+  ]), [projects]);
 
   const currentThreadId = useMemo(() => {
     const current = sessions.find((s) => s.session_id === currentSessionId);
@@ -174,6 +222,93 @@ const SessionSidebar = memo(({
             </Button>
           </div>
           <div className="space-y-2">
+            <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2">
+              <div className="mb-2 flex items-center justify-between px-1">
+                <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+                  <FolderOpen className="h-3.5 w-3.5" />
+                  <span>项目</span>
+                </div>
+                <Button
+                  onClick={onCreateProject}
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                  aria-label="新建项目"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {projectOptions.map((project) => {
+                  const isBuiltIn = project.id === 'all' || project.id === 'none';
+                  const numericProjectId = Number(project.id);
+
+                  return (
+                    <div
+                      key={project.id}
+                      className={cn(
+                        'group/project flex items-center gap-1 rounded-md transition-colors',
+                        activeProjectId === project.id
+                          ? 'bg-zinc-800'
+                          : 'hover:bg-zinc-800/70'
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onProjectSelect(project.id)}
+                        className={cn(
+                          'flex min-w-0 flex-1 items-center rounded-md px-2 py-1.5 text-left text-sm transition-colors',
+                          activeProjectId === project.id
+                            ? 'text-zinc-100'
+                            : 'text-zinc-400 group-hover/project:text-zinc-100'
+                        )}
+                      >
+                        <span className="truncate">{project.name}</span>
+                      </button>
+
+                      {!isBuiltIn && !Number.isNaN(numericProjectId) && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={(event) => event.stopPropagation()}
+                              className="mr-1 h-7 w-7 shrink-0 text-zinc-500 opacity-0 group-hover/project:opacity-100 hover:bg-transparent hover:text-zinc-100 focus-visible:bg-zinc-700 data-[state=open]:bg-zinc-700 data-[state=open]:opacity-100 data-[state=open]:text-zinc-100"
+                              aria-label={`项目 ${project.name} 的更多操作`}
+                            >
+                              <MoreHorizontal className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40 bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
+                            <DropdownMenuItem
+                              className="cursor-pointer"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onRenameProject(numericProjectId, project.name);
+                              }}
+                            >
+                              <Pencil className="mr-2 h-4 w-4" />
+                              <span>重命名</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="cursor-pointer text-red-400 focus:bg-red-900/20 focus:text-red-400"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onDeleteProject(numericProjectId);
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              <span>删除</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
 
             <Button
               onClick={handleNewSessionClick}
@@ -216,9 +351,16 @@ const SessionSidebar = memo(({
                   )}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate flex-1">
-                      {session.title || session.first_message || '新对话'}
-                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate">
+                        {session.title || session.first_message || '新对话'}
+                      </div>
+                      {session.project_name && (
+                        <div className="truncate text-[11px] text-zinc-500">
+                          {session.project_name}
+                        </div>
+                      )}
+                    </div>
                     {(session.version || 1) > 1 && (
                       <span className="text-[10px] text-zinc-500">v{session.version}</span>
                     )}
@@ -238,13 +380,55 @@ const SessionSidebar = memo(({
                             variant="ghost"
                             size="icon"
                             className="relative z-10 h-6 w-6 text-zinc-500 hover:text-zinc-200"
-                            aria-label="删除选项"
+                            aria-label="会话选项"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
+                          <DropdownMenuLabel>项目</DropdownMenuLabel>
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              移动到项目
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-48 bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
+                              <DropdownMenuRadioGroup value={session.project_id === 0 ? 'none' : String(session.project_id ?? 0)}>
+                                <DropdownMenuRadioItem
+                                  value="none"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onAssignSessionProject(session.session_id, 0);
+                                  }}
+                                >
+                                  未归档
+                                </DropdownMenuRadioItem>
+                                {projects.map((project) => (
+                                  <DropdownMenuRadioItem
+                                    key={project.id}
+                                    value={String(project.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onAssignSessionProject(session.session_id, project.id);
+                                    }}
+                                  >
+                                    {project.name}
+                                  </DropdownMenuRadioItem>
+                                ))}
+                              </DropdownMenuRadioGroup>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onCreateProject();
+                            }}
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            <span>新建项目</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem
                             className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
                             onClick={(e) => {

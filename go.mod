@@ -4,6 +4,7 @@ go 1.25.5
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.0
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/emersion/go-imap/v2 v2.0.0-beta.7
 	github.com/gin-gonic/gin v1.11.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
@@ -20,7 +21,6 @@ require (
 require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
-	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect

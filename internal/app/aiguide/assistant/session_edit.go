@@ -257,6 +257,7 @@ func (a *Assistant) createEditedSessionMeta(parentSessionID, newSessionID, messa
 		SessionID:           newSessionID,
 		Title:               parentMeta.Title,
 		ThreadID:            threadID,
+		ProjectID:           parentMeta.ProjectID,
 		Version:             newVersion,
 		ParentSessionID:     parentSessionID,
 		EditedFromMessageID: messageID,
