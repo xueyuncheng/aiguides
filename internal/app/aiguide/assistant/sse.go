@@ -31,7 +31,7 @@ type ChatRequest struct {
 	Message   string   `json:"message"`
 	Images    []string `json:"images,omitempty"`
 	FileNames []string `json:"file_names,omitempty"` // 文件名列表，与 Images 数组对应
-	ProjectID *int     `json:"project_id,omitempty"`
+	ProjectID int      `json:"project_id"`
 }
 
 const (
@@ -125,7 +125,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		ctx.JSON(500, gin.H{"error": "failed to validate project"})
 		return
 	}
-	if req.ProjectID != nil {
+	if req.ProjectID != 0 {
 		if err := a.upsertSessionProjectMeta(sessionID, req.ProjectID); err != nil {
 			ctx.JSON(500, gin.H{"error": "failed to save session project"})
 			return

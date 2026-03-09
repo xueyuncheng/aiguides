@@ -3,6 +3,7 @@ package assistant
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -70,6 +71,8 @@ func TestCreateAndListProjects(t *testing.T) {
 	router := newProjectTestRouter(assistant, func(router *gin.Engine) {
 		router.POST("/api/assistant/projects", assistant.CreateProject)
 		router.GET("/api/assistant/projects", assistant.ListProjects)
+		router.PATCH("/api/assistant/projects/:projectId", assistant.UpdateProject)
+		router.DELETE("/api/assistant/projects/:projectId", assistant.DeleteProject)
 	})
 
 	body, err := json.Marshal(map[string]string{"name": "工作项目"})
@@ -108,6 +111,101 @@ func TestCreateAndListProjects(t *testing.T) {
 	}
 	if len(projects) != 1 || projects[0].Name != "工作项目" {
 		t.Fatalf("unexpected projects response: %+v", projects)
+	}
+}
+
+func TestDeleteProject(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	assistant := setupProjectTestAssistant(t)
+	project := table.Project{
+		UserID: 1,
+		Name:   "待删除项目",
+	}
+	if err := assistant.db.Create(&project).Error; err != nil {
+		t.Fatalf("failed to create project: %v", err)
+	}
+
+	if err := assistant.db.Create(&table.SessionMeta{
+		SessionID: "session-project-delete",
+		ThreadID:  "session-project-delete",
+		ProjectID: project.ID,
+		Version:   1,
+	}).Error; err != nil {
+		t.Fatalf("failed to create session meta: %v", err)
+	}
+
+	router := newProjectTestRouter(assistant, func(router *gin.Engine) {
+		router.DELETE("/api/assistant/projects/:projectId", assistant.DeleteProject)
+	})
+
+	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/assistant/projects/%d", project.ID), nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d, body=%s", http.StatusOK, resp.Code, resp.Body.String())
+	}
+
+	var projectCount int64
+	if err := assistant.db.Model(&table.Project{}).Where("id = ?", project.ID).Count(&projectCount).Error; err != nil {
+		t.Fatalf("failed to count projects: %v", err)
+	}
+	if projectCount != 0 {
+		t.Fatalf("expected project to be deleted, count=%d", projectCount)
+	}
+
+	var meta table.SessionMeta
+	if err := assistant.db.Where("session_id = ?", "session-project-delete").First(&meta).Error; err != nil {
+		t.Fatalf("failed to load session meta: %v", err)
+	}
+	if meta.ProjectID != 0 {
+		t.Fatalf("expected project id to be cleared, got %d", meta.ProjectID)
+	}
+}
+
+func TestUpdateProject(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	assistant := setupProjectTestAssistant(t)
+	project := table.Project{
+		UserID: 1,
+		Name:   "旧项目名",
+	}
+	if err := assistant.db.Create(&project).Error; err != nil {
+		t.Fatalf("failed to create project: %v", err)
+	}
+
+	router := newProjectTestRouter(assistant, func(router *gin.Engine) {
+		router.PATCH("/api/assistant/projects/:projectId", assistant.UpdateProject)
+	})
+
+	body, err := json.Marshal(map[string]string{"name": "新项目名"})
+	if err != nil {
+		t.Fatalf("failed to marshal request: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPatch, fmt.Sprintf("/api/assistant/projects/%d", project.ID), bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d, body=%s", http.StatusOK, resp.Code, resp.Body.String())
+	}
+
+	var updated ProjectInfo
+	if err := json.Unmarshal(resp.Body.Bytes(), &updated); err != nil {
+		t.Fatalf("failed to unmarshal response: %v", err)
+	}
+	if updated.Name != "新项目名" {
+		t.Fatalf("expected updated name %q, got %q", "新项目名", updated.Name)
+	}
+
+	var stored table.Project
+	if err := assistant.db.Where("id = ?", project.ID).First(&stored).Error; err != nil {
+		t.Fatalf("failed to load project: %v", err)
+	}
+	if stored.Name != "新项目名" {
+		t.Fatalf("expected stored name %q, got %q", "新项目名", stored.Name)
 	}
 }
 
@@ -153,8 +251,8 @@ func TestUpdateSessionProject(t *testing.T) {
 	if err := assistant.db.Where("session_id = ?", "session-project-update").First(&meta).Error; err != nil {
 		t.Fatalf("failed to load session meta: %v", err)
 	}
-	if meta.ProjectID == nil || *meta.ProjectID != project.ID {
-		t.Fatalf("expected project id %d, got %+v", project.ID, meta.ProjectID)
+	if meta.ProjectID != project.ID {
+		t.Fatalf("expected project id %d, got %d", project.ID, meta.ProjectID)
 	}
 	if meta.ThreadID != "session-project-update" || meta.Version != 1 {
 		t.Fatalf("unexpected session meta defaults: %+v", meta)
@@ -185,7 +283,7 @@ func TestListSessionsIncludesProjectInfo(t *testing.T) {
 		SessionID: "session-project-list",
 		Title:     "项目会话",
 		ThreadID:  "session-project-list",
-		ProjectID: &project.ID,
+		ProjectID: project.ID,
 		Version:   1,
 	}).Error; err != nil {
 		t.Fatalf("failed to create session meta: %v", err)
@@ -209,8 +307,8 @@ func TestListSessionsIncludesProjectInfo(t *testing.T) {
 	if len(sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(sessions))
 	}
-	if sessions[0].ProjectID == nil || *sessions[0].ProjectID != project.ID {
-		t.Fatalf("expected project id %d, got %+v", project.ID, sessions[0].ProjectID)
+	if sessions[0].ProjectID != project.ID {
+		t.Fatalf("expected project id %d, got %d", project.ID, sessions[0].ProjectID)
 	}
 	if sessions[0].ProjectName != project.Name {
 		t.Fatalf("expected project name %q, got %q", project.Name, sessions[0].ProjectName)
@@ -224,7 +322,7 @@ func TestCreateEditedSessionMetaInheritsProject(t *testing.T) {
 	if err := assistant.db.Create(&table.SessionMeta{
 		SessionID: "parent-session",
 		ThreadID:  "thread-1",
-		ProjectID: &projectID,
+		ProjectID: projectID,
 		Version:   1,
 	}).Error; err != nil {
 		t.Fatalf("failed to create parent meta: %v", err)
@@ -238,7 +336,7 @@ func TestCreateEditedSessionMetaInheritsProject(t *testing.T) {
 	if err := assistant.db.Where("session_id = ?", "child-session").First(&childMeta).Error; err != nil {
 		t.Fatalf("failed to load child meta: %v", err)
 	}
-	if childMeta.ProjectID == nil || *childMeta.ProjectID != projectID {
-		t.Fatalf("expected project id %d, got %+v", projectID, childMeta.ProjectID)
+	if childMeta.ProjectID != projectID {
+		t.Fatalf("expected project id %d, got %d", projectID, childMeta.ProjectID)
 	}
 }

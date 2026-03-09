@@ -31,7 +31,7 @@ type SessionMeta struct {
 	SessionID           string `gorm:"uniqueIndex"`
 	Title               string
 	ThreadID            string `gorm:"index"`
-	ProjectID           *int   `gorm:"index"`
+	ProjectID           int    `gorm:"not null;default:0;index"`
 	Version             int    `gorm:"default:1"`
 	ParentSessionID     string
 	EditedFromMessageID string

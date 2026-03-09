@@ -14,7 +14,7 @@ import type { Message, SelectedImage } from './types';
 import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
-import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput, SelectionAskTooltip } from './components';
+import { AIAvatar, UserAvatar, ChatSkeleton, AIMessageContent, UserMessage, ChatInput, SelectionAskTooltip, CreateProjectModal } from './components';
 import { ShareModal } from './components/ShareModal';
 
 // 导入 hooks
@@ -40,7 +40,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState('all');
-  const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
+  const [currentProjectId, setCurrentProjectId] = useState(0);
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
@@ -49,6 +49,8 @@ export default function ChatPage() {
   const [editingValue, setEditingValue] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
+  const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [quotedText, setQuotedText] = useState('');
 
   // 使用文件上传 hook
@@ -76,11 +78,11 @@ export default function ChatPage() {
   // 会话管理
   const getProjectIdFromFilter = (projectId: string) => {
     if (projectId === 'all' || projectId === 'none') {
-      return null;
+      return 0;
     }
 
     const parsedProjectId = Number(projectId);
-    return Number.isNaN(parsedProjectId) ? null : parsedProjectId;
+    return Number.isNaN(parsedProjectId) ? 0 : parsedProjectId;
   };
 
   const loadSessions = async (silent = false) => {
@@ -126,7 +128,7 @@ export default function ChatPage() {
   useEffect(() => {
     const currentSession = sessions.find((item) => item.session_id === sessionId);
     if (currentSession) {
-      setCurrentProjectId(currentSession.project_id ?? null);
+      setCurrentProjectId(currentSession.project_id ?? 0);
     }
   }, [sessionId, sessions]);
 
@@ -180,7 +182,7 @@ export default function ChatPage() {
   const handleSessionSelect = async (newSessionId: string) => {
     if (newSessionId === sessionId) return;
     const selectedSession = sessions.find((item) => item.session_id === newSessionId);
-    setCurrentProjectId(selectedSession?.project_id ?? null);
+    setCurrentProjectId(selectedSession?.project_id ?? 0);
     await loadSessionHistory(newSessionId, true);
   };
 
@@ -260,23 +262,26 @@ export default function ChatPage() {
     }
   };
 
-  const handleCreateProject = async () => {
-    const projectName = window.prompt('请输入项目名称');
-    const trimmedProjectName = projectName?.trim();
-    if (!trimmedProjectName) {
-      return;
-    }
-
+  const handleCreateProject = async (projectName: string) => {
     try {
       const response = await authenticatedFetch('/api/assistant/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: trimmedProjectName,
+          name: projectName,
         }),
       });
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        let errorMessage = '创建项目失败，请稍后重试';
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = `创建项目失败 (${response.status})`;
+        }
+
+        throw new Error(errorMessage);
       }
 
       const project = await response.json();
@@ -290,10 +295,95 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error('Error creating project:', error);
+      throw error;
     }
   };
 
-  const handleAssignSessionProject = async (targetSessionId: string, projectId: number | null) => {
+  const handleDeleteProject = async (projectId: number) => {
+    try {
+      const response = await authenticatedFetch(`/api/assistant/projects/${projectId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        let errorMessage = '删除项目失败，请稍后重试';
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = `删除项目失败 (${response.status})`;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      setProjects((prev) => prev.filter((project) => project.id !== projectId));
+      setSessions((prev) => prev.map((session) => (
+        session.project_id === projectId
+          ? { ...session, project_id: 0, project_name: '' }
+          : session
+      )));
+
+      if (activeProjectId === String(projectId)) {
+        setActiveProjectId('all');
+      }
+
+      if (currentProjectId === projectId) {
+        setCurrentProjectId(0);
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+    }
+  };
+
+  const handleRenameProject = async (projectId: number, projectName: string) => {
+    const trimmedProjectName = projectName.trim();
+    if (!trimmedProjectName) {
+      return;
+    }
+
+    try {
+      const response = await authenticatedFetch(`/api/assistant/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedProjectName,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = '重命名项目失败，请稍后重试';
+
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } catch {
+          errorMessage = `重命名项目失败 (${response.status})`;
+        }
+
+        throw new Error(errorMessage);
+      }
+
+      const updatedProject = await response.json();
+      setProjects((prev) => prev.map((project) => (
+        project.id === projectId
+          ? { ...project, name: updatedProject.name }
+          : project
+      )));
+      setSessions((prev) => prev.map((session) => (
+        session.project_id === projectId
+          ? { ...session, project_name: updatedProject.name }
+          : session
+      )));
+      setRenamingProject(null);
+    } catch (error) {
+      console.error('Error renaming project:', error);
+      throw error;
+    }
+  };
+
+  const handleAssignSessionProject = async (targetSessionId: string, projectId: number) => {
     try {
       const response = await authenticatedFetch(`/api/${agentId}/sessions/${targetSessionId}/project`, {
         method: 'PATCH',
@@ -884,7 +974,9 @@ export default function ChatPage() {
         currentSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
         onProjectSelect={setActiveProjectId}
-        onCreateProject={handleCreateProject}
+        onCreateProject={() => setIsCreateProjectModalOpen(true)}
+        onRenameProject={(projectId, projectName) => setRenamingProject({ id: projectId, name: projectName })}
+        onDeleteProject={handleDeleteProject}
         onAssignSessionProject={handleAssignSessionProject}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
@@ -1166,6 +1258,33 @@ export default function ChatPage() {
         onClose={() => setIsShareModalOpen(false)}
         sessionId={sessionId}
         agentId={agentId}
+      />
+
+      <CreateProjectModal
+        isOpen={isCreateProjectModalOpen}
+        onClose={() => setIsCreateProjectModalOpen(false)}
+        onSubmit={handleCreateProject}
+        title="创建项目"
+        description="输入项目名称，用来归类当前会话。"
+        submitLabel="创建项目"
+        submittingLabel="创建中"
+      />
+
+      <CreateProjectModal
+        isOpen={renamingProject !== null}
+        onClose={() => setRenamingProject(null)}
+        initialValue={renamingProject?.name ?? ''}
+        title="重命名项目"
+        description="更新项目名称，相关会话会自动显示新名称。"
+        submitLabel="保存"
+        submittingLabel="保存中"
+        onSubmit={(projectName) => {
+          if (!renamingProject) {
+            return Promise.resolve();
+          }
+
+          return handleRenameProject(renamingProject.id, projectName);
+        }}
       />
     </div>
   );

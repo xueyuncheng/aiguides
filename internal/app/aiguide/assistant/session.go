@@ -31,7 +31,7 @@ type SessionInfo struct {
 	AppName        string    `json:"app_name"`
 	UserID         int       `json:"user_id"`
 	ThreadID       string    `json:"thread_id,omitempty"`
-	ProjectID      *int      `json:"project_id,omitempty"`
+	ProjectID      int       `json:"project_id"`
 	ProjectName    string    `json:"project_name,omitempty"`
 	Version        int       `json:"version,omitempty"`
 	LastUpdateTime time.Time `json:"last_update_time"`
@@ -65,8 +65,8 @@ type MessageEvent struct {
 
 // CreateSessionRequest 定义创建会话的请求结构
 type CreateSessionRequest struct {
-	UserID    int  `json:"user_id" binding:"required"`
-	ProjectID *int `json:"project_id,omitempty"`
+	UserID    int `json:"user_id" binding:"required"`
+	ProjectID int `json:"project_id"`
 }
 
 // CreateSessionResponse 定义创建会话的响应结构
@@ -115,7 +115,7 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 	type sessionMetaInfo struct {
 		Title       string
 		ThreadID    string
-		ProjectID   *int
+		ProjectID   int
 		ProjectName string
 		Version     int
 	}
@@ -127,14 +127,14 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 			projectIDs := make([]int, 0)
 			projectIDSet := make(map[int]struct{})
 			for _, meta := range metadataList {
-				if meta.ProjectID == nil {
+				if meta.ProjectID == 0 {
 					continue
 				}
-				if _, ok := projectIDSet[*meta.ProjectID]; ok {
+				if _, ok := projectIDSet[meta.ProjectID]; ok {
 					continue
 				}
-				projectIDSet[*meta.ProjectID] = struct{}{}
-				projectIDs = append(projectIDs, *meta.ProjectID)
+				projectIDSet[meta.ProjectID] = struct{}{}
+				projectIDs = append(projectIDs, meta.ProjectID)
 			}
 			if len(projectIDs) > 0 {
 				var projects []table.Project
@@ -146,8 +146,8 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 			}
 			for _, meta := range metadataList {
 				projectName := ""
-				if meta.ProjectID != nil {
-					projectName = projectNameMap[*meta.ProjectID]
+				if meta.ProjectID != 0 {
+					projectName = projectNameMap[meta.ProjectID]
 				}
 				candidate := sessionMetaInfo{
 					Title:       meta.Title,
@@ -221,14 +221,14 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 func shouldReplaceSessionMeta(existing, candidate struct {
 	Title       string
 	ThreadID    string
-	ProjectID   *int
+	ProjectID   int
 	ProjectName string
 	Version     int
 }) bool {
 	if existing.ThreadID == "" && candidate.ThreadID != "" {
 		return true
 	}
-	if existing.ProjectID == nil && candidate.ProjectID != nil {
+	if existing.ProjectID == 0 && candidate.ProjectID != 0 {
 		return true
 	}
 	if candidate.Version > existing.Version {
@@ -492,7 +492,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		return
 	}
 
-	if req.ProjectID != nil {
+	if req.ProjectID != 0 {
 		if err := a.upsertSessionProjectMeta(sessionID, req.ProjectID); err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save session project"})
 			return

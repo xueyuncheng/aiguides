@@ -52,6 +52,8 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	{
 		projectGroup.GET("", a.assistant.ListProjects)
 		projectGroup.POST("", a.assistant.CreateProject)
+		projectGroup.PATCH("/:projectId", a.assistant.UpdateProject)
+		projectGroup.DELETE("/:projectId", a.assistant.DeleteProject)
 	}
 
 	// 会话管理路由
