@@ -222,6 +222,20 @@ const SessionSidebar = memo(({
             </Button>
           </div>
           <div className="space-y-2">
+            <Button
+              onClick={handleNewSessionClick}
+              variant="outline"
+              className="w-full gap-2 justify-between border-zinc-800 bg-transparent text-zinc-100 hover:bg-zinc-900 transition-colors h-10 px-3 rounded-lg group/btn shadow-sm"
+            >
+              <div className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                <span className="text-sm font-medium">新建对话</span>
+              </div>
+              <kbd className="hidden md:inline-flex h-5 select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200">
+                <span className="text-xs">⌘</span>K
+              </kbd>
+            </Button>
+
             <div className="rounded-lg border border-zinc-800 bg-zinc-900/40 p-2">
               <div className="mb-2 flex items-center justify-between px-1">
                 <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
@@ -309,20 +323,6 @@ const SessionSidebar = memo(({
                 })}
               </div>
             </div>
-
-            <Button
-              onClick={handleNewSessionClick}
-              variant="outline"
-              className="w-full gap-2 justify-between border-zinc-800 bg-transparent text-zinc-100 hover:bg-zinc-900 transition-colors h-10 px-3 rounded-lg group/btn shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                <span className="text-sm font-medium">新建对话</span>
-              </div>
-              <kbd className="hidden md:inline-flex h-5 select-none items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 opacity-0 group-hover/btn:opacity-100 transition-opacity duration-200">
-                <span className="text-xs">⌘</span>K
-              </kbd>
-            </Button>
           </div>
         </div>
 
