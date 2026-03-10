@@ -5,6 +5,7 @@ import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw } from
 import { cn } from '@/app/lib/utils';
 import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
 import { FEEDBACK_TIMEOUT_MS } from '../constants';
+import type { ToolCallItem } from '../types';
 
 interface AIMessageContentProps {
   content: string;
@@ -14,6 +15,7 @@ interface AIMessageContentProps {
   isError?: boolean;
   onRetry?: () => void;
   thoughtStorageKey?: string;
+  toolCalls?: ToolCallItem[];
 }
 
 export const AIMessageContent = memo(({
@@ -23,7 +25,8 @@ export const AIMessageContent = memo(({
   images,
   isError,
   onRetry,
-  thoughtStorageKey
+  thoughtStorageKey,
+  toolCalls,
 }: AIMessageContentProps) => {
   const [showRaw, setShowRaw] = useState(false);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(() => {
@@ -126,6 +129,29 @@ export const AIMessageContent = memo(({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Tool calls section */}
+      {toolCalls && toolCalls.length > 0 && (
+        <div className="mb-3 flex flex-col gap-1.5">
+          {toolCalls.map((tc, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 px-3 py-1.5 rounded-md w-fit"
+            >
+              {isStreaming && i === toolCalls.length - 1 ? (
+                <div className="flex space-x-0.5">
+                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
+                </div>
+              ) : (
+                <div className="w-1 h-1 bg-muted-foreground/40 rounded-full" />
+              )}
+              <span>{tc.label}</span>
+            </div>
+          ))}
         </div>
       )}
 

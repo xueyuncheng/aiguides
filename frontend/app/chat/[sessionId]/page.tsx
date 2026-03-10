@@ -10,7 +10,7 @@ import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
-import type { Message, SelectedImage } from './types';
+import type { Message, SelectedImage, ToolCallItem } from './types';
 import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
@@ -824,6 +824,34 @@ export default function ChatPage() {
                   continue;
                 }
 
+                if (currentEventType === 'tool_call') {
+                  const toolCall = { toolName: data.tool_name as string, label: data.tool_label as string };
+                  setMessages((prev) => {
+                    const newMessages = [...prev];
+                    const lastIndex = newMessages.length - 1;
+                    if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
+                      newMessages[lastIndex] = {
+                        ...newMessages[lastIndex],
+                        toolCalls: [...(newMessages[lastIndex].toolCalls || []), toolCall],
+                        isStreaming: true,
+                      };
+                    } else {
+                      newMessages.push({
+                        id: `msg-${Date.now()}-${data.author || 'assistant'}`,
+                        role: 'assistant',
+                        content: '',
+                        timestamp: new Date(),
+                        author: data.author as string,
+                        isStreaming: true,
+                        toolCalls: [toolCall],
+                      });
+                    }
+                    return newMessages;
+                  });
+                  currentEventType = 'data';
+                  continue;
+                }
+
                 if (data.images && Array.isArray(data.images)) {
                   assistantImages = [...assistantImages, ...data.images];
 
@@ -1109,6 +1137,7 @@ export default function ChatPage() {
                               images={message.images}
                               isError={message.isError}
                               onRetry={() => sendMessage("", [])}
+                              toolCalls={message.toolCalls}
                             />
                           </div>
                         ) : (
