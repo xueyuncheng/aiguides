@@ -240,7 +240,7 @@ func NewFinishPlanningTool() (tool.Tool, error) {
 
 	handler := func(ctx tool.Context, input FinishPlanningInput) (*FinishPlanningOutput, error) {
 		ctx.Actions().TransferToAgent = rootAgentName
-		slog.Info("planning finished", "summary", input.Summary, "task_count", input.TaskCount)
+		slog.Info("planning finished", "summary", input.Summary, "task_count", input.TaskCount, "transfer_to", rootAgentName)
 		return &FinishPlanningOutput{
 			Status:  "completed",
 			Message: fmt.Sprintf("Planning completed: %s (%d tasks created)", input.Summary, input.TaskCount),
