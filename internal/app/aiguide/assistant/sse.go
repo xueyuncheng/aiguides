@@ -112,9 +112,20 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	// 检查或创建 session
-	if err := a.ensureSession(ctx, userID, sessionID); err != nil {
+	isNewSession, err := a.ensureSession(ctx, userID, sessionID)
+	if err != nil {
 		ctx.JSON(500, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 新会话时自动注入用户记忆上下文
+	if isNewSession {
+		if memoryContext, err := a.fetchUserMemories(req.UserID); err != nil {
+			slog.Warn("fetchUserMemories failed, skipping memory injection", "err", err, "userID", req.UserID)
+		} else if memoryContext != "" {
+			parts = prependMemoryContext(parts, memoryContext)
+			message = genai.NewContentFromParts(parts, genai.RoleUser)
+		}
 	}
 
 	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
@@ -229,7 +240,8 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 }
 
 // ensureSession 确保 session 存在，不存在则创建
-func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) error {
+// 返回 isNew=true 表示新创建的 session
+func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) (isNew bool, err error) {
 	sessionGetReq := &session.GetRequest{
 		AppName:   constant.AppNameAssistant.String(),
 		UserID:    userID,
@@ -239,7 +251,7 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 	if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			slog.Error("session.Get() error", "err", err)
-			return fmt.Errorf("session.Get() error, err = %w", err)
+			return false, fmt.Errorf("session.Get() error, err = %w", err)
 		}
 
 		// Session 不存在，创建新的 session
@@ -252,18 +264,20 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 
 		if _, err := a.session.Create(ctx, sessionCreateReq); err != nil {
 			slog.Error("session.Create() error", "err", err)
-			return fmt.Errorf("session.Create() error, err = %w", err)
+			return false, fmt.Errorf("session.Create() error, err = %w", err)
 		}
 
 		// 创建后验证 session 是否成功保存
 		// 这有助于捕捉数据库同步或创建失败的情况
 		if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameAssistant.String(), "userID", userID, "sessionID", sessionID)
-			return fmt.Errorf("session.Get() after create error, err = %w", err)
+			return false, fmt.Errorf("session.Get() after create error, err = %w", err)
 		}
+
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
 // setupSSEResponse 设置 SSE 响应头
@@ -403,12 +417,58 @@ func startHeartbeat(ctx *gin.Context, interval time.Duration) context.CancelFunc
 	return cancel
 }
 
-const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s". 
-Rules: 
-1. Use the same language as the user's message. 
-2. Do NOT use any Markdown formatting (no bold, no italics). 
-3. Do NOT use quotes in the title. 
+const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s".
+Rules:
+1. Use the same language as the user's message.
+2. Do NOT use any Markdown formatting (no bold, no italics).
+3. Do NOT use quotes in the title.
 4. Output only the title text.`
+
+// memoryTypeLabel 将记忆类型映射为中文标签
+var memoryTypeLabel = map[constant.MemoryType]string{
+	constant.MemoryTypePreference: "偏好",
+	constant.MemoryTypeFact:       "事实",
+	constant.MemoryTypeContext:    "上下文",
+}
+
+// fetchUserMemories 查询用户的所有记忆并格式化为上下文文本
+func (a *Assistant) fetchUserMemories(userID int) (string, error) {
+	var memories []table.UserMemory
+	if err := a.db.Where("user_id = ?", userID).Order("importance DESC, updated_at DESC").Find(&memories).Error; err != nil {
+		slog.Error("db.Find() error querying user memories", "err", err, "userID", userID)
+		return "", fmt.Errorf("db.Find() error: %w", err)
+	}
+
+	if len(memories) == 0 {
+		return "", nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<user_context>\n")
+	sb.WriteString("以下是该用户的已知信息（来自历史记忆），请在回答时参考：\n")
+	for _, mem := range memories {
+		label := memoryTypeLabel[mem.MemoryType]
+		if label == "" {
+			label = string(mem.MemoryType)
+		}
+		sb.WriteString(fmt.Sprintf("- [%s] %s\n", label, mem.Content))
+	}
+	sb.WriteString("</user_context>\n")
+
+	return sb.String(), nil
+}
+
+// prependMemoryContext 将记忆上下文 prepend 到用户消息的第一个文本 part 前面
+func prependMemoryContext(parts []*genai.Part, memoryContext string) []*genai.Part {
+	for i, part := range parts {
+		if part.Text != "" {
+			parts[i] = genai.NewPartFromText(memoryContext + "\n" + part.Text)
+			return parts
+		}
+	}
+	// 没有文本 part 时，在最前面插入一个文本 part
+	return append([]*genai.Part{genai.NewPartFromText(memoryContext)}, parts...)
+}
 
 // generateTitle 生成会话标题
 func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage string) error {
