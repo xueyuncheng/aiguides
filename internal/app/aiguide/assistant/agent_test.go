@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/tools"
 	"context"
+	"strings"
 	"testing"
 
 	"google.golang.org/adk/model"
@@ -85,5 +86,34 @@ func TestNewSearchAgentWithModel(t *testing.T) {
 
 	if agent == nil {
 		t.Fatal("NewSearchAgent() returned nil agent")
+	}
+}
+
+func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
+	requiredTools := []string{
+		"`task_list`",
+		"`task_get`",
+		"`manage_memory`",
+	}
+
+	for _, toolName := range requiredTools {
+		if !strings.Contains(assistantAgentInstruction, toolName) {
+			t.Errorf("assistantAgentInstruction missing root tool %s", toolName)
+		}
+	}
+
+	executorOnlyTools := []string{
+		"`current_time`",
+		"`image_gen`",
+		"`email_query`",
+		"`web_search`",
+		"`exa_search`",
+		"`web_fetch`",
+	}
+
+	for _, toolName := range executorOnlyTools {
+		if strings.Contains(assistantAgentInstruction, toolName) {
+			t.Errorf("assistantAgentInstruction should not advertise executor-only tool %s", toolName)
+		}
 	}
 }
