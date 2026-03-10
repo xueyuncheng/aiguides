@@ -375,6 +375,8 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 						}
 					}
 				}
+				// 移除自动注入的用户记忆上下文，不暴露给前端
+				text = stripUserContext(text)
 				content += text
 			}
 
@@ -441,6 +443,26 @@ func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEven
 		last.Thought == current.Thought &&
 		slices.Equal(last.Images, current.Images) &&
 		slices.Equal(last.FileNames, current.FileNames)
+}
+
+// stripUserContext 移除消息文本中自动注入的 <user_context> 块
+func stripUserContext(text string) string {
+	const openTag = "<user_context>\n"
+	const closeTag = "</user_context>\n"
+	for {
+		start := strings.Index(text, openTag)
+		if start == -1 {
+			break
+		}
+		end := strings.Index(text[start:], closeTag)
+		if end == -1 {
+			// 没有闭合标签，截断到 openTag 之前
+			text = text[:start]
+			break
+		}
+		text = text[:start] + text[start+end+len(closeTag):]
+	}
+	return text
 }
 
 func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageEvent, bool) {
