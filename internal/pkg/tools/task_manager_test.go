@@ -13,7 +13,7 @@ import (
 	"google.golang.org/genai"
 )
 
-func TestFinishPlanningTransfersBackToRootAgent(t *testing.T) {
+func TestFinishPlanningReturnsCompleted(t *testing.T) {
 	t.Parallel()
 
 	finishPlanningTool, err := NewFinishPlanningTool()
@@ -41,8 +41,8 @@ func TestFinishPlanningTransfersBackToRootAgent(t *testing.T) {
 		t.Fatalf("finish_planning Run() error = %v", err)
 	}
 
-	if got := toolCtx.actions.TransferToAgent; got != rootAgentName {
-		t.Fatalf("finish_planning should transfer to %q, got %q", rootAgentName, got)
+	if got := toolCtx.actions.TransferToAgent; got != "" {
+		t.Fatalf("finish_planning should not transfer to any agent, got %q", got)
 	}
 
 	if got := result["status"]; got != "completed" {
