@@ -230,6 +230,8 @@ type FinishPlanningOutput struct {
 	Message string `json:"message"`
 }
 
+const rootAgentName = "root_agent"
+
 func NewFinishPlanningTool() (tool.Tool, error) {
 	config := functiontool.Config{
 		Name:        "finish_planning",
@@ -237,6 +239,7 @@ func NewFinishPlanningTool() (tool.Tool, error) {
 	}
 
 	handler := func(ctx tool.Context, input FinishPlanningInput) (*FinishPlanningOutput, error) {
+		ctx.Actions().TransferToAgent = rootAgentName
 		slog.Info("planning finished", "summary", input.Summary, "task_count", input.TaskCount)
 		return &FinishPlanningOutput{
 			Status:  "completed",
