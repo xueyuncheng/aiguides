@@ -93,7 +93,7 @@ func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
 	requiredTools := []string{
 		"`task_list`",
 		"`task_get`",
-		"manage_memory",
+		"`manage_memory`",
 	}
 
 	for _, toolName := range requiredTools {
