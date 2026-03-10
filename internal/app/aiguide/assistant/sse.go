@@ -362,6 +362,18 @@ func (a *Assistant) streamAgentEvents(
 					ctx.Writer.Flush()
 				}
 
+				// 处理 FunctionCall（工具调用），发送给前端展示进度
+				if part.FunctionCall != nil {
+					label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
+					data := gin.H{
+						"author":     event.Author,
+						"tool_name":  part.FunctionCall.Name,
+						"tool_label": label,
+					}
+					ctx.SSEvent("tool_call", data)
+					ctx.Writer.Flush()
+				}
+
 				// 处理 FunctionResponse 中的图片数据
 				if part.FunctionResponse != nil {
 					response := part.FunctionResponse.Response
@@ -468,6 +480,53 @@ func prependMemoryContext(parts []*genai.Part, memoryContext string) []*genai.Pa
 	}
 	// 没有文本 part 时，在最前面插入一个文本 part
 	return append([]*genai.Part{genai.NewPartFromText(memoryContext)}, parts...)
+}
+
+// toolCallLabel 将工具调用转换为用户可读的进度描述
+func toolCallLabel(name string, args map[string]any) string {
+	switch name {
+	case "task_create":
+		if title, ok := args["title"].(string); ok {
+			return fmt.Sprintf("正在创建任务：%s", title)
+		}
+		return "正在创建任务"
+	case "task_update":
+		if id, ok := args["task_id"]; ok {
+			return fmt.Sprintf("正在更新任务 #%v", id)
+		}
+		return "正在更新任务"
+	case "task_list":
+		return "正在检查任务列表"
+	case "task_get":
+		return "正在获取任务详情"
+	case "finish_planning":
+		return "规划完成，准备执行"
+	case "web_search":
+		if query, ok := args["query"].(string); ok {
+			return fmt.Sprintf("正在搜索：%s", query)
+		}
+		return "正在搜索"
+	case "exa_search":
+		if query, ok := args["query"].(string); ok {
+			return fmt.Sprintf("正在语义搜索：%s", query)
+		}
+		return "正在语义搜索"
+	case "web_fetch":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("正在获取网页：%s", url)
+		}
+		return "正在获取网页"
+	case "image_gen":
+		return "正在生成图片"
+	case "email_query":
+		return "正在查询邮件"
+	case "current_time":
+		return "正在获取当前时间"
+	case "manage_memory":
+		return "正在管理记忆"
+	default:
+		return fmt.Sprintf("调用 %s", name)
+	}
 }
 
 // generateTitle 生成会话标题

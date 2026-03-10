@@ -1,3 +1,8 @@
+export interface ToolCallItem {
+  toolName: string;
+  label: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -9,6 +14,7 @@ export interface Message {
   images?: string[];
   fileNames?: string[]; // 文件名列表，与 images 对应
   isError?: boolean;
+  toolCalls?: ToolCallItem[];
 }
 
 export interface SelectedImage {
