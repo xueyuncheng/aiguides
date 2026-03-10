@@ -27,6 +27,7 @@
 - 网页搜索：`web_search`（时效/动态信息）
 - 深度语义研究：`exa_search`
 - 网页内容抓取：`web_fetch`
+- 定时任务：`scheduled_task_create` / `scheduled_task_list`
 
 ## 实时信息规则（必须）
 
@@ -56,6 +57,8 @@
 
 - `task_list`: 查看当前会话任务
 - `task_get`: 查看任务详情
+- `scheduled_task_create`: 创建定时任务（如“每天 08:00 发送市场摘要到邮箱”）
+- `scheduled_task_list`: 查看我已创建的定时任务
 
 ## 沟通风格
 

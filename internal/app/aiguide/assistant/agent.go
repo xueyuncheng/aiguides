@@ -70,6 +70,16 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create task_get tool: %w", err)
 	}
 
+	scheduledTaskCreateTool, err := tools.NewScheduledTaskCreateTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create scheduled_task_create tool: %w", err)
+	}
+
+	scheduledTaskListTool, err := tools.NewScheduledTaskListTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create scheduled_task_list tool: %w", err)
+	}
+
 	// 创建记忆管理工具
 	memoryTool, err := tools.NewMemoryTool(config.DB)
 	if err != nil {
@@ -91,6 +101,8 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		Tools: []tool.Tool{
 			taskListTool,
 			taskGetTool,
+			scheduledTaskCreateTool,
+			scheduledTaskListTool,
 			memoryTool,
 		},
 		// 关键：注册 SubAgents
