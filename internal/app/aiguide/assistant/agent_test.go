@@ -4,6 +4,7 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/tools"
 	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -115,5 +116,52 @@ func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
 		if strings.Contains(assistantAgentInstruction, toolName) {
 			t.Errorf("assistantAgentInstruction should not advertise executor-only tool %s", toolName)
 		}
+	}
+
+	plannerOnlyPhrases := []string{
+		"规划子流程",
+		"先规划再执行",
+		"独立的规划子流程",
+	}
+
+	for _, phrase := range plannerOnlyPhrases {
+		if strings.Contains(assistantAgentInstruction, phrase) {
+			t.Errorf("assistantAgentInstruction should not reference planner-only flow %q", phrase)
+		}
+	}
+}
+
+func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
+	db := setupTestDB(t)
+	webSearchConfig := tools.WebSearchConfig{
+		SearXNG: tools.SearXNGConfig{
+			InstanceURL: "https://searx.be",
+		},
+	}
+
+	assistantAgent, err := NewAssistantAgent(&AssistantAgentConfig{
+		Model:             nil,
+		GenaiClient:       nil,
+		DB:                db,
+		MockImageGen:      true,
+		MockEmailIMAPConn: true,
+		WebSearchConfig:   webSearchConfig,
+	})
+	if err != nil {
+		t.Fatalf("NewAssistantAgent() error = %v", err)
+	}
+
+	subAgents := assistantAgent.SubAgents()
+	if got, want := len(subAgents), 1; got != want {
+		t.Fatalf("len(SubAgents()) = %d, want %d", got, want)
+	}
+
+	subAgentNames := make([]string, 0, len(subAgents))
+	for _, subAgent := range subAgents {
+		subAgentNames = append(subAgentNames, subAgent.Name())
+	}
+
+	if !slices.Equal(subAgentNames, []string{"executor"}) {
+		t.Fatalf("SubAgents() names = %v, want [executor]", subAgentNames)
 	}
 }
