@@ -2,25 +2,23 @@
 
 ## Overview
 
-This implementation adds a **task planning and management system** to AIGuides using a **multi-agent architecture** with ADK's native SubAgents support.
+This implementation adds a **task planning and management system** to AIGuides using a **simplified multi-agent architecture** with ADK's native SubAgents support.
 
 ## Architecture
 
 ```
 Root Agent (orchestrator)
-    ├─> Planner Agent (task decomposition & planning)
-    │   └─> Tools: task_create, task_update, task_list, task_get, finish_planning
-    │
-    └─> Executor Agent (task execution)
+    └─> Executor Agent (all tool-based execution)
         └─> Tools: image_gen, email_query, web_search, web_fetch
+                   + exa_search, current_time
                    + task_list, task_get, task_update
 ```
 
 ### User-Facing Communication Strategy
 
-**Important**: While the internal architecture uses multiple specialized agents, the user experience should be **unified and seamless**. The root agent is instructed to:
+**Important**: While the internal architecture uses specialized agents, the user experience should be **unified and seamless**. The root agent is instructed to:
 
-- ✅ Never mention internal agent names ("Planner Agent", "Executor Agent") to users
+- ✅ Never mention internal agent names ("Executor Agent") to users
 - ✅ Always use first-person singular ("I", "my") when communicating
 - ✅ Present capabilities as a unified AI assistant, not separate agents
 - ✅ Seamlessly coordinate between sub-agents without exposing delegation
@@ -33,7 +31,7 @@ This approach provides a more natural, less confusing experience while maintaini
 
 **SubAgent Approach (Used)**:
 - ✅ Agents can have multi-turn conversations with users
-- ✅ Planner can ask clarifying questions
+- ✅ Executor receives full conversation context when tools are needed
 - ✅ Full access to conversation history
 - ✅ Framework handles delegation automatically based on Description
 - ✅ Maintains agent autonomy and intelligence
@@ -67,29 +65,21 @@ type Task struct {
 
 **File**: `internal/pkg/tools/task_manager.go`
 
-- `task_create`: Create subtasks with dependencies and priorities
 - `task_update`: Update task status and results
 - `task_list`: List all tasks (optionally filtered by status)
 - `task_get`: Get detailed task information
-- `finish_planning`: Signal planning completion (Planner-only)
 
 ### 3. Agent Hierarchy
 
 #### Root Agent (`agent.go`)
 - **Role**: Conversational orchestrator
-- **Tools**: task_list, task_get (read-only)
-- **SubAgents**: planner, executor
-- **Behavior**: Routes complex tasks to planner, functional tasks to executor
-
-#### Planner Agent (`planner_agent.go`)
-- **Role**: Task decomposition specialist
-- **Tools**: All task management tools
-- **Description**: "Specialized agent for breaking down complex tasks into structured plans..."
-- **Prompt**: `planner_agent_prompt.md` - detailed planning guidelines
+- **Tools**: task_list, task_get, manage_memory
+- **SubAgents**: executor
+- **Behavior**: Handles pure text requests directly; delegates every tool-using request to executor
 
 #### Executor Agent (`executor_agent.go`)
 - **Role**: Task execution specialist
-- **Tools**: image_gen, email_query, web_search, web_fetch + task management
+- **Tools**: image_gen, email_query, web_search, web_fetch, exa_search, current_time + task management
 - **Description**: "Specialized agent for executing tasks using tools..."
 - **Prompt**: `executor_agent_prompt.md` - execution guidelines
 
@@ -98,29 +88,21 @@ type Task struct {
 ADK automatically delegates based on SubAgent descriptions:
 
 ```
-User: "Build a recommendation system"
+User: "帮我查一下今天的 AI 新闻"
     ↓
-Root Agent: (Recognizes complexity)
+Root Agent: (Recognizes the request needs tools)
     ↓
-ADK: (Matches Planner's description) → Delegates to Planner
+ADK: (Matches Executor's description) → Delegates to Executor
     ↓
-Planner: "To build a recommendation system, I need to know..."
+Executor: [Uses current_time/web_search as needed]
     ↓
-User: [Answers questions]
-    ↓
-Planner: [Creates 10 tasks using task_create]
-    ↓
-Planner: [Calls finish_planning]
-    ↓
-ADK: → Returns control to Root
-    ↓
-Root: "Plan complete with 10 tasks. Ready to execute?"
+Root: [Presents the final result naturally to the user]
 ```
 
 ### 5. Key Design Decisions
 
 **Q: Why not give all tools to Root Agent?**
-A: Separation of concerns - Planner focuses on planning, Executor on execution. Root just coordinates.
+A: To keep routing rules clear. Root only handles text-only coordination and memory, while Executor handles every tool invocation.
 
 **Q: Why does Executor have task_update but Root doesn't?**
 A: Executor needs to mark tasks in_progress/completed as it works. Root is read-only.
@@ -130,36 +112,19 @@ A: Yes, via the `ParentID` field, though the current implementation focuses on f
 
 ## Usage Examples
 
-### Example 1: Complex Task Planning
+### Example 1: Complex Text-Only Planning
 
 ```
 User: "Implement user authentication with JWT"
 
-Root Agent: Recognizes this needs planning
-→ Delegates to Planner Agent
-
-Planner Agent:
-"I'll help plan this. A few questions:
-- Database (PostgreSQL, MySQL)?
-- Password hashing (bcrypt, argon2)?
-- Token expiration time?"
-
-User: "PostgreSQL, bcrypt, 24 hours"
-
-Planner Agent:
-[Creates tasks:]
-1. task_create("Design user schema with email, password_hash")
-2. task_create("Implement password hashing with bcrypt")
-3. task_create("Implement JWT token generation")
-4. task_create("Implement login endpoint")
-5. task_create("Implement token validation middleware")
-6. task_create("Write tests")
-
-[Calls finish_planning]
-
 Root Agent:
-"Plan created with 6 tasks. Task 1-2 are high priority.
-Ready to start implementation?"
+"可以按这 6 步推进：
+1. 设计 user 表和字段
+2. 接入 bcrypt 做密码哈希
+3. 实现 JWT 签发与校验
+4. 实现登录接口
+5. 加入鉴权中间件
+6. 补充测试与错误场景验证"
 ```
 
 ### Example 2: Simple Functional Task
@@ -212,10 +177,8 @@ The Task table is automatically created on startup via:
 ### Created Files
 1. `internal/app/aiguide/table/task.go` - Task model
 2. `internal/pkg/tools/task_manager.go` - Task management tools
-3. `internal/app/aiguide/assistant/planner_agent.go` - Planner agent
-4. `internal/app/aiguide/assistant/planner_agent_prompt.md` - Planner instructions
-5. `internal/app/aiguide/assistant/executor_agent.go` - Executor agent
-6. `internal/app/aiguide/assistant/executor_agent_prompt.md` - Executor instructions
+3. `internal/app/aiguide/assistant/executor_agent.go` - Executor agent
+4. `internal/app/aiguide/assistant/executor_agent_prompt.md` - Executor instructions
 
 ### Modified Files
 1. `internal/app/aiguide/assistant/agent.go` - Refactored to use SubAgents

@@ -9,7 +9,7 @@ import (
 )
 
 func (a *Assistant) createRunner() (*runner.Runner, error) {
-	// 创建 Root Agent 及其 SubAgents
+	// 创建 Root Agent 及其执行子代理
 	assistantConfig := &AssistantAgentConfig{
 		Model:             a.model,
 		GenaiClient:       a.genaiClient,
