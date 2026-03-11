@@ -4,7 +4,6 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/tools"
 	"context"
-	"slices"
 	"strings"
 	"testing"
 
@@ -161,7 +160,7 @@ func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 		subAgentNames = append(subAgentNames, subAgent.Name())
 	}
 
-	if !slices.Equal(subAgentNames, []string{"executor"}) {
+	if len(subAgentNames) != 1 || subAgentNames[0] != "executor" {
 		t.Fatalf("SubAgents() names = %v, want [executor]", subAgentNames)
 	}
 }
