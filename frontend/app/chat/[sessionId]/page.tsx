@@ -1142,7 +1142,7 @@ export default function ChatPage() {
                           </div>
                         ) : (
                           <div className="relative flex flex-col items-end">
-                            <div className="relative text-sm leading-relaxed bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 rounded-2xl rounded-tr-sm w-fit max-w-full min-w-[180px]">
+                            <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed dark:bg-zinc-800 sm:min-w-[180px] sm:w-fit">
                               {editingMessageId === message.id ? (
                                 <div className="space-y-2">
                                   {(message.images?.length || 0) > 0 && (
