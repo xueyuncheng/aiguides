@@ -15,7 +15,7 @@ import { cn } from '@/app/lib/utils';
 // Preprocess markdown to escape currency dollar signs (e.g. `$100`) before remark-math parses them.
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 
-const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),.?!:;%\]])/g;
+const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),?!:;%\]]|\.(?!\d))/g;
 
 /**
  * Escapes dollar signs that look like standalone currency amounts,
