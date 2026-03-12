@@ -52,7 +52,7 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
   };
 
   return (
-    <div className="my-6 rounded-lg overflow-hidden border bg-zinc-950 dark:bg-zinc-900 text-zinc-50 relative group shadow-sm">
+    <div className="my-6 rounded-lg overflow-x-auto border bg-zinc-950 dark:bg-zinc-900 text-zinc-50 relative group shadow-sm">
       <div className="px-4 py-2 text-xs bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
         <span>{match?.[1] || 'code'}</span>
         <button
@@ -129,7 +129,7 @@ export const markdownComponents: Components = {
     const match = /language-(\w+)/.exec(className || '');
     const isInline = !match;
     return isInline ? (
-      <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground" {...props}>
+      <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground break-all" {...props}>
         {children}
       </code>
     ) : (
