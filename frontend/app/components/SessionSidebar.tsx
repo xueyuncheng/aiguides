@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -77,19 +77,20 @@ const SessionSidebar = memo(({
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  const matchesProjectFilter = (session: Session) => {
-    if (activeProjectId === 'all') {
-      return true;
-    }
-    if (activeProjectId === 'none') {
-      return (session.project_id ?? 0) === 0;
-    }
-
-    return String(session.project_id ?? 0) === activeProjectId;
-  };
-
   const filteredSessions = useMemo(() => {
-    const sessionWithContent = sessions.filter((s) => (s.title || s.first_message) && matchesProjectFilter(s));
+    const sessionWithContent = sessions.filter((session) => {
+      if (!session.title && !session.first_message) {
+        return false;
+      }
+      if (activeProjectId === 'all') {
+        return true;
+      }
+      if (activeProjectId === 'none') {
+        return (session.project_id ?? 0) === 0;
+      }
+
+      return String(session.project_id ?? 0) === activeProjectId;
+    });
     const byThread = new Map<string, Session>();
 
     sessionWithContent.forEach((session) => {
@@ -467,6 +468,18 @@ const SessionSidebar = memo(({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-100">
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.location.href = '/memory';
+                    }
+                  }}
+                >
+                  <Brain className="mr-2 h-4 w-4" />
+                  <span>记忆中心</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
                   onClick={logout}

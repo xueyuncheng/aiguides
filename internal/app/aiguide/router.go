@@ -48,6 +48,15 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		shareGroup.DELETE("/:shareId", a.assistant.DeleteShare)
 	}
 
+	memoryGroup := api.Group("/assistant/memories")
+	{
+		memoryGroup.GET("", a.assistant.ListMemories)
+		memoryGroup.POST("", a.assistant.CreateMemory)
+		memoryGroup.GET("/summary", a.assistant.GetMemorySummary)
+		memoryGroup.PATCH("/:memoryId", a.assistant.UpdateMemory)
+		memoryGroup.DELETE("/:memoryId", a.assistant.DeleteMemory)
+	}
+
 	projectGroup := api.Group("/assistant/projects")
 	{
 		projectGroup.GET("", a.assistant.ListProjects)
