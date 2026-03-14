@@ -29,6 +29,7 @@ export const AIMessageContent = memo(({
   toolCalls,
 }: AIMessageContentProps) => {
   const [showRaw, setShowRaw] = useState(false);
+  const [expandedToolCallIndexes, setExpandedToolCallIndexes] = useState<number[]>([]);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(() => {
     if (!thought || !thoughtStorageKey || typeof window === 'undefined') return false;
 
@@ -93,6 +94,20 @@ export const AIMessageContent = memo(({
     }
   };
 
+  const toggleToolArgs = (index: number) => {
+    setExpandedToolCallIndexes((prev) => (
+      prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index]
+    ));
+  };
+
+  const formatToolArgs = (args?: Record<string, unknown>) => {
+    if (!args || Object.keys(args).length === 0) {
+      return '';
+    }
+
+    return JSON.stringify(args, null, 2);
+  };
+
   return (
     <div className="group">
       {/* Thought Process section */}
@@ -138,18 +153,40 @@ export const AIMessageContent = memo(({
           {toolCalls.map((tc, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 px-3 py-1.5 rounded-md w-fit"
+              className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
             >
-              {isStreaming && i === toolCalls.length - 1 ? (
-                <div className="flex space-x-0.5">
-                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                  <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
-                </div>
-              ) : (
-                <div className="w-1 h-1 bg-muted-foreground/40 rounded-full" />
+              <div className="flex items-center gap-2 px-3 py-1.5">
+                {isStreaming && i === toolCalls.length - 1 ? (
+                  <div className="flex space-x-0.5 shrink-0">
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
+                  </div>
+                ) : (
+                  <div className="w-1 h-1 bg-muted-foreground/40 rounded-full shrink-0" />
+                )}
+                <span className="min-w-0 flex-1 break-all">{tc.label}</span>
+                {tc.args && Object.keys(tc.args).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleToolArgs(i)}
+                    className="inline-flex items-center gap-1 rounded border border-muted-foreground/15 px-2 py-0.5 text-[11px] hover:bg-muted/60 transition-colors shrink-0"
+                    aria-expanded={expandedToolCallIndexes.includes(i)}
+                  >
+                    {expandedToolCallIndexes.includes(i) ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                    <span>参数</span>
+                  </button>
+                )}
+              </div>
+              {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
+                <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
+                  {formatToolArgs(tc.args)}
+                </pre>
               )}
-              <span>{tc.label}</span>
             </div>
           ))}
         </div>

@@ -1,6 +1,13 @@
 export interface ToolCallItem {
   toolName: string;
   label: string;
+  args?: Record<string, unknown>;
+}
+
+export interface ToolCallResponse {
+  tool_name: string;
+  label: string;
+  args?: Record<string, unknown>;
 }
 
 export interface Message {
@@ -39,4 +46,21 @@ export interface ChatRequest {
   message: string;
   images: string[];
   file_names: string[];
+}
+
+export interface HistoryMessageResponse {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  thought?: string;
+  timestamp: string;
+  images?: string[];
+  file_names?: string[];
+  tool_calls?: ToolCallResponse[];
+}
+
+export interface SessionHistoryResponse {
+  messages: HistoryMessageResponse[];
+  total?: number;
+  has_more?: boolean;
 }

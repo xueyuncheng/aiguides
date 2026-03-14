@@ -369,6 +369,7 @@ func (a *Assistant) streamAgentEvents(
 						"author":     event.Author,
 						"tool_name":  part.FunctionCall.Name,
 						"tool_label": label,
+						"tool_args":  part.FunctionCall.Args,
 					}
 					ctx.SSEvent("tool_call", data)
 					ctx.Writer.Flush()
