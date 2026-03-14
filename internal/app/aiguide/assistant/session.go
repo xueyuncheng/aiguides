@@ -54,13 +54,20 @@ type SessionHistoryResponse struct {
 
 // MessageEvent 定义消息事件结构
 type MessageEvent struct {
-	ID        string    `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	Role      string    `json:"role"` // "user" or "assistant"
-	Content   string    `json:"content"`
-	Thought   string    `json:"thought,omitempty"`
-	Images    []string  `json:"images,omitempty"`     // Base64编码的图片或PDF数据列表
-	FileNames []string  `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
+	ID        string     `json:"id"`
+	Timestamp time.Time  `json:"timestamp"`
+	Role      string     `json:"role"` // "user" or "assistant"
+	Content   string     `json:"content"`
+	Thought   string     `json:"thought,omitempty"`
+	Images    []string   `json:"images,omitempty"`     // Base64编码的图片或PDF数据列表
+	FileNames []string   `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
+	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+}
+
+type ToolCall struct {
+	ToolName string         `json:"tool_name"`
+	Label    string         `json:"label"`
+	Args     map[string]any `json:"args,omitempty"`
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -355,6 +362,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		thought := ""
 		var images []string
 		var fileNames []string
+		var toolCalls []ToolCall
 		hasFunctionResponse := false
 
 		for _, part := range event.Content.Parts {
@@ -403,13 +411,21 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 					}
 				}
 			}
+
+			if part.FunctionCall != nil {
+				toolCalls = append(toolCalls, ToolCall{
+					ToolName: part.FunctionCall.Name,
+					Label:    toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args),
+					Args:     part.FunctionCall.Args,
+				})
+			}
 		}
 
 		if hasFunctionResponse {
 			role = "assistant"
 		}
 
-		if content != "" || thought != "" || len(images) > 0 {
+		if content != "" || thought != "" || len(images) > 0 || len(toolCalls) > 0 {
 			message := MessageEvent{
 				ID:        event.ID,
 				Timestamp: event.Timestamp,
@@ -418,6 +434,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				Thought:   thought,
 				Images:    images,
 				FileNames: fileNames,
+				ToolCalls: toolCalls,
 			}
 			if isDuplicateRetryUserMessage(allMessages, message) {
 				continue

@@ -10,7 +10,7 @@ import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
-import type { Message, SelectedImage } from './types';
+import type { HistoryMessageResponse, Message, SelectedImage, SessionHistoryResponse, ToolCallResponse } from './types';
 import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
@@ -52,6 +52,23 @@ export default function ChatPage() {
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [quotedText, setQuotedText] = useState('');
+
+  const mapToolCall = (toolCall: ToolCallResponse) => ({
+    toolName: toolCall.tool_name,
+    label: toolCall.label,
+    args: toolCall.args || undefined,
+  });
+
+  const mapHistoryMessage = (msg: HistoryMessageResponse): Message => ({
+    id: msg.id,
+    role: msg.role,
+    content: msg.content,
+    thought: msg.thought,
+    timestamp: new Date(msg.timestamp),
+    images: msg.images || [],
+    fileNames: msg.file_names || [],
+    toolCalls: (msg.tool_calls || []).map(mapToolCall),
+  });
 
   // 使用文件上传 hook
   const {
@@ -154,16 +171,8 @@ export default function ChatPage() {
     try {
       const response = await authenticatedFetch(`/api/${agentId}/sessions/${targetSessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=0`);
       if (response.ok) {
-        const data = await response.json();
-        const historyMessages = data.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          thought: msg.thought,
-          timestamp: new Date(msg.timestamp),
-          images: msg.images || [],
-          fileNames: msg.file_names || [],
-        }));
+        const data: SessionHistoryResponse = await response.json();
+        const historyMessages = data.messages.map(mapHistoryMessage);
         setMessages(historyMessages);
         setHasMoreMessages(data.has_more || false);
         setTotalMessageCount(data.total || 0);
@@ -200,16 +209,8 @@ export default function ChatPage() {
       const currentOffset = messages.length;
       const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionId}/history?user_id=${user?.user_id}&limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`);
       if (response.ok) {
-        const data = await response.json();
-        const olderMessages = data.messages.map((msg: any) => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-          thought: msg.thought,
-          timestamp: new Date(msg.timestamp),
-          images: msg.images || [],
-          fileNames: msg.file_names || [],
-        }));
+        const data: SessionHistoryResponse = await response.json();
+        const olderMessages = data.messages.map(mapHistoryMessage);
 
         setMessages(prev => [...olderMessages, ...prev]);
         setHasMoreMessages(data.has_more || false);
@@ -825,7 +826,11 @@ export default function ChatPage() {
                 }
 
                 if (currentEventType === 'tool_call') {
-                  const toolCall = { toolName: data.tool_name as string, label: data.tool_label as string };
+                  const toolCall = {
+                    toolName: data.tool_name as string,
+                    label: data.tool_label as string,
+                    args: (data.tool_args as Record<string, unknown> | undefined) || undefined,
+                  };
                   setMessages((prev) => {
                     const newMessages = [...prev];
                     const lastIndex = newMessages.length - 1;
