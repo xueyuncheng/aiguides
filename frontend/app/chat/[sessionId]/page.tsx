@@ -10,7 +10,7 @@ import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
-import type { Message, SelectedImage, ToolCallItem } from './types';
+import type { Message, SelectedImage } from './types';
 import { agentInfoMap, MESSAGES_PER_PAGE, LOAD_MORE_THRESHOLD, SCROLL_RESET_DELAY } from './constants';
 
 // 导入组件
@@ -44,7 +44,7 @@ export default function ChatPage() {
   const [isSessionsLoading, setIsSessionsLoading] = useState(false);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [copiedUserMessageId, setCopiedUserMessageId] = useState<string | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
@@ -649,12 +649,12 @@ export default function ChatPage() {
 
     try {
       await navigator.clipboard.writeText(content);
-      setCopiedUserMessageId(message.id);
+      setCopiedMessageId(message.id);
       if (copiedUserMessageTimeoutRef.current) {
         clearTimeout(copiedUserMessageTimeoutRef.current);
       }
       copiedUserMessageTimeoutRef.current = setTimeout(() => {
-        setCopiedUserMessageId(null);
+        setCopiedMessageId(null);
         copiedUserMessageTimeoutRef.current = null;
       }, 1500);
     } catch (error) {
@@ -1144,19 +1144,32 @@ export default function ChatPage() {
                           <div className="relative flex flex-col items-end">
                             <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed dark:bg-zinc-800 sm:min-w-[180px] sm:w-fit">
                               {editingMessageId === message.id ? (
-                                <div className="space-y-2">
-                                  {(message.images?.length || 0) > 0 && (
-                                    <div className="text-xs text-muted-foreground">附件保持不变</div>
-                                  )}
-                                  <textarea
-                                    value={editingValue}
-                                    onChange={(e) => setEditingValue(e.target.value)}
-                                    autoFocus
-                                    rows={Math.max(4, Math.min(10, (message.content?.match(/\n/g)?.length || 0) + 2))}
-                                    className="w-[min(520px,82vw)] min-h-[120px] resize-y rounded-md bg-transparent px-3 py-2 text-sm leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none focus:ring-2 focus:ring-primary/30"
-                                    placeholder="编辑消息内容..."
-                                    disabled={isSavingEdit}
-                                  />
+                                <div className="space-y-3">
+                                  <div className="relative">
+                                    <textarea
+                                      value={editingValue}
+                                      onChange={(e) => setEditingValue(e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                          e.preventDefault();
+                                          handleSaveEditedUserMessage(message);
+                                        } else if (e.key === 'Escape') {
+                                          e.preventDefault();
+                                          handleCancelEditUserMessage();
+                                        }
+                                      }}
+                                      autoFocus
+                                      rows={Math.max(4, Math.min(10, (message.content?.match(/\n/g)?.length || 0) + 2))}
+                                      className="w-full min-h-[120px] resize-y rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-3 text-sm leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 outline-none"
+                                      placeholder="编辑消息..."
+                                      disabled={isSavingEdit}
+                                    />
+                                    {isSavingEdit && (
+                                      <div className="absolute inset-0 bg-zinc-50/80 dark:bg-zinc-800/80 rounded-lg flex items-center justify-center">
+                                        <div className="text-sm text-zinc-600 dark:text-zinc-400">保存中...</div>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               ) : (
                                 <UserMessage
@@ -1168,7 +1181,7 @@ export default function ChatPage() {
                             </div>
 
                             <div className={cn(
-                              "mt-1 flex justify-end gap-1 transition-opacity duration-200",
+                              "mt-2 flex justify-end gap-2 transition-opacity duration-200",
                               editingMessageId === message.id
                                 ? "opacity-100"
                                 : "opacity-0 group-hover/message:opacity-100 group-focus-within/message:opacity-100"
@@ -1177,25 +1190,22 @@ export default function ChatPage() {
                                 <>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={() => handleSaveEditedUserMessage(message)}
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                    title="保存编辑"
-                                    aria-label="保存编辑"
+                                    className="h-8 px-3 text-xs text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     disabled={isSavingEdit}
                                   >
-                                    <Check className="h-3.5 w-3.5" />
+                                    <Check className="h-3 w-3 mr-1" />
+                                    保存
                                   </Button>
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     onClick={handleCancelEditUserMessage}
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                    title="取消编辑"
-                                    aria-label="取消编辑"
+                                    className="h-8 px-3 text-xs text-zinc-500 hover:text-zinc-700 dark:text-zinc-500 dark:hover:text-zinc-300 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800"
                                     disabled={isSavingEdit}
                                   >
-                                    <X className="h-3.5 w-3.5" />
+                                    取消
                                   </Button>
                                 </>
                               ) : (
@@ -1204,25 +1214,22 @@ export default function ChatPage() {
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleEditUserMessage(message)}
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                    title="编辑并创建新版本"
-                                    aria-label="编辑并创建新版本"
+                                    className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                    title="编辑"
                                   >
-                                    <Pencil className="h-3.5 w-3.5" />
+                                    <Pencil className="h-3 w-3" />
                                   </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"
                                     onClick={() => handleCopyUserMessage(message)}
-                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                                    title="复制文本"
-                                    aria-label="复制文本"
-                                    disabled={!message.content?.trim()}
+                                    className="h-7 w-7 p-0 text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                                    title="复制"
                                   >
-                                    {copiedUserMessageId === message.id ? (
-                                      <Check className="h-3.5 w-3.5 text-green-600" />
+                                    {copiedMessageId === message.id ? (
+                                      <Check className="h-3 w-3 text-green-600" />
                                     ) : (
-                                      <Copy className="h-3.5 w-3.5" />
+                                      <Copy className="h-3 w-3" />
                                     )}
                                   </Button>
                                 </>
