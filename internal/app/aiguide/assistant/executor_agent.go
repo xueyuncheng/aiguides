@@ -48,6 +48,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create email query tool: %w", err)
 	}
 
+	sendEmailTool, err := tools.NewSendEmailTool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create send email tool: %w", err)
+	}
+
 	webSearchTool, err := tools.NewWebSearchTool(config.WebSearchConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create web search tool: %w", err)
@@ -86,7 +91,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 
 	agentConfig := llmagent.Config{
 		Name:        "executor",
-		Description: "Specialized agent for executing tasks using tools like image generation, email queries, web search, and web fetching",
+		Description: "Specialized agent for executing tasks using tools like image generation, email queries, email sending, web search, and web fetching",
 		Model:       config.Model,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
@@ -98,6 +103,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			currentTimeTool, // Get current date/time - use before web_search for time-sensitive queries
 			imageGenTool,
 			emailQueryTool,
+			sendEmailTool,
 			webSearchTool,
 			exaSearchTool,
 			webFetchTool,

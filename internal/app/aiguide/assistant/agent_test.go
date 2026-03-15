@@ -106,6 +106,7 @@ func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
 		"`current_time`",
 		"`image_gen`",
 		"`email_query`",
+		"`send_email`",
 		"`web_search`",
 		"`exa_search`",
 		"`web_fetch`",

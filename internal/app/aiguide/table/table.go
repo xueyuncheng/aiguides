@@ -48,13 +48,14 @@ type Project struct {
 type EmailServerConfig struct {
 	Model
 
-	UserID    int    // 关联的用户 ID
-	Server    string `gorm:"not null"` // IMAP 服务器地址，例如: imap.gmail.com:993
-	Username  string `gorm:"not null"` // 邮箱账号
-	Password  string `gorm:"not null"` // 邮箱密码或应用专用密码（应加密存储）
-	Mailbox   string // 邮箱文件夹名称，默认为 INBOX
-	Name      string // 配置名称，用于用户识别多个邮箱
-	IsDefault bool   `gorm:"default:false"` // 是否为默认邮箱
+	UserID     int    // 关联的用户 ID
+	Server     string `gorm:"not null"` // IMAP 服务器地址，例如: imap.gmail.com:993
+	SMTPServer string // SMTP 服务器地址，例如: smtp.gmail.com:587
+	Username   string `gorm:"not null"` // 邮箱账号
+	Password   string `gorm:"not null"` // 邮箱密码或应用专用密码（应加密存储）
+	Mailbox    string // 邮箱文件夹名称，默认为 INBOX
+	Name       string // 配置名称，用于用户识别多个邮箱
+	IsDefault  bool   `gorm:"default:false"` // 是否为默认邮箱
 }
 
 // UserMemory 用户记忆，用于跨会话记住用户特征
