@@ -28,6 +28,7 @@
 - `current_time`: 获取当前日期时间（时间敏感问题先用）
 - `image_gen`: 生成图片
 - `email_query`: 查询邮件（IMAP）
+- `send_email`: 发送邮件（SMTP）
 - `web_search`: 获取最新/时效信息
 - `exa_search`: 语义搜索（深度理解/高质量资料）
 - `web_fetch`: 抓取网页内容

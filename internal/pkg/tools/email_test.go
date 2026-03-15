@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/emersion/go-imap/v2"
@@ -14,6 +15,130 @@ func TestNewEmailQueryTool(t *testing.T) {
 
 	if tool == nil {
 		t.Fatal("NewEmailQueryTool() returned nil tool")
+	}
+}
+
+func TestNewSendEmailTool(t *testing.T) {
+	tool, err := NewSendEmailTool()
+	if err != nil {
+		t.Fatalf("NewSendEmailTool() failed: %v", err)
+	}
+
+	if tool == nil {
+		t.Fatal("NewSendEmailTool() returned nil tool")
+	}
+}
+
+func TestValidateSendEmailInput(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   SendEmailInput
+		wantErr bool
+	}{
+		{
+			name: "valid input",
+			input: SendEmailInput{
+				To:      []string{"Alice <alice@example.com>", "bob@example.com"},
+				Subject: "Status update",
+				Body:    "All good",
+			},
+		},
+		{
+			name: "missing recipients",
+			input: SendEmailInput{
+				Subject: "Status update",
+				Body:    "All good",
+			},
+		},
+		{
+			name: "invalid recipient",
+			input: SendEmailInput{
+				To:      []string{"invalid-email"},
+				Subject: "Status update",
+				Body:    "All good",
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := validateSendEmailInput(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Fatal("validateSendEmailInput() error = nil, want non-nil")
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("validateSendEmailInput() error = %v", err)
+			}
+			wantToLen := len(tt.input.To)
+			if len(got.To) != wantToLen {
+				t.Fatalf("len(got.To) = %d, want %d", len(got.To), wantToLen)
+			}
+		})
+	}
+}
+
+func TestPopulateDefaultRecipient(t *testing.T) {
+	input := &SendEmailInput{Subject: "Status update", Body: "All good"}
+	defaulted, err := populateDefaultRecipient(input, "sender@example.com")
+	if err != nil {
+		t.Fatalf("populateDefaultRecipient() error = %v", err)
+	}
+	if !defaulted {
+		t.Fatal("populateDefaultRecipient() defaulted = false, want true")
+	}
+	if len(input.To) != 1 || input.To[0] != "sender@example.com" {
+		t.Fatalf("populateDefaultRecipient() To = %v, want [sender@example.com]", input.To)
+	}
+}
+
+func TestPopulateDefaultRecipientKeepsExistingTo(t *testing.T) {
+	input := &SendEmailInput{To: []string{"target@example.com"}, Subject: "Status update", Body: "All good"}
+	defaulted, err := populateDefaultRecipient(input, "sender@example.com")
+	if err != nil {
+		t.Fatalf("populateDefaultRecipient() error = %v", err)
+	}
+	if defaulted {
+		t.Fatal("populateDefaultRecipient() defaulted = true, want false")
+	}
+	if len(input.To) != 1 || input.To[0] != "target@example.com" {
+		t.Fatalf("populateDefaultRecipient() To = %v, want [target@example.com]", input.To)
+	}
+}
+
+func TestBuildEmailMessage(t *testing.T) {
+	message, err := buildEmailMessage("sender@example.com", "测试发件人", SendEmailInput{
+		To:      []string{"to@example.com"},
+		Cc:      []string{"cc@example.com"},
+		Bcc:     []string{"bcc@example.com"},
+		Subject: "项目进展",
+		Body:    "第一行\n第二行",
+	}, []string{"to@example.com", "cc@example.com", "bcc@example.com"})
+	if err != nil {
+		t.Fatalf("buildEmailMessage() error = %v", err)
+	}
+
+	content := string(message)
+	checks := []string{
+		"From: =?UTF-8?",
+		"To: to@example.com",
+		"Cc: cc@example.com",
+		"Subject: =?UTF-8?",
+		"Content-Type: text/plain; charset=UTF-8",
+		"第一行\r\n第二行",
+	}
+	for _, check := range checks {
+		if !strings.Contains(content, check) {
+			t.Fatalf("buildEmailMessage() missing %q in %q", check, content)
+		}
+	}
+
+	if strings.Contains(content, "Bcc:") {
+		t.Fatalf("buildEmailMessage() should not include Bcc header: %q", content)
 	}
 }
 

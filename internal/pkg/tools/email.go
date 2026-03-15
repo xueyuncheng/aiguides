@@ -118,18 +118,17 @@ func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryO
 	}
 
 	// 查找用户的邮件服务器配置
-	if err := tx.Where("user_id = ?", userID).Find(&emailServerConfigs).Error; err != nil {
+	if err := tx.Where("user_id = ?", userID).Order("is_default DESC, created_at DESC").Find(&emailServerConfigs).Error; err != nil {
 		slog.Error("tx.Find() error", "err", err)
 		return nil, fmt.Errorf("tx.Find() error, err = %w", err)
 	}
 
 	if len(emailServerConfigs) == 0 {
 		slog.Info("没有找到邮件服务器配置")
-		configURL := "http://localhost:3000/settings/email-server-configs"
 		return &EmailQueryOutput{
 			Success:   false,
 			Message:   "没有找到邮件服务器配置",
-			ConfigURL: configURL,
+			ConfigURL: emailServerConfigURL,
 		}, nil
 	}
 
