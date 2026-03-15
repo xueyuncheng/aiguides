@@ -345,10 +345,9 @@ func (a *Assistant) streamAgentEvents(
 			currentAgentAuthor = event.Author
 		}
 
-		// 提取事件中的文本内容和图片数据
-		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
+		// 文本增量主要来自 LLMResponse；工具调用在部分场景下只出现在 event.Content 中。
+		if event.LLMResponse.Content != nil {
 			for _, part := range event.LLMResponse.Content.Parts {
-				// 处理文本内容
 				if part.Text != "" && event.Partial {
 					// 这里只返回 partial 的文本内容。
 					// LLM 通常会先返回 partial 的文本内容，然后再返回这些 partial 组合而成的完整内容。
@@ -361,22 +360,40 @@ func (a *Assistant) streamAgentEvents(
 					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
 				}
+			}
+		}
 
-				// 处理 FunctionCall（工具调用），发送给前端展示进度
+		seenToolCalls := make(map[string]struct{})
+		seenFunctionResponses := make(map[string]struct{})
+		for _, content := range []*genai.Content{event.Content, event.LLMResponse.Content} {
+			if content == nil {
+				continue
+			}
+
+			for _, part := range content.Parts {
 				if part.FunctionCall != nil {
-					label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
-					data := gin.H{
-						"author":     event.Author,
-						"tool_name":  part.FunctionCall.Name,
-						"tool_label": label,
-						"tool_args":  part.FunctionCall.Args,
+					callKey := functionCallKey(part.FunctionCall)
+					if _, seen := seenToolCalls[callKey]; !seen {
+						seenToolCalls[callKey] = struct{}{}
+						label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
+						data := gin.H{
+							"author":     event.Author,
+							"tool_name":  part.FunctionCall.Name,
+							"tool_label": label,
+							"tool_args":  part.FunctionCall.Args,
+						}
+						ctx.SSEvent("tool_call", data)
+						ctx.Writer.Flush()
 					}
-					ctx.SSEvent("tool_call", data)
-					ctx.Writer.Flush()
 				}
 
-				// 处理 FunctionResponse 中的图片数据
 				if part.FunctionResponse != nil {
+					responseKey := functionResponseKey(part.FunctionResponse)
+					if _, seen := seenFunctionResponses[responseKey]; seen {
+						continue
+					}
+					seenFunctionResponses[responseKey] = struct{}{}
+
 					response := part.FunctionResponse.Response
 					// 将 map[string]any 转换为 ImageGenOutput
 					var output tools.ImageGenOutput
@@ -428,6 +445,32 @@ func startHeartbeat(ctx *gin.Context, interval time.Duration) context.CancelFunc
 	}()
 
 	return cancel
+}
+
+func functionCallKey(call *genai.FunctionCall) string {
+	if call == nil {
+		return ""
+	}
+
+	argsJSON, err := json.Marshal(call.Args)
+	if err != nil {
+		return call.Name
+	}
+
+	return call.Name + ":" + string(argsJSON)
+}
+
+func functionResponseKey(response *genai.FunctionResponse) string {
+	if response == nil {
+		return ""
+	}
+
+	responseJSON, err := json.Marshal(response.Response)
+	if err != nil {
+		return response.Name
+	}
+
+	return response.Name + ":" + string(responseJSON)
 }
 
 const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s".
