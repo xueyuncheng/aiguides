@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
 import SessionSidebar, { Project, Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
-import { Check, Copy, Menu, Pencil, X, Share2 } from 'lucide-react';
+import { Check, Copy, Menu, Pencil, X } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
@@ -49,6 +49,7 @@ export default function ChatPage() {
   const [editingValue, setEditingValue] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareSessionId, setShareSessionId] = useState('');
   const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [quotedText, setQuotedText] = useState('');
@@ -1013,6 +1014,10 @@ export default function ChatPage() {
         onAssignSessionProject={handleAssignSessionProject}
         onNewSession={handleNewSession}
         onDeleteSession={handleDeleteSession}
+        onShareSession={(targetSessionId) => {
+          setShareSessionId(targetSessionId);
+          setIsShareModalOpen(true);
+        }}
         isMobileOpen={isMobileSidebarOpen}
         onMobileToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
       />
@@ -1029,36 +1034,6 @@ export default function ChatPage() {
             <Menu className="h-5 w-5" />
           </Button>
         </div>
-
-        {/* Share button - only show when there's a session with messages */}
-        {sessionId && messages.length > 0 && (
-          <div className="md:hidden fixed top-3 right-3 z-30">
-            <Button
-              onClick={() => setIsShareModalOpen(true)}
-              size="icon"
-              variant="ghost"
-              className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px] hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-gray-100 transition-colors"
-              aria-label="Share conversation"
-            >
-              <Share2 className="h-5 w-5" />
-            </Button>
-          </div>
-        )}
-
-        {/* Desktop share button in a header bar */}
-        {sessionId && messages.length > 0 && (
-          <div className="hidden md:flex justify-end px-6 py-3 border-b border-gray-200 dark:border-gray-700">
-            <Button
-              onClick={() => setIsShareModalOpen(true)}
-              variant="ghost"
-              size="sm"
-              className="flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors"
-            >
-              <Share2 className="h-4 w-4" />
-              Share Conversation
-            </Button>
-          </div>
-        )}
 
         <div
           ref={scrollContainerRef}
@@ -1296,8 +1271,11 @@ export default function ChatPage() {
       {/* Share Modal */}
       <ShareModal
         isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        sessionId={sessionId}
+        onClose={() => {
+          setIsShareModalOpen(false);
+          setShareSessionId('');
+        }}
+        sessionId={shareSessionId || sessionId}
         agentId={agentId}
       />
 

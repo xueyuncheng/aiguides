@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useEffect } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -10,7 +10,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -52,6 +51,7 @@ interface SessionSidebarProps {
   onAssignSessionProject: (sessionId: string, projectId: number) => void;
   onNewSession: () => void;
   onDeleteSession: (sessionId: string) => void;
+  onShareSession: (sessionId: string) => void;
   isLoading: boolean;
   isMobileOpen?: boolean;
   onMobileToggle?: () => void;
@@ -70,6 +70,7 @@ const SessionSidebar = memo(({
   onAssignSessionProject,
   onNewSession,
   onDeleteSession,
+  onShareSession,
   isLoading,
   isMobileOpen = false,
   onMobileToggle,
@@ -388,7 +389,6 @@ const SessionSidebar = memo(({
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-zinc-900 border-zinc-800 text-zinc-100 shadow-xl">
-                          <DropdownMenuLabel>项目</DropdownMenuLabel>
                           <DropdownMenuSub>
                             <DropdownMenuSubTrigger>
                               移动到项目
@@ -428,6 +428,16 @@ const SessionSidebar = memo(({
                           >
                             <Plus className="mr-2 h-4 w-4" />
                             <span>新建项目</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onShareSession(session.session_id);
+                            }}
+                          >
+                            <Share2 className="mr-2 h-4 w-4" />
+                            <span>分享会话</span>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
