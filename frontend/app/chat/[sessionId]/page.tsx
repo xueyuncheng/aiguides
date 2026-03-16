@@ -518,6 +518,15 @@ export default function ChatPage() {
         if (msg.images && msg.images.length > 0) {
           merged.images = [...(merged.images || []), ...(msg.images || [])];
         }
+        if (msg.fileNames && msg.fileNames.length > 0) {
+          merged.fileNames = [...(merged.fileNames || []), ...msg.fileNames];
+        }
+        if (msg.toolCalls && msg.toolCalls.length > 0) {
+          merged.toolCalls = [...(merged.toolCalls || []), ...msg.toolCalls];
+        }
+        if (msg.author) {
+          merged.author = msg.author;
+        }
         merged.isStreaming = last.isStreaming || msg.isStreaming;
 
         result[result.length - 1] = merged;
