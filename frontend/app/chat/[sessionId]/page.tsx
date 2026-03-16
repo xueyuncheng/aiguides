@@ -1270,12 +1270,12 @@ export default function ChatPage() {
 
       {/* Share Modal */}
       <ShareModal
-        isOpen={isShareModalOpen}
+        isOpen={isShareModalOpen && shareSessionId !== ''}
         onClose={() => {
           setIsShareModalOpen(false);
           setShareSessionId('');
         }}
-        sessionId={shareSessionId || sessionId}
+        sessionId={shareSessionId}
         agentId={agentId}
       />
 
