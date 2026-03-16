@@ -68,6 +68,12 @@ type ToolCall struct {
 	ToolName string         `json:"tool_name"`
 	Label    string         `json:"label"`
 	Args     map[string]any `json:"args,omitempty"`
+	Result   map[string]any `json:"result,omitempty"`
+}
+
+type toolCallLocation struct {
+	messageIndex  int
+	toolCallIndex int
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
@@ -348,6 +354,7 @@ func parsePagination(ctx *gin.Context) (int, int) {
 
 func buildMessageEvents(events session.Events) []MessageEvent {
 	allMessages := make([]MessageEvent, 0)
+	toolCallLocations := make(map[string]toolCallLocation)
 	for event := range events.All() {
 		if event.Content == nil {
 			continue
@@ -363,6 +370,8 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		var images []string
 		var fileNames []string
 		var toolCalls []ToolCall
+		localToolCallIDs := make([]string, 0)
+		localFunctionResponses := make(map[string]map[string]any)
 		hasFunctionResponse := false
 
 		for _, part := range event.Content.Parts {
@@ -403,6 +412,11 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 			if part.FunctionResponse != nil {
 				hasFunctionResponse = true
 				response := part.FunctionResponse.Response
+				if location, ok := toolCallLocations[part.FunctionResponse.ID]; ok {
+					allMessages[location.messageIndex].ToolCalls[location.toolCallIndex].Result = response
+				} else {
+					localFunctionResponses[part.FunctionResponse.ID] = response
+				}
 				if imageList, ok := response["images"].([]any); ok {
 					for _, img := range imageList {
 						if imgStr, ok := img.(string); ok {
@@ -413,11 +427,21 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 			}
 
 			if part.FunctionCall != nil {
-				toolCalls = append(toolCalls, ToolCall{
+				toolCall := ToolCall{
 					ToolName: part.FunctionCall.Name,
 					Label:    toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args),
 					Args:     part.FunctionCall.Args,
+				}
+				if response, ok := localFunctionResponses[part.FunctionCall.ID]; ok {
+					toolCall.Result = response
+				}
+				toolCalls = append(toolCalls, ToolCall{
+					ToolName: toolCall.ToolName,
+					Label:    toolCall.Label,
+					Args:     toolCall.Args,
+					Result:   toolCall.Result,
 				})
+				localToolCallIDs = append(localToolCallIDs, part.FunctionCall.ID)
 			}
 		}
 
@@ -439,11 +463,53 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 			if isDuplicateRetryUserMessage(allMessages, message) {
 				continue
 			}
+
+			messageIndex := len(allMessages)
+			if shouldMergeAssistantMessage(allMessages, message) {
+				messageIndex = len(allMessages) - 1
+				allMessages[messageIndex].Content += message.Content
+				allMessages[messageIndex].Thought += message.Thought
+				allMessages[messageIndex].Images = append(allMessages[messageIndex].Images, message.Images...)
+				allMessages[messageIndex].FileNames = append(allMessages[messageIndex].FileNames, message.FileNames...)
+				toolCallOffset := len(allMessages[messageIndex].ToolCalls)
+				allMessages[messageIndex].ToolCalls = append(allMessages[messageIndex].ToolCalls, message.ToolCalls...)
+				for idx, callID := range localToolCallIDs {
+					if strings.TrimSpace(callID) == "" {
+						continue
+					}
+					toolCallLocations[callID] = toolCallLocation{messageIndex: messageIndex, toolCallIndex: toolCallOffset + idx}
+				}
+				continue
+			}
+
 			allMessages = append(allMessages, message)
+			for idx, callID := range localToolCallIDs {
+				if strings.TrimSpace(callID) == "" {
+					continue
+				}
+				toolCallLocations[callID] = toolCallLocation{messageIndex: messageIndex, toolCallIndex: idx}
+			}
 		}
 	}
 
 	return allMessages
+}
+
+func shouldMergeAssistantMessage(allMessages []MessageEvent, current MessageEvent) bool {
+	if current.Role != "assistant" || len(allMessages) == 0 {
+		return false
+	}
+
+	previous := allMessages[len(allMessages)-1]
+	if previous.Role != "assistant" {
+		return false
+	}
+
+	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.FileNames) > 0 || len(previous.ToolCalls) == 0 {
+		return false
+	}
+
+	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.FileNames) > 0
 }
 
 func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEvent) bool {

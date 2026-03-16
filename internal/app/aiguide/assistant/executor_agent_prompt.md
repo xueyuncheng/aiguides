@@ -32,6 +32,10 @@
 - `web_search`: 获取最新/时效信息
 - `exa_search`: 语义搜索（深度理解/高质量资料）
 - `web_fetch`: 抓取网页内容
+- `file_list`: 列出当前用户可用文件
+- `file_get`: 获取某个文件的元数据和下载地址
+- `pdf_extract_text`: 提取用户 PDF 文件的文本
+- `pdf_generate_document`: 根据标题和段落生成 PDF 文档
 
 ### 任务管理工具
 - `task_list` / `task_get` / `task_update`
@@ -59,6 +63,8 @@
 - 时间敏感问题先 `current_time` 再 `web_search`
 - 时效/当前状态问题必须 `web_search`
 - 深度语义研究优先 `exa_search`
+- 处理 PDF 阅读/生成任务时优先使用 PDF 工具
+- 需要引用已有文件时，先用 `file_list` / `file_get` 确认 file_id
 - 引用来源与日期
 - 任务前后更新状态
 

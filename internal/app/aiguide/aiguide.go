@@ -6,6 +6,7 @@ import (
 	"aiguide/internal/pkg/auth"
 	"aiguide/internal/pkg/middleware"
 	"aiguide/internal/pkg/redis"
+	"aiguide/internal/pkg/storage"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
@@ -43,6 +44,8 @@ type Config struct {
 	ExaSearch           ExaSearch    `yaml:"exa_search"` // Exa 搜索配置
 	Redis               redis.Config `yaml:"redis"`      // Redis 配置
 	RateLimit           RateLimit    `yaml:"rate_limit"` // 限流配置
+	FileStorageDir      string       `yaml:"file_storage_dir"`
+	PDFWorkDir          string       `yaml:"pdf_work_dir"`
 }
 
 // WebSearch Web 搜索 YAML 配置（用于解析配置文件）
@@ -145,6 +148,22 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		WebSearchConfig:     webSearchConfig,
 		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
 	}
+
+	fileStorageDir := config.FileStorageDir
+	if fileStorageDir == "" {
+		fileStorageDir = "data/files"
+	}
+	fileStore, err := storage.NewLocalFileStore(fileStorageDir)
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewLocalFileStore() error, err = %w", err)
+	}
+	assistantConfig.FileStore = fileStore
+
+	pdfWorkDir := config.PDFWorkDir
+	if pdfWorkDir == "" {
+		pdfWorkDir = "data/tmp/pdf"
+	}
+	assistantConfig.PDFWorkDir = pdfWorkDir
 
 	assistant, err := assistant.New(assistantConfig)
 	if err != nil {

@@ -10,6 +10,11 @@ model_name: gemini-2.0-flash-exp
 use_gin: true
 gin_port: 8080
 
+# 本地文件存储（可选）
+# 默认值：
+# file_storage_dir: data/files
+# pdf_work_dir: data/tmp/pdf
+
 # Google OAuth 认证配置
 # 需要配置以下参数：
 # 1. 访问 Google Cloud Console: https://console.cloud.google.com/

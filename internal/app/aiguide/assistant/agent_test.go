@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"aiguide/internal/app/aiguide/table"
+	"aiguide/internal/pkg/storage"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"strings"
@@ -47,6 +48,8 @@ func TestNewSearchAgent(t *testing.T) {
 		MockImageGen:      true,
 		MockEmailIMAPConn: true,
 		WebSearchConfig:   webSearchConfig,
+		FileStore:         mustTestFileStore(t),
+		PDFWorkDir:        t.TempDir(),
 	}
 	agent, err := NewAssistantAgent(agentConfig)
 	if err != nil {
@@ -78,6 +81,8 @@ func TestNewSearchAgentWithModel(t *testing.T) {
 		MockImageGen:      true,
 		MockEmailIMAPConn: true,
 		WebSearchConfig:   webSearchConfig,
+		FileStore:         mustTestFileStore(t),
+		PDFWorkDir:        t.TempDir(),
 	}
 	agent, err := NewAssistantAgent(agentConfig)
 	if err != nil {
@@ -146,6 +151,8 @@ func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 		MockImageGen:      true,
 		MockEmailIMAPConn: true,
 		WebSearchConfig:   webSearchConfig,
+		FileStore:         mustTestFileStore(t),
+		PDFWorkDir:        t.TempDir(),
 	})
 	if err != nil {
 		t.Fatalf("NewAssistantAgent() error = %v", err)
@@ -164,4 +171,15 @@ func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 	if len(subAgentNames) != 1 || subAgentNames[0] != "executor" {
 		t.Fatalf("SubAgents() names = %v, want [executor]", subAgentNames)
 	}
+}
+
+func mustTestFileStore(t *testing.T) *storage.LocalFileStore {
+	t.Helper()
+
+	store, err := storage.NewLocalFileStore(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage.NewLocalFileStore() error = %v", err)
+	}
+
+	return store
 }

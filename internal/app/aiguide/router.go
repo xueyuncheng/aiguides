@@ -57,6 +57,11 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		memoryGroup.DELETE("/:memoryId", a.assistant.DeleteMemory)
 	}
 
+	fileGroup := api.Group("/assistant/files")
+	{
+		fileGroup.GET("/:fileId/download", a.assistant.DownloadFile)
+	}
+
 	projectGroup := api.Group("/assistant/projects")
 	{
 		projectGroup.GET("", a.assistant.ListProjects)

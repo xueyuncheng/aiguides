@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"aiguide/internal/pkg/storage"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -29,6 +30,8 @@ type ExecutorAgentConfig struct {
 	MockImageGen    bool
 	WebSearchConfig tools.WebSearchConfig
 	ExaConfig       tools.ExaConfig
+	FileStore       storage.FileStore
+	PDFWorkDir      string
 }
 
 // NewExecutorAgent creates a specialized execution agent with all functional tools
@@ -73,6 +76,26 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create current time tool: %w", err)
 	}
 
+	pdfExtractTextTool, err := tools.NewPDFExtractTextTool(config.DB, config.FileStore, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pdf_extract_text tool: %w", err)
+	}
+
+	pdfGenerateDocumentTool, err := tools.NewPDFGenerateDocumentTool(config.DB, config.FileStore, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pdf_generate_document tool: %w", err)
+	}
+
+	fileListTool, err := tools.NewFileListTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_list tool: %w", err)
+	}
+
+	fileGetTool, err := tools.NewFileGetTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_get tool: %w", err)
+	}
+
 	// 任务查询和更新工具
 	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
@@ -107,6 +130,10 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			webSearchTool,
 			exaSearchTool,
 			webFetchTool,
+			fileListTool,
+			fileGetTool,
+			pdfExtractTextTool,
+			pdfGenerateDocumentTool,
 			// 任务管理工具（用于更新执行状态）
 			taskListTool,
 			taskGetTool,

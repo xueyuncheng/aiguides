@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/storage"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
@@ -26,6 +27,8 @@ type Assistant struct {
 	frontendURL         string
 	webSearchConfig     tools.WebSearchConfig
 	exaConfig           tools.ExaConfig
+	fileStore           storage.FileStore
+	pdfWorkDir          string
 
 	runner      *runner.Runner
 	authService *auth.AuthService
@@ -39,6 +42,8 @@ type Config struct {
 	FrontendURL         string
 	WebSearchConfig     tools.WebSearchConfig
 	ExaConfig           tools.ExaConfig
+	FileStore           storage.FileStore
+	PDFWorkDir          string
 }
 
 func New(config *Config) (*Assistant, error) {
@@ -76,6 +81,8 @@ func New(config *Config) (*Assistant, error) {
 		frontendURL:         config.FrontendURL,
 		webSearchConfig:     config.WebSearchConfig,
 		exaConfig:           config.ExaConfig,
+		fileStore:           config.FileStore,
+		pdfWorkDir:          config.PDFWorkDir,
 	}
 
 	runner, err := assistant.createRunner()

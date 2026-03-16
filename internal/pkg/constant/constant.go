@@ -112,3 +112,55 @@ func (a MemoryAction) Valid() bool {
 func (a MemoryAction) String() string {
 	return string(a)
 }
+
+// FileAssetKind 文件资产类型
+type FileAssetKind string
+
+const (
+	FileAssetKindUploaded  FileAssetKind = "uploaded"
+	FileAssetKindGenerated FileAssetKind = "generated"
+	FileAssetKindDerived   FileAssetKind = "derived"
+)
+
+func (k FileAssetKind) String() string {
+	return string(k)
+}
+
+// FileAssetStatus 文件资产状态
+type FileAssetStatus string
+
+const (
+	FileAssetStatusReady   FileAssetStatus = "ready"
+	FileAssetStatusDeleted FileAssetStatus = "deleted"
+	FileAssetStatusFailed  FileAssetStatus = "failed"
+)
+
+func (s FileAssetStatus) String() string {
+	return string(s)
+}
+
+// PDFJobType PDF 任务类型
+type PDFJobType string
+
+const (
+	PDFJobTypeExtractText      PDFJobType = "extract_text"
+	PDFJobTypeGenerateDocument PDFJobType = "generate_document"
+)
+
+func (t PDFJobType) String() string {
+	return string(t)
+}
+
+// PDFJobStatus PDF 任务状态
+type PDFJobStatus string
+
+const (
+	PDFJobStatusPending   PDFJobStatus = "pending"
+	PDFJobStatusRunning   PDFJobStatus = "running"
+	PDFJobStatusCompleted PDFJobStatus = "completed"
+	PDFJobStatusFailed    PDFJobStatus = "failed"
+)
+
+func (s PDFJobStatus) String() string {
+	return string(s)
+}

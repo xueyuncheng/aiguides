@@ -2,6 +2,9 @@ package assistant
 
 import (
 	"aiguide/internal/app/aiguide/table"
+	"aiguide/internal/pkg/storage"
+	"aiguide/internal/pkg/tools"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -60,7 +63,7 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 		return
 	}
 
-	_, err := buildUserMessageParts(trimmedContent, req.Images, req.FileNames)
+	_, err := buildUserMessageParts(ctx, a.db, a.fileStore, strconv.Itoa(req.UserID), sessionID, trimmedContent, req.Images, req.FileNames)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_edit_payload"})
 		return
@@ -126,7 +129,7 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 	})
 }
 
-func buildUserMessageParts(message string, images, fileNames []string) ([]*genai.Part, error) {
+func buildUserMessageParts(ctx context.Context, db *gorm.DB, fileStore storage.FileStore, userID, sessionID, message string, images, fileNames []string) ([]*genai.Part, error) {
 	parts := make([]*genai.Part, 0, 1+len(images))
 
 	actualMessage := message
@@ -138,11 +141,25 @@ func buildUserMessageParts(message string, images, fileNames []string) ([]*genai
 		parts = append(parts, genai.NewPartFromText(actualMessage))
 	}
 
-	for _, image := range images {
+	for idx, image := range images {
 		imageBytes, mimeType, err := parseDataURI(image)
 		if err != nil {
 			slog.Error("parseDataURI error", "err", err)
 			return nil, err
+		}
+		if mimeType == pdfMimeType && db != nil && fileStore != nil {
+			fileName := "uploaded.pdf"
+			if idx < len(fileNames) && strings.TrimSpace(fileNames[idx]) != "" {
+				fileName = fileNames[idx]
+			}
+			parsedUserID, convErr := strconv.Atoi(userID)
+			if convErr != nil {
+				slog.Error("strconv.Atoi() error", "user_id", userID, "err", convErr)
+				return nil, fmt.Errorf("invalid user_id: %w", convErr)
+			}
+			if _, err := tools.SaveChatPDFAsset(ctx, db, fileStore, parsedUserID, sessionID, fileName, imageBytes, mimeType); err != nil {
+				return nil, err
+			}
 		}
 		parts = append(parts, genai.NewPartFromBytes(imageBytes, mimeType))
 	}

@@ -95,6 +95,38 @@ type SharedConversation struct {
 	AccessedAt time.Time // Last access time (optional tracking)
 }
 
+// FileAsset represents a user-owned file stored on disk.
+type FileAsset struct {
+	Model
+
+	UserID       int                      `gorm:"not null;index"`
+	SessionID    string                   `gorm:"not null;default:'';index"`
+	Kind         constant.FileAssetKind   `gorm:"type:varchar(20);not null;index"`
+	MimeType     string                   `gorm:"not null;default:''"`
+	OriginalName string                   `gorm:"not null;default:''"`
+	StoragePath  string                   `gorm:"not null;default:'';uniqueIndex"`
+	SizeBytes    int64                    `gorm:"not null;default:0"`
+	SHA256       string                   `gorm:"not null;default:'';index"`
+	Status       constant.FileAssetStatus `gorm:"type:varchar(20);not null;default:ready;index"`
+}
+
+// PDFJob tracks an asynchronous PDF processing task.
+type PDFJob struct {
+	Model
+
+	UserID        int                   `gorm:"not null;index"`
+	SessionID     string                `gorm:"not null;index"`
+	Type          constant.PDFJobType   `gorm:"type:varchar(40);not null;index"`
+	Status        constant.PDFJobStatus `gorm:"type:varchar(20);not null;default:pending;index"`
+	InputFileIDs  string                `gorm:"type:text;not null;default:''"`
+	OutputFileID  int                   `gorm:"not null;default:0;index"`
+	Params        string                `gorm:"type:text;not null;default:''"`
+	ResultSummary string                `gorm:"type:text;not null;default:''"`
+	ErrorMessage  string                `gorm:"type:text;not null;default:''"`
+	StartedAt     time.Time             `gorm:"not null"`
+	CompletedAt   time.Time             `gorm:"not null"`
+}
+
 // GetAllModels 获取所有已注册的数据库模型
 func GetAllModels() []any {
 	return []any{
@@ -105,5 +137,7 @@ func GetAllModels() []any {
 		&UserMemory{},
 		&Task{},
 		&SharedConversation{},
+		&FileAsset{},
+		&PDFJob{},
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"aiguide/internal/pkg/storage"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -27,6 +28,8 @@ type AssistantAgentConfig struct {
 	MockEmailIMAPConn bool
 	WebSearchConfig   tools.WebSearchConfig
 	ExaConfig         tools.ExaConfig
+	FileStore         storage.FileStore
+	PDFWorkDir        string
 }
 
 // NewAssistantAgent creates the root agent with the executor as its subagent.
@@ -43,6 +46,8 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		MockImageGen:    config.MockImageGen,
 		WebSearchConfig: config.WebSearchConfig,
 		ExaConfig:       config.ExaConfig,
+		FileStore:       config.FileStore,
+		PDFWorkDir:      config.PDFWorkDir,
 	}
 	executorAgent, err := NewExecutorAgent(executorConfig)
 	if err != nil {

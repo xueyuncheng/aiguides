@@ -18,6 +18,8 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 		MockEmailIMAPConn: false,
 		WebSearchConfig:   a.webSearchConfig,
 		ExaConfig:         a.exaConfig,
+		FileStore:         a.fileStore,
+		PDFWorkDir:        a.pdfWorkDir,
 	}
 	assistantAgent, err := NewAssistantAgent(assistantConfig)
 	if err != nil {
