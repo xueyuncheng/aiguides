@@ -58,6 +58,7 @@ export default function ChatPage() {
     toolName: toolCall.tool_name,
     label: toolCall.label,
     args: toolCall.args || undefined,
+    result: toolCall.result || undefined,
   });
 
   const mapHistoryMessage = (msg: HistoryMessageResponse): Message => ({

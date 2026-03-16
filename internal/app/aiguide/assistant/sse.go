@@ -76,32 +76,10 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	parts := make([]*genai.Part, 0, 1+len(req.Images))
-
-	// 如果有文件名，添加到消息文本前面作为元数据
-	actualMessageText := messageText
-	if len(req.FileNames) > 0 && len(req.FileNames) == len(req.Images) {
-		fileNamesJSON, _ := json.Marshal(req.FileNames)
-		actualMessageText = fmt.Sprintf("<!-- FILE_NAMES: %s -->\n%s", fileNamesJSON, messageText)
-	}
-
-	if actualMessageText != "" {
-		parts = append(parts, genai.NewPartFromText(actualMessageText))
-	}
-
-	for _, image := range req.Images {
-		imageBytes, mimeType, err := parseDataURI(image)
-		if err != nil {
-			slog.Error("parseDataURI error", "err", err)
-			ctx.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
-		parts = append(parts, genai.NewPartFromBytes(imageBytes, mimeType))
-	}
-
-	if len(parts) == 0 {
-		slog.Error("message or images required")
-		ctx.JSON(400, gin.H{"error": "message or images required", "code": "retry_payload_missing"})
+	parts, err := buildUserMessageParts(ctx, a.db, a.fileStore, userID, sessionID, messageText, req.Images, req.FileNames)
+	if err != nil {
+		slog.Error("buildUserMessageParts() error", "err", err)
+		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -560,6 +538,14 @@ func toolCallLabel(name string, args map[string]any) string {
 			return fmt.Sprintf("正在获取网页：%s", url)
 		}
 		return "正在获取网页"
+	case "file_list":
+		return "正在查看文件列表"
+	case "file_get":
+		return "正在获取文件信息"
+	case "pdf_extract_text":
+		return "正在提取 PDF 文本"
+	case "pdf_generate_document":
+		return "正在生成 PDF 文档"
 	case "image_gen":
 		return "正在生成图片"
 	case "email_query":

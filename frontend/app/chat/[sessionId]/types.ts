@@ -2,12 +2,14 @@ export interface ToolCallItem {
   toolName: string;
   label: string;
   args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
 }
 
 export interface ToolCallResponse {
   tool_name: string;
   label: string;
   args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
 }
 
 export interface Message {

@@ -108,6 +108,19 @@ export const AIMessageContent = memo(({
     return JSON.stringify(args, null, 2);
   };
 
+  const resolvedContent = content.replaceAll(
+    '(download_path)',
+    (() => {
+      const fileGetCall = [...(toolCalls || [])].reverse().find((tc) => (
+        tc.toolName === 'file_get' && typeof tc.result?.download_path === 'string'
+      ));
+      const downloadPath = fileGetCall?.result?.download_path;
+      return typeof downloadPath === 'string' && downloadPath.trim() !== ''
+        ? `(${downloadPath})`
+        : '(download_path)';
+    })()
+  );
+
   return (
     <div className="group">
       {/* Thought Process section */}
@@ -229,7 +242,7 @@ export const AIMessageContent = memo(({
               rehypePlugins={markdownRehypePlugins}
               components={markdownComponents}
             >
-              {preprocessMarkdown(content)}
+              {preprocessMarkdown(resolvedContent)}
             </ReactMarkdown>
           </div>
         )}
