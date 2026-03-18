@@ -17,6 +17,11 @@ import (
 )
 
 const maxInlinePDFExtractChars = 12000
+const pdfFileMetadataPrefix = "<!-- PDF_FILE:"
+
+type pdfFileMetadata struct {
+	Name string `json:"name,omitempty"`
+}
 
 func appendTextPart(parts []*genai.Part, message string, fileNames []string, uploadCount int) []*genai.Part {
 	actualMessage := buildMessageText(message, fileNames, uploadCount)
@@ -96,6 +101,12 @@ func buildPDFExtractedTextPart(fileName string, result *tools.SaveChatPDFAssetRe
 	if label == "" {
 		label = "uploaded.pdf"
 	}
+	if metadataJSON, err := json.Marshal(pdfFileMetadata{Name: label}); err == nil {
+		builder.WriteString(pdfFileMetadataPrefix)
+		builder.WriteString(" ")
+		builder.Write(metadataJSON)
+		builder.WriteString(" -->\n")
+	}
 	builder.WriteString("[PDF extracted text]")
 	builder.WriteString("\n")
 	builder.WriteString("File: ")
@@ -127,4 +138,27 @@ func buildPDFExtractedTextPart(fileName string, result *tools.SaveChatPDFAssetRe
 	}
 
 	return genai.NewPartFromText(builder.String())
+}
+
+func extractPDFFileNameFromText(text string) (string, bool) {
+	if !strings.HasPrefix(text, pdfFileMetadataPrefix) {
+		return "", false
+	}
+
+	endIdx := strings.Index(text, "-->")
+	if endIdx <= 0 {
+		return "", false
+	}
+
+	metaStr := strings.TrimSpace(text[len(pdfFileMetadataPrefix):endIdx])
+	if metaStr == "" {
+		return "", false
+	}
+
+	var metadata pdfFileMetadata
+	if err := json.Unmarshal([]byte(metaStr), &metadata); err != nil {
+		return "", false
+	}
+
+	return strings.TrimSpace(metadata.Name), true
 }
