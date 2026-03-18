@@ -139,6 +139,20 @@ func (s FileAssetStatus) String() string {
 	return string(s)
 }
 
+// PDFTextExtractStatus tracks extracted text availability for PDF assets.
+type PDFTextExtractStatus string
+
+const (
+	PDFTextExtractStatusPending   PDFTextExtractStatus = "pending"
+	PDFTextExtractStatusCompleted PDFTextExtractStatus = "completed"
+	PDFTextExtractStatusEmpty     PDFTextExtractStatus = "empty"
+	PDFTextExtractStatusFailed    PDFTextExtractStatus = "failed"
+)
+
+func (s PDFTextExtractStatus) String() string {
+	return string(s)
+}
+
 // PDFJobType PDF 任务类型
 type PDFJobType string
 

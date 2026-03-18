@@ -22,8 +22,15 @@ export interface Message {
   isStreaming?: boolean;
   images?: string[];
   fileNames?: string[]; // 文件名列表，与 images 对应
+  files?: MessageFile[];
   isError?: boolean;
   toolCalls?: ToolCallItem[];
+}
+
+export interface MessageFile {
+  mime_type: string;
+  name?: string;
+  label?: string;
 }
 
 export interface SelectedImage {
@@ -58,6 +65,7 @@ export interface HistoryMessageResponse {
   timestamp: string;
   images?: string[];
   file_names?: string[];
+  files?: MessageFile[];
   tool_calls?: ToolCallResponse[];
 }
 

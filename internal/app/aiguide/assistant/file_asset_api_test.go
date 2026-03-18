@@ -43,6 +43,9 @@ func TestDownloadFile(t *testing.T) {
 		SizeBytes:    meta.SizeBytes,
 		SHA256:       meta.SHA256,
 		Status:       constant.FileAssetStatusReady,
+		TextStatus:   constant.PDFTextExtractStatusCompleted,
+		TextPages:    1,
+		TextChars:    5,
 	}
 	if err := assistant.db.Create(&asset).Error; err != nil {
 		t.Fatalf("db.Create() error = %v", err)

@@ -39,10 +39,11 @@ func TestSaveChatPDFAsset(t *testing.T) {
 	db := setupPDFTestDB(t)
 	store := setupPDFTestStore(t)
 
-	asset, err := SaveChatPDFAsset(context.Background(), db, store, 11, "session-a", "sample.pdf", []byte("%PDF-1.4\n%test"), "application/pdf")
+	result, err := SaveChatPDFAsset(context.Background(), db, store, 11, "session-a", "sample.pdf", []byte("%PDF-1.4\n%test"), "application/pdf")
 	if err != nil {
 		t.Fatalf("SaveChatPDFAsset() error = %v", err)
 	}
+	asset := result.Asset
 	if asset.ID == 0 {
 		t.Fatal("SaveChatPDFAsset() returned zero ID")
 	}
@@ -65,6 +66,53 @@ func TestSaveChatPDFAsset(t *testing.T) {
 	}
 	if stored.Status != constant.FileAssetStatusReady {
 		t.Fatalf("stored.Status = %q, want %q", stored.Status, constant.FileAssetStatusReady)
+	}
+	if stored.TextStatus != constant.PDFTextExtractStatusFailed {
+		t.Fatalf("stored.TextStatus = %q, want %q", stored.TextStatus, constant.PDFTextExtractStatusFailed)
+	}
+	if stored.TextError == "" {
+		t.Fatal("stored.TextError is empty")
+	}
+}
+
+func TestSaveChatPDFAssetStoresExtractedPageText(t *testing.T) {
+	db := setupPDFTestDB(t)
+	store := setupPDFTestStore(t)
+	outputPath := t.TempDir() + "/source.pdf"
+	if err := generatePDFDocument(outputPath, "Hello PDF", "Hello_PDF", []string{"First page text.", "Second paragraph."}); err != nil {
+		t.Fatalf("generatePDFDocument() error = %v", err)
+	}
+	data, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("os.ReadFile() error = %v", err)
+	}
+
+	result, err := SaveChatPDFAsset(context.Background(), db, store, 7, "session-extract", "source.pdf", data, "application/pdf")
+	if err != nil {
+		t.Fatalf("SaveChatPDFAsset() error = %v", err)
+	}
+	if result.TextStatus != constant.PDFTextExtractStatusCompleted {
+		t.Fatalf("result.TextStatus = %q, want %q", result.TextStatus, constant.PDFTextExtractStatusCompleted)
+	}
+	if result.PageCount != 1 {
+		t.Fatalf("result.PageCount = %d, want 1", result.PageCount)
+	}
+	if result.CharacterSum == 0 {
+		t.Fatal("result.CharacterSum is zero")
+	}
+
+	var pages []table.PDFTextPage
+	if err := db.Where("file_id = ?", result.Asset.ID).Order("page_number ASC").Find(&pages).Error; err != nil {
+		t.Fatalf("db.Find() error = %v", err)
+	}
+	if len(pages) != 1 {
+		t.Fatalf("len(pages) = %d, want 1", len(pages))
+	}
+	if pages[0].CharacterCount == 0 {
+		t.Fatal("pages[0].CharacterCount is zero")
+	}
+	if !bytes.Contains([]byte(pages[0].Text), []byte("First page text.")) {
+		t.Fatalf("pages[0].Text = %q, want extracted content", pages[0].Text)
 	}
 }
 
@@ -98,7 +146,7 @@ func setupPDFTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("gorm.Open() error = %v", err)
 	}
-	if err := db.AutoMigrate(&table.FileAsset{}, &table.PDFJob{}); err != nil {
+	if err := db.AutoMigrate(&table.FileAsset{}, &table.PDFTextPage{}, &table.PDFJob{}); err != nil {
 		t.Fatalf("db.AutoMigrate() error = %v", err)
 	}
 	return db
