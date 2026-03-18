@@ -1142,18 +1142,9 @@ export default function ChatPage() {
                         message.role === 'user' ? "justify-end" : "justify-start"
                       )}
                     >
-                      <div className={cn(
-                        "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%]",
-                        message.role === 'user' ? "flex-row-reverse" : "flex-row"
-                      )}>
-                        {message.role === 'assistant' ? (
-                          <AIAvatar icon={agentInfo.icon} />
-                        ) : (
-                          <UserAvatar user={user} />
-                        )}
-
-                        {message.role === 'assistant' ? (
-                          <div className="relative text-sm w-full leading-relaxed pt-1 flex-1" data-ai-message="">
+                      {message.role === 'assistant' ? (
+                        <div className="w-full">
+                          <div className="relative text-sm w-full leading-relaxed" data-ai-message="">
                             <AIMessageContent
                               content={message.content}
                               thought={message.thought}
@@ -1164,7 +1155,12 @@ export default function ChatPage() {
                               toolCalls={message.toolCalls}
                             />
                           </div>
-                        ) : (
+                        </div>
+                      ) : (
+                        <div className={cn(
+                          "flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%] flex-row-reverse"
+                        )}>
+                          <UserAvatar user={user} />
                           <div className="relative flex flex-col items-end">
                             <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed dark:bg-zinc-800 sm:min-w-[180px] sm:w-fit">
                               {editingMessageId === message.id ? (
@@ -1261,28 +1257,30 @@ export default function ChatPage() {
                               )}
                             </div>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {isLoading && (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') && (
                     <div className="flex w-full justify-start">
-                      <div className="flex gap-4 max-w-[85%]">
-                        <AIAvatar icon={agentInfo.icon} />
-                        <div className="pt-2">
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
-                            <div className="flex space-x-1">
-                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                              <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"></div>
-                            </div>
-                            <span>AI 正在思考...</span>
+                      <div className="pt-2">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+                          <div className="flex space-x-1">
+                            <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                            <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                            <div className="w-1.5 h-1.5 bg-muted-foreground/40 rounded-full animate-bounce"></div>
                           </div>
+                          <span>AI 正在思考...</span>
                         </div>
                       </div>
                     </div>
                   )}
-                  <div ref={messagesEndRef} className="h-24" />
+                  <div ref={messagesEndRef} className={cn(
+                    "transition-all duration-300",
+                    messages.length > 0 && messages[messages.length - 1].role === 'user'
+                      ? "min-h-[calc(100vh-200px)]"
+                      : "h-24"
+                  )} />
                 </div>
               )}
             </div>
