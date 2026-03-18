@@ -449,8 +449,14 @@ export default function ChatPage() {
   };
 
   // 滚动到底部
-  const isStreamingResponse = messages.some((message) => message.isStreaming);
-  const latestUserMessageId = [...messages].reverse().find((message) => message.role === 'user')?.id;
+  const isStreamingResponse = useMemo(
+    () => messages.some((message) => message.isStreaming),
+    [messages]
+  );
+  const latestUserMessageId = useMemo(
+    () => [...messages].reverse().find((message) => message.role === 'user')?.id,
+    [messages]
+  );
 
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
