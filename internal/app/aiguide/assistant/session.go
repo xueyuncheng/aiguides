@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/session"
@@ -386,22 +387,26 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 			if part.Thought {
 				thought += part.Text
 			} else if part.Text != "" {
-				// 解析文件名元数据
-				text := part.Text
-				if strings.HasPrefix(text, "<!-- FILE_NAMES:") {
-					// 提取文件名 JSON
-					endIdx := strings.Index(text, "-->")
-					if endIdx > 0 {
-						metaStr := text[len("<!-- FILE_NAMES:"):endIdx]
-						metaStr = strings.TrimSpace(metaStr)
-						if err := json.Unmarshal([]byte(metaStr), &fileNames); err == nil {
-							// 移除元数据，只保留实际消息内容
-							text = strings.TrimPrefix(text[endIdx+3:], "\n")
-						}
+				if fileName, ok := extractPDFFileNameFromText(part.Text); ok {
+					label := fileName
+					if label == "" {
+						label = fmt.Sprintf("PDF 文件 %d", len(files)+1)
 					}
+					files = append(files, MessageFile{
+						MimeType: pdfMimeType,
+						Name:     fileName,
+						Label:    label,
+					})
+					continue
 				}
+				text := part.Text
 				// 移除自动注入的用户记忆上下文，不暴露给前端
 				text = stripUserContext(text)
+				// 解析文件名元数据
+				if parsedText, parsedFileNames, ok := extractFileNamesMetadata(text); ok {
+					text = parsedText
+					fileNames = parsedFileNames
+				}
 				content += text
 			}
 
@@ -471,7 +476,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 			role = "assistant"
 		}
 
-		if content != "" || thought != "" || len(images) > 0 || len(toolCalls) > 0 {
+		if content != "" || thought != "" || len(images) > 0 || len(files) > 0 || len(toolCalls) > 0 {
 			message := MessageEvent{
 				ID:        event.ID,
 				Timestamp: event.Timestamp,
@@ -494,6 +499,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				allMessages[messageIndex].Thought += message.Thought
 				allMessages[messageIndex].Images = append(allMessages[messageIndex].Images, message.Images...)
 				allMessages[messageIndex].FileNames = append(allMessages[messageIndex].FileNames, message.FileNames...)
+				allMessages[messageIndex].Files = append(allMessages[messageIndex].Files, message.Files...)
 				toolCallOffset := len(allMessages[messageIndex].ToolCalls)
 				allMessages[messageIndex].ToolCalls = append(allMessages[messageIndex].ToolCalls, message.ToolCalls...)
 				for idx, callID := range localToolCallIDs {
@@ -528,11 +534,11 @@ func shouldMergeAssistantMessage(allMessages []MessageEvent, current MessageEven
 		return false
 	}
 
-	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.FileNames) > 0 || len(previous.ToolCalls) == 0 {
+	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.FileNames) > 0 || len(previous.Files) > 0 || len(previous.ToolCalls) == 0 {
 		return false
 	}
 
-	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.FileNames) > 0
+	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.FileNames) > 0 || len(current.Files) > 0
 }
 
 func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEvent) bool {
@@ -548,7 +554,8 @@ func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEven
 	return last.Content == current.Content &&
 		last.Thought == current.Thought &&
 		slices.Equal(last.Images, current.Images) &&
-		slices.Equal(last.FileNames, current.FileNames)
+		slices.Equal(last.FileNames, current.FileNames) &&
+		slices.Equal(last.Files, current.Files)
 }
 
 // stripUserContext 移除消息文本中自动注入的 <user_context> 块
@@ -569,6 +576,26 @@ func stripUserContext(text string) string {
 		text = text[:start] + text[start+end+len(closeTag):]
 	}
 	return text
+}
+
+func extractFileNamesMetadata(text string) (string, []string, bool) {
+	trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
+	if !strings.HasPrefix(trimmed, "<!-- FILE_NAMES:") {
+		return text, nil, false
+	}
+
+	endIdx := strings.Index(trimmed, "-->")
+	if endIdx <= 0 {
+		return text, nil, false
+	}
+
+	metaStr := strings.TrimSpace(trimmed[len("<!-- FILE_NAMES:"):endIdx])
+	var fileNames []string
+	if err := json.Unmarshal([]byte(metaStr), &fileNames); err != nil {
+		return text, nil, false
+	}
+
+	return strings.TrimPrefix(trimmed[endIdx+3:], "\n"), fileNames, true
 }
 
 func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageEvent, bool) {

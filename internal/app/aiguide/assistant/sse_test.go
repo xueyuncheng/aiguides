@@ -168,3 +168,23 @@ func TestBuildPDFExtractedTextPartReturnsNilForFailedExtraction(t *testing.T) {
 		t.Fatal("expected nil part for failed extraction")
 	}
 }
+
+func TestExtractPDFFileNameFromText(t *testing.T) {
+	part := buildPDFExtractedTextPart("report.pdf", &tools.SaveChatPDFAssetResult{
+		TextStatus: constant.PDFTextExtractStatusCompleted,
+		PageTexts: []tools.PDFPageText{
+			{PageNumber: 1, Text: "Alpha content"},
+		},
+	})
+	if part == nil {
+		t.Fatal("buildPDFExtractedTextPart() returned nil")
+	}
+
+	fileName, ok := extractPDFFileNameFromText(part.Text)
+	if !ok {
+		t.Fatal("extractPDFFileNameFromText() = false, want true")
+	}
+	if fileName != "report.pdf" {
+		t.Fatalf("extractPDFFileNameFromText() = %q, want %q", fileName, "report.pdf")
+	}
+}
