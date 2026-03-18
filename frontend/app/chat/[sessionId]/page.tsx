@@ -6,7 +6,7 @@ import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
 import SessionSidebar, { Project, Session } from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
-import { Check, Copy, Menu, Pencil, X } from 'lucide-react';
+import { Check, Copy, Menu, Pencil } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // 导入类型和常量
@@ -84,6 +84,7 @@ export default function ChatPage() {
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const latestUserMessageRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -448,15 +449,31 @@ export default function ChatPage() {
   };
 
   // 滚动到底部
-  useEffect(() => {
-    const isNewUserMessage = messages.length > 0 && messages[messages.length - 1].role === 'user';
+  const isStreamingResponse = messages.some((message) => message.isStreaming);
+  const latestUserMessageId = [...messages].reverse().find((message) => message.role === 'user')?.id;
 
-    if (isNewUserMessage || isAtBottomRef.current) {
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+
+    if (!lastMessage || isStreamingResponse) {
+      return;
+    }
+
+    if (lastMessage.role === 'user') {
+      isAtBottomRef.current = false;
+      latestUserMessageRef.current?.scrollIntoView({
+        behavior: shouldScrollInstantly ? 'auto' : 'smooth',
+        block: 'start',
+      });
+      return;
+    }
+
+    if (isAtBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({
         behavior: shouldScrollInstantly ? 'auto' : 'smooth'
       });
     }
-  }, [messages, shouldScrollInstantly]);
+  }, [isStreamingResponse, latestUserMessageId, messages, shouldScrollInstantly]);
 
   // 空会话时聚焦输入框
   useEffect(() => {
@@ -1103,6 +1120,7 @@ export default function ChatPage() {
                   {processedMessages.map((message) => (
                     <div
                       key={message.id}
+                      ref={message.role === 'user' && message.id === latestUserMessageId ? latestUserMessageRef : undefined}
                       className={cn(
                         "flex w-full group/message",
                         message.role === 'user' ? "justify-end" : "justify-start"
