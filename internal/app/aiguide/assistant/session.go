@@ -54,14 +54,21 @@ type SessionHistoryResponse struct {
 
 // MessageEvent 定义消息事件结构
 type MessageEvent struct {
-	ID        string     `json:"id"`
-	Timestamp time.Time  `json:"timestamp"`
-	Role      string     `json:"role"` // "user" or "assistant"
-	Content   string     `json:"content"`
-	Thought   string     `json:"thought,omitempty"`
-	Images    []string   `json:"images,omitempty"`     // Base64编码的图片或PDF数据列表
-	FileNames []string   `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	ID        string        `json:"id"`
+	Timestamp time.Time     `json:"timestamp"`
+	Role      string        `json:"role"` // "user" or "assistant"
+	Content   string        `json:"content"`
+	Thought   string        `json:"thought,omitempty"`
+	Images    []string      `json:"images,omitempty"`     // Base64编码的图片列表
+	FileNames []string      `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
+	Files     []MessageFile `json:"files,omitempty"`
+	ToolCalls []ToolCall    `json:"tool_calls,omitempty"`
+}
+
+type MessageFile struct {
+	MimeType string `json:"mime_type"`
+	Name     string `json:"name,omitempty"`
+	Label    string `json:"label,omitempty"`
 }
 
 type ToolCall struct {
@@ -369,6 +376,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		thought := ""
 		var images []string
 		var fileNames []string
+		var files []MessageFile
 		var toolCalls []ToolCall
 		localToolCallIDs := make([]string, 0)
 		localFunctionResponses := make(map[string]map[string]any)
@@ -402,10 +410,24 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				if mimeType == "" {
 					mimeType = defaultImageMimeType
 				}
-				if strings.HasPrefix(mimeType, "image/") || mimeType == pdfMimeType {
+				if strings.HasPrefix(mimeType, "image/") {
 					base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
 					imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
 					images = append(images, imageDataURI)
+				} else if mimeType == pdfMimeType {
+					fileName := ""
+					if len(fileNames) > len(files) {
+						fileName = fileNames[len(files)]
+					}
+					label := fileName
+					if strings.TrimSpace(label) == "" {
+						label = fmt.Sprintf("PDF 文件 %d", len(files)+1)
+					}
+					files = append(files, MessageFile{
+						MimeType: mimeType,
+						Name:     fileName,
+						Label:    label,
+					})
 				}
 			}
 
@@ -458,6 +480,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				Thought:   thought,
 				Images:    images,
 				FileNames: fileNames,
+				Files:     files,
 				ToolCalls: toolCalls,
 			}
 			if isDuplicateRetryUserMessage(allMessages, message) {

@@ -76,7 +76,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	parts, err := buildUserMessageParts(ctx, a.db, a.fileStore, userID, sessionID, messageText, req.Images, req.FileNames)
+	parts, err := buildUserMessageParts(ctx, a.db, a.fileStore, userID, sessionID, messageText, req.Images, req.FileNames, true)
 	if err != nil {
 		slog.Error("buildUserMessageParts() error", "err", err)
 		ctx.JSON(400, gin.H{"error": err.Error()})

@@ -1,6 +1,8 @@
 package assistant
 
 import (
+	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/tools"
 	"bytes"
 	"encoding/base64"
 	"fmt"
@@ -127,5 +129,42 @@ func TestMessageTextTrimming(t *testing.T) {
 				t.Errorf("expected %q, got %q", tt.expected, result)
 			}
 		})
+	}
+}
+
+func TestBuildPDFExtractedTextPart(t *testing.T) {
+	part := buildPDFExtractedTextPart("report.pdf", &tools.SaveChatPDFAssetResult{
+		TextStatus: constant.PDFTextExtractStatusCompleted,
+		PageTexts: []tools.PDFPageText{
+			{PageNumber: 1, Text: "Alpha content"},
+			{PageNumber: 2, Text: "Beta content"},
+		},
+	})
+	if part == nil {
+		t.Fatal("buildPDFExtractedTextPart() returned nil")
+	}
+	if !strings.Contains(part.Text, "File: report.pdf") {
+		t.Fatalf("part.Text = %q, want file name", part.Text)
+	}
+	if !strings.Contains(part.Text, "[Page 1]") || !strings.Contains(part.Text, "Alpha content") {
+		t.Fatalf("part.Text = %q, want page 1 content", part.Text)
+	}
+	if !strings.Contains(part.Text, "[Page 2]") || !strings.Contains(part.Text, "Beta content") {
+		t.Fatalf("part.Text = %q, want page 2 content", part.Text)
+	}
+	if part.InlineData != nil {
+		t.Fatal("expected text part, got inline data")
+	}
+}
+
+func TestBuildPDFExtractedTextPartReturnsNilForFailedExtraction(t *testing.T) {
+	part := buildPDFExtractedTextPart("report.pdf", &tools.SaveChatPDFAssetResult{
+		TextStatus: constant.PDFTextExtractStatusFailed,
+		PageTexts: []tools.PDFPageText{
+			{PageNumber: 1, Text: "Alpha content"},
+		},
+	})
+	if part != nil {
+		t.Fatal("expected nil part for failed extraction")
 	}
 }

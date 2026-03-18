@@ -69,6 +69,7 @@ export default function ChatPage() {
     timestamp: new Date(msg.timestamp),
     images: msg.images || [],
     fileNames: msg.file_names || [],
+    files: msg.files || [],
     toolCalls: (msg.tool_calls || []).map(mapToolCall),
   });
 
@@ -1166,6 +1167,7 @@ export default function ChatPage() {
                                   content={message.content}
                                   images={message.images}
                                   fileNames={message.fileNames}
+                                  files={message.files}
                                 />
                               )}
                             </div>

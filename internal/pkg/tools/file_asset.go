@@ -29,6 +29,9 @@ type FileListItem struct {
 	OriginalName string `json:"original_name"`
 	SizeBytes    int64  `json:"size_bytes"`
 	Status       string `json:"status"`
+	TextStatus   string `json:"text_status,omitempty"`
+	TextPages    int    `json:"text_pages,omitempty"`
+	TextChars    int    `json:"text_chars,omitempty"`
 	DownloadPath string `json:"download_path"`
 	CreatedAt    string `json:"created_at"`
 }
@@ -50,6 +53,10 @@ type FileGetOutput struct {
 	OriginalName string `json:"original_name"`
 	SizeBytes    int64  `json:"size_bytes"`
 	Status       string `json:"status"`
+	TextStatus   string `json:"text_status,omitempty"`
+	TextPages    int    `json:"text_pages,omitempty"`
+	TextChars    int    `json:"text_chars,omitempty"`
+	TextError    string `json:"text_error,omitempty"`
 	DownloadPath string `json:"download_path"`
 	Message      string `json:"message"`
 }
@@ -109,6 +116,9 @@ func NewFileListTool(db *gorm.DB) (tool.Tool, error) {
 				OriginalName: asset.OriginalName,
 				SizeBytes:    asset.SizeBytes,
 				Status:       asset.Status.String(),
+				TextStatus:   asset.TextStatus.String(),
+				TextPages:    asset.TextPages,
+				TextChars:    asset.TextChars,
 				DownloadPath: buildFileDownloadPath(asset.ID),
 				CreatedAt:    asset.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
@@ -152,6 +162,10 @@ func NewFileGetTool(db *gorm.DB) (tool.Tool, error) {
 			OriginalName: asset.OriginalName,
 			SizeBytes:    asset.SizeBytes,
 			Status:       asset.Status.String(),
+			TextStatus:   asset.TextStatus.String(),
+			TextPages:    asset.TextPages,
+			TextChars:    asset.TextChars,
+			TextError:    asset.TextError,
 			DownloadPath: buildFileDownloadPath(asset.ID),
 			Message:      fmt.Sprintf("File %d is ready to download as %s", asset.ID, filepath.Base(asset.OriginalName)),
 		}, nil

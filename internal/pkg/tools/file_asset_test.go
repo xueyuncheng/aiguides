@@ -38,10 +38,11 @@ func TestSaveChatPDFAssetPersistsListableFile(t *testing.T) {
 	db := setupPDFTestDB(t)
 	store := setupPDFTestStore(t)
 
-	asset, err := SaveChatPDFAsset(context.Background(), db, store, 21, "session-list", "listable.pdf", []byte("%PDF-1.4\n%listable"), "application/pdf")
+	result, err := SaveChatPDFAsset(context.Background(), db, store, 21, "session-list", "listable.pdf", []byte("%PDF-1.4\n%listable"), "application/pdf")
 	if err != nil {
 		t.Fatalf("SaveChatPDFAsset() error = %v", err)
 	}
+	asset := result.Asset
 
 	var stored table.FileAsset
 	if err := db.First(&stored, asset.ID).Error; err != nil {
@@ -49,5 +50,8 @@ func TestSaveChatPDFAssetPersistsListableFile(t *testing.T) {
 	}
 	if stored.Kind != constant.FileAssetKindUploaded {
 		t.Fatalf("stored.Kind = %q, want %q", stored.Kind, constant.FileAssetKindUploaded)
+	}
+	if stored.TextStatus == "" {
+		t.Fatal("stored.TextStatus is empty")
 	}
 }

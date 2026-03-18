@@ -27,6 +27,19 @@ import (
 
 const maxPDFExtractChars = 20000
 
+type PDFPageText struct {
+	PageNumber int
+	Text       string
+}
+
+type SaveChatPDFAssetResult struct {
+	Asset        *table.FileAsset
+	PageCount    int
+	CharacterSum int
+	TextStatus   constant.PDFTextExtractStatus
+	PageTexts    []PDFPageText
+}
+
 type PDFToolService struct {
 	db        *gorm.DB
 	fileStore storage.FileStore
@@ -97,6 +110,10 @@ func NewPDFGenerateDocumentTool(db *gorm.DB, fileStore storage.FileStore, workDi
 	return functiontool.New(config, handler)
 }
 
+func NewPDFExtractionService(db *gorm.DB, fileStore storage.FileStore, workDir string) (*PDFToolService, error) {
+	return newPDFToolService(db, fileStore, workDir)
+}
+
 func newPDFToolService(db *gorm.DB, fileStore storage.FileStore, workDir string) (*PDFToolService, error) {
 	if db == nil {
 		slog.Error("db is nil")
@@ -155,11 +172,12 @@ func (s *PDFToolService) extractText(ctx context.Context, input PDFExtractTextIn
 		return nil, err
 	}
 
-	text, pageCount, err := extractPlainText(localInputPath)
+	pageTexts, pageCount, err := extractPDFPageTexts(localInputPath)
 	if err != nil {
 		s.failJob(job.ID, err)
 		return nil, err
 	}
+	text, characters := joinPDFPageTexts(pageTexts)
 
 	truncated := false
 	if len(text) > maxPDFExtractChars {
@@ -167,7 +185,7 @@ func (s *PDFToolService) extractText(ctx context.Context, input PDFExtractTextIn
 		truncated = true
 	}
 
-	summary := fmt.Sprintf("Extracted %d characters from %d pages", len(text), pageCount)
+	summary := fmt.Sprintf("Extracted %d characters from %d pages", characters, pageCount)
 	if err := s.completeJob(job.ID, summary, 0); err != nil {
 		return nil, err
 	}
@@ -178,7 +196,7 @@ func (s *PDFToolService) extractText(ctx context.Context, input PDFExtractTextIn
 		PageCount:  pageCount,
 		Text:       text,
 		Truncated:  truncated,
-		Characters: len(text),
+		Characters: characters,
 		Message:    summary,
 	}, nil
 }
@@ -428,27 +446,59 @@ func (s *PDFToolService) saveGeneratedAsset(ctx context.Context, userID int, ses
 	return asset, nil
 }
 
-func extractPlainText(path string) (string, int, error) {
+func extractPDFPageTexts(path string) ([]PDFPageText, int, error) {
 	file, reader, err := pdf.Open(path)
 	if err != nil {
 		slog.Error("pdf.Open() error", "path", path, "err", err)
-		return "", 0, fmt.Errorf("pdf.Open() error: %w", err)
+		return nil, 0, fmt.Errorf("pdf.Open() error: %w", err)
 	}
 	defer file.Close()
 
-	textReader, err := reader.GetPlainText()
-	if err != nil {
-		slog.Error("reader.GetPlainText() error", "path", path, "err", err)
-		return "", 0, fmt.Errorf("reader.GetPlainText() error: %w", err)
+	pageCount := reader.NumPage()
+	fonts := make(map[string]*pdf.Font)
+	pages := make([]PDFPageText, 0, pageCount)
+	for pageNumber := 1; pageNumber <= pageCount; pageNumber++ {
+		page := reader.Page(pageNumber)
+		if page.V.IsNull() {
+			continue
+		}
+		for _, name := range page.Fonts() {
+			if _, ok := fonts[name]; !ok {
+				font := page.Font(name)
+				fonts[name] = &font
+			}
+		}
+		text, err := page.GetPlainText(fonts)
+		if err != nil {
+			slog.Error("page.GetPlainText() error", "path", path, "page_number", pageNumber, "err", err)
+			return nil, 0, fmt.Errorf("page.GetPlainText() error: %w", err)
+		}
+		pages = append(pages, PDFPageText{
+			PageNumber: pageNumber,
+			Text:       strings.TrimSpace(text),
+		})
 	}
 
-	data, err := io.ReadAll(textReader)
-	if err != nil {
-		slog.Error("io.ReadAll() error", "path", path, "err", err)
-		return "", 0, fmt.Errorf("io.ReadAll() error: %w", err)
+	return pages, pageCount, nil
+}
+
+func joinPDFPageTexts(pageTexts []PDFPageText) (string, int) {
+	if len(pageTexts) == 0 {
+		return "", 0
 	}
 
-	return string(data), reader.NumPage(), nil
+	parts := make([]string, 0, len(pageTexts))
+	characters := 0
+	for _, page := range pageTexts {
+		trimmed := strings.TrimSpace(page.Text)
+		if trimmed == "" {
+			continue
+		}
+		characters += len(trimmed)
+		parts = append(parts, trimmed)
+	}
+
+	return strings.Join(parts, "\n\n"), characters
 }
 
 func generatePDFDocument(path, title, metadataTitle string, paragraphs []string) error {
@@ -544,7 +594,7 @@ func sanitizePDFFileName(name string) string {
 	return cleaned
 }
 
-func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileStore, userID int, sessionID, fileName string, data []byte, mimeType string) (*table.FileAsset, error) {
+func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileStore, userID int, sessionID, fileName string, data []byte, mimeType string) (*SaveChatPDFAssetResult, error) {
 	if db == nil {
 		slog.Error("db is nil")
 		return nil, fmt.Errorf("database connection is required")
@@ -580,6 +630,7 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 		SizeBytes:    meta.SizeBytes,
 		SHA256:       meta.SHA256,
 		Status:       constant.FileAssetStatusReady,
+		TextStatus:   constant.PDFTextExtractStatusPending,
 	}
 
 	if err := db.Create(asset).Error; err != nil {
@@ -587,5 +638,94 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 		return nil, fmt.Errorf("failed to persist uploaded pdf asset: %w", err)
 	}
 
-	return asset, nil
+	pageTexts, pageCount, err := extractPDFBytesToPageTexts(data)
+	if err != nil {
+		if updateErr := db.Model(&table.FileAsset{}).Where("id = ?", asset.ID).Updates(map[string]any{
+			"text_status": constant.PDFTextExtractStatusFailed,
+			"text_pages":  0,
+			"text_chars":  0,
+			"text_error":  err.Error(),
+		}).Error; updateErr != nil {
+			slog.Error("db.Model().Updates() error", "file_id", asset.ID, "err", updateErr)
+		}
+		asset.TextStatus = constant.PDFTextExtractStatusFailed
+		asset.TextError = err.Error()
+		return &SaveChatPDFAssetResult{Asset: asset, TextStatus: asset.TextStatus}, nil
+	}
+
+	textStatus := constant.PDFTextExtractStatusEmpty
+	charCount := 0
+	pageRows := make([]table.PDFTextPage, 0, len(pageTexts))
+	for _, page := range pageTexts {
+		trimmed := strings.TrimSpace(page.Text)
+		if trimmed != "" {
+			textStatus = constant.PDFTextExtractStatusCompleted
+		}
+		charCount += len(trimmed)
+		pageRows = append(pageRows, table.PDFTextPage{
+			FileID:         asset.ID,
+			UserID:         userID,
+			SessionID:      sessionID,
+			PageNumber:     page.PageNumber,
+			CharacterCount: len(trimmed),
+			Text:           trimmed,
+		})
+	}
+
+	if len(pageRows) > 0 {
+		if err := db.Create(&pageRows).Error; err != nil {
+			slog.Error("db.Create() error", "file_id", asset.ID, "err", err)
+			return nil, fmt.Errorf("failed to persist extracted pdf text: %w", err)
+		}
+	}
+
+	updates := map[string]any{
+		"text_status": textStatus,
+		"text_pages":  pageCount,
+		"text_chars":  charCount,
+		"text_error":  "",
+	}
+	if err := db.Model(&table.FileAsset{}).Where("id = ?", asset.ID).Updates(updates).Error; err != nil {
+		slog.Error("db.Model().Updates() error", "file_id", asset.ID, "err", err)
+		return nil, fmt.Errorf("failed to update extracted pdf metadata: %w", err)
+	}
+
+	asset.TextStatus = textStatus
+	asset.TextPages = pageCount
+	asset.TextChars = charCount
+	asset.TextError = ""
+
+	return &SaveChatPDFAssetResult{
+		Asset:        asset,
+		PageCount:    pageCount,
+		CharacterSum: charCount,
+		TextStatus:   textStatus,
+		PageTexts:    pageTexts,
+	}, nil
+}
+
+func extractPDFBytesToPageTexts(data []byte) ([]PDFPageText, int, error) {
+	file, err := os.CreateTemp("", "aiguides-upload-*.pdf")
+	if err != nil {
+		slog.Error("os.CreateTemp() error", "err", err)
+		return nil, 0, fmt.Errorf("os.CreateTemp() error: %w", err)
+	}
+	path := file.Name()
+	defer func() {
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			slog.Warn("os.Remove() error", "path", path, "err", err)
+		}
+	}()
+
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+		slog.Error("file.Write() error", "path", path, "err", err)
+		return nil, 0, fmt.Errorf("file.Write() error: %w", err)
+	}
+	if err := file.Close(); err != nil {
+		slog.Error("file.Close() error", "path", path, "err", err)
+		return nil, 0, fmt.Errorf("file.Close() error: %w", err)
+	}
+
+	return extractPDFPageTexts(path)
 }

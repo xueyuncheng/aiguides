@@ -99,15 +99,31 @@ type SharedConversation struct {
 type FileAsset struct {
 	Model
 
-	UserID       int                      `gorm:"not null;index"`
-	SessionID    string                   `gorm:"not null;default:'';index"`
-	Kind         constant.FileAssetKind   `gorm:"type:varchar(20);not null;index"`
-	MimeType     string                   `gorm:"not null;default:''"`
-	OriginalName string                   `gorm:"not null;default:''"`
-	StoragePath  string                   `gorm:"not null;default:'';uniqueIndex"`
-	SizeBytes    int64                    `gorm:"not null;default:0"`
-	SHA256       string                   `gorm:"not null;default:'';index"`
-	Status       constant.FileAssetStatus `gorm:"type:varchar(20);not null;default:ready;index"`
+	UserID       int                           `gorm:"not null;index"`
+	SessionID    string                        `gorm:"not null;default:'';index"`
+	Kind         constant.FileAssetKind        `gorm:"type:varchar(20);not null;index"`
+	MimeType     string                        `gorm:"not null;default:''"`
+	OriginalName string                        `gorm:"not null;default:''"`
+	StoragePath  string                        `gorm:"not null;default:'';uniqueIndex"`
+	SizeBytes    int64                         `gorm:"not null;default:0"`
+	SHA256       string                        `gorm:"not null;default:'';index"`
+	Status       constant.FileAssetStatus      `gorm:"type:varchar(20);not null;default:ready;index"`
+	TextStatus   constant.PDFTextExtractStatus `gorm:"column:text_status;type:varchar(20);not null;default:pending;index"`
+	TextPages    int                           `gorm:"column:text_pages;not null;default:0"`
+	TextChars    int                           `gorm:"column:text_chars;not null;default:0"`
+	TextError    string                        `gorm:"column:text_error;type:text;not null;default:''"`
+}
+
+// PDFTextPage stores extracted plain text for a single page in a PDF asset.
+type PDFTextPage struct {
+	Model
+
+	FileID         int    `gorm:"not null;index:idx_pdf_text_page_file_page,unique"`
+	UserID         int    `gorm:"not null;index"`
+	SessionID      string `gorm:"not null;default:'';index"`
+	PageNumber     int    `gorm:"not null;index:idx_pdf_text_page_file_page,unique"`
+	CharacterCount int    `gorm:"not null;default:0"`
+	Text           string `gorm:"type:text;not null;default:''"`
 }
 
 // PDFJob tracks an asynchronous PDF processing task.
@@ -138,6 +154,7 @@ func GetAllModels() []any {
 		&Task{},
 		&SharedConversation{},
 		&FileAsset{},
+		&PDFTextPage{},
 		&PDFJob{},
 	}
 }
