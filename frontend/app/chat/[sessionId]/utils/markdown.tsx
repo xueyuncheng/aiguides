@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, Quote } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
@@ -98,6 +98,14 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
 
 // Markdown components configuration
 export const markdownComponents: Components = {
+  blockquote: ({ children, ...props }) => (
+    <blockquote
+      {...props}
+      className="my-3 border-l-2 border-muted-foreground/30 bg-muted/40 px-3 py-2 text-sm text-muted-foreground dark:bg-muted/20 [&>p]:m-0"
+    >
+      {children}
+    </blockquote>
+  ),
   a: (props) => (
     <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
   ),
