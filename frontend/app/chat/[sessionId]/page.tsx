@@ -140,6 +140,15 @@ export default function ChatPage() {
   };
 
   useEffect(() => {
+    const saved = localStorage.getItem('activeProjectId');
+    if (saved) setActiveProjectId(saved);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('activeProjectId', activeProjectId);
+  }, [activeProjectId]);
+
+  useEffect(() => {
     if (user?.user_id) {
       loadSessions();
       loadProjects();
