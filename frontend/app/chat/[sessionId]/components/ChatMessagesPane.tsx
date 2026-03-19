@@ -1,4 +1,4 @@
-import type { RefObject } from 'react';
+import { memo, type RefObject } from 'react';
 import { Check, Copy, Pencil } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/lib/utils';
@@ -13,6 +13,7 @@ interface ChatMessagesPaneProps {
   latestUserMessageId?: string;
   latestUserMessageRef: RefObject<HTMLDivElement | null>;
   messagesEndRef: RefObject<HTMLDivElement | null>;
+  isStreamingResponse: boolean;
   isLoadingOlderMessages: boolean;
   hasMoreMessages: boolean;
   totalMessageCount: number;
@@ -31,7 +32,7 @@ interface ChatMessagesPaneProps {
   onCopyUserMessage: (message: Message) => void;
 }
 
-export function ChatMessagesPane({
+export const ChatMessagesPane = memo(function ChatMessagesPane({
   agentInfo,
   user,
   messages,
@@ -39,6 +40,7 @@ export function ChatMessagesPane({
   latestUserMessageId,
   latestUserMessageRef,
   messagesEndRef,
+  isStreamingResponse,
   isLoadingOlderMessages,
   hasMoreMessages,
   totalMessageCount,
@@ -245,11 +247,13 @@ export function ChatMessagesPane({
         ref={messagesEndRef}
         className={cn(
           'transition-all duration-300',
-          messages.length > 0 && messages[messages.length - 1].role === 'user'
-            ? 'min-h-[calc(100vh-200px)]'
-            : 'h-24'
+          messages.length > 0 && (messages[messages.length - 1].role === 'user' || isStreamingResponse)
+            ? 'h-36 sm:h-40 md:h-44'
+            : 'h-24 sm:h-28'
         )}
       />
     </div>
   );
-}
+});
+
+ChatMessagesPane.displayName = 'ChatMessagesPane';

@@ -1,4 +1,4 @@
-import { forwardRef, useRef } from 'react';
+import { forwardRef, memo, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
 import { ArrowUp, X, Paperclip, MessageSquare, FileText } from 'lucide-react';
@@ -6,6 +6,7 @@ import { cn } from '@/app/lib/utils';
 import type { SelectedImage } from '../types';
 
 interface ChatInputProps {
+  containerRef?: React.Ref<HTMLDivElement>;
   inputValue: string;
   onInputChange: (value: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -25,7 +26,8 @@ interface ChatInputProps {
   onClearQuote?: () => void;
 }
 
-export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
+const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ 
+  containerRef,
   inputValue,
   onInputChange,
   onKeyDown,
@@ -47,7 +49,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   return (
-      <div className="absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background/95 to-transparent pt-3 sm:pt-4 pb-2 sm:pb-3">
+      <div ref={containerRef} className="absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background/95 to-transparent pt-3 sm:pt-4 pb-2 sm:pb-3">
       <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="relative flex flex-col w-full bg-white/95 dark:bg-zinc-950/70 backdrop-blur-xl rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_4px_20px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 overflow-hidden">
           {quotedText && (
@@ -165,5 +167,9 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
     </div>
   );
 });
+
+ChatInputComponent.displayName = 'ChatInputComponent';
+
+export const ChatInput = memo(ChatInputComponent);
 
 ChatInput.displayName = 'ChatInput';

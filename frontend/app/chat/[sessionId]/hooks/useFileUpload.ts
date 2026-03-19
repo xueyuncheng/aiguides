@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import type { SelectedImage } from '../types';
 import {
   MAX_IMAGE_COUNT,
@@ -39,7 +39,7 @@ export function useFileUpload() {
   const [selectedImages, setSelectedImages] = useState<SelectedImage[]>([]);
   const [imageError, setImageError] = useState<string | null>(null);
 
-  const addImagesFromFiles = async (files: File[]) => {
+  const addImagesFromFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     setImageError(null);
@@ -105,15 +105,15 @@ export function useFileUpload() {
     if (errorMessage) {
       setImageError(errorMessage);
     }
-  };
+  }, [selectedImages.length]);
 
-  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     await addImagesFromFiles(files);
     event.target.value = '';
-  };
+  }, [addImagesFromFiles]);
 
-  const handlePaste = async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = useCallback(async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
     const items = event.clipboardData?.items;
     if (!items || items.length === 0) return;
 
@@ -131,16 +131,16 @@ export function useFileUpload() {
       event.preventDefault();
       await addImagesFromFiles(files);
     }
-  };
+  }, [addImagesFromFiles]);
 
-  const handleRemoveImage = (imageId: string) => {
+  const handleRemoveImage = useCallback((imageId: string) => {
     setSelectedImages((prev) => prev.filter((image) => image.id !== imageId));
-  };
+  }, []);
 
-  const clearImages = () => {
+  const clearImages = useCallback(() => {
     setSelectedImages([]);
     setImageError(null);
-  };
+  }, []);
 
   return {
     selectedImages,
