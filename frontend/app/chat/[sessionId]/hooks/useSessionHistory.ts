@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import { getChatPath } from '@/app/chat/utils/session';
 import { LOAD_MORE_THRESHOLD, MESSAGES_PER_PAGE, SCROLL_RESET_DELAY } from '../constants';
 import type { Message, SessionHistoryResponse } from '../types';
 import { mapHistoryMessage } from '../utils/messages';
@@ -12,7 +13,7 @@ interface UseSessionHistoryParams {
   agentId: string;
   userId?: string;
   sessionId: string;
-  urlSessionId: string;
+  urlSessionId?: string;
   authenticatedFetch: AuthenticatedFetch;
   clearImages: () => void;
   onSessionChangeStart?: () => void;
@@ -37,10 +38,17 @@ export function useSessionHistory({
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [totalMessageCount, setTotalMessageCount] = useState(0);
   const [shouldScrollInstantly, setShouldScrollInstantly] = useState(false);
+  const autoLoadedSessionIdRef = useRef<string | null>(null);
+  const pendingSessionIdRef = useRef<string | null>(null);
+  const historyRequestIdRef = useRef(0);
   const scrollResetTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousScrollHeightRef = useRef(0);
 
-  const resetSessionView = useCallback(() => {
+  const resetSessionView = useCallback((preserveRequestId = false) => {
+    if (!preserveRequestId) {
+      historyRequestIdRef.current += 1;
+    }
+
     setMessages([]);
     setHasMoreMessages(false);
     setTotalMessageCount(0);
@@ -54,16 +62,22 @@ export function useSessionHistory({
   }, [clearImages, onSessionChangeStart]);
 
   const loadSessionHistory = useCallback(async (targetSessionId: string, updateUrl = true) => {
-    if (!userId) {
+    if (!userId || !targetSessionId) {
       return;
     }
 
+    autoLoadedSessionIdRef.current = targetSessionId;
+    const requestId = ++historyRequestIdRef.current;
+
     if (updateUrl && targetSessionId !== sessionId) {
-      window.history.pushState(null, '', `/chat/${targetSessionId}`);
+      pendingSessionIdRef.current = targetSessionId;
+      window.history.pushState(null, '', getChatPath(targetSessionId));
       setSessionId(targetSessionId);
+    } else {
+      pendingSessionIdRef.current = null;
     }
 
-    resetSessionView();
+    resetSessionView(true);
     setIsLoadingHistory(true);
 
     try {
@@ -76,12 +90,20 @@ export function useSessionHistory({
       }
 
       const data: SessionHistoryResponse = await response.json();
+      if (historyRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setMessages(data.messages.map(mapHistoryMessage));
       setHasMoreMessages(data.has_more || false);
       setTotalMessageCount(data.total || 0);
     } catch (error) {
       console.error('Error loading history:', error);
     } finally {
+      if (historyRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setIsLoadingHistory(false);
       scrollResetTimeoutRef.current = setTimeout(() => {
         setShouldScrollInstantly(false);
@@ -133,14 +155,22 @@ export function useSessionHistory({
   }, [agentId, authenticatedFetch, hasMoreMessages, isLoadingOlderMessages, messages.length, scrollContainerRef, sessionId, userId]);
 
   useEffect(() => {
-    if (!userId || !urlSessionId) {
+    if (!userId || !sessionId || autoLoadedSessionIdRef.current === sessionId) {
       return;
     }
 
-    if (messages.length === 0 && !isLoadingHistory) {
-      loadSessionHistory(urlSessionId, false);
+    if (pendingSessionIdRef.current && pendingSessionIdRef.current !== sessionId) {
+      return;
     }
-  }, [isLoadingHistory, loadSessionHistory, messages.length, urlSessionId, userId]);
+
+    pendingSessionIdRef.current = null;
+
+    if (!urlSessionId && autoLoadedSessionIdRef.current === null) {
+      return;
+    }
+
+    void loadSessionHistory(sessionId, false);
+  }, [loadSessionHistory, sessionId, urlSessionId, userId]);
 
   useEffect(() => {
     return () => {

@@ -10,7 +10,7 @@ type AuthenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => Prom
 interface UseSessionDataParams {
   agentId: string;
   userId?: string;
-  urlSessionId: string;
+  urlSessionId?: string;
   authenticatedFetch: AuthenticatedFetch;
   clearImages: () => void;
   onSessionChangeStart?: () => void;
@@ -26,7 +26,7 @@ export function useSessionData({
   onSessionChangeStart,
   scrollContainerRef,
 }: UseSessionDataParams) {
-  const [sessionId, setSessionId] = useState(urlSessionId || '');
+  const [sessionId, setSessionId] = useState(urlSessionId ?? '');
   const historyState = useSessionHistory({
     agentId,
     userId,
@@ -63,6 +63,7 @@ export function useSessionData({
     messages: historyState.messages,
     setMessages: historyState.setMessages,
     sessionId,
+    setSessionId,
     sessions: projectState.sessions,
     projects: projectState.projects,
     activeProjectId: projectState.activeProjectId,

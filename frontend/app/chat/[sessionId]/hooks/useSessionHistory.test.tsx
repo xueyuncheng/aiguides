@@ -160,4 +160,98 @@ describe('useSessionHistory', () => {
     expect(result.current.hasMoreMessages).toBe(false);
     expect(container.scrollTop).toBe(120);
   });
+
+  it('ignores stale history responses after switching to a new session', async () => {
+    let resolveFirstResponse: ((value: Response) => void) | undefined;
+    const authenticatedFetch = vi.fn().mockImplementation((input: RequestInfo | URL) => {
+      const requestUrl = String(input);
+
+      if (requestUrl.includes('/session-1/')) {
+        return new Promise<Response>((resolve) => {
+          resolveFirstResponse = resolve;
+        });
+      }
+
+      if (requestUrl.includes('/session-2/')) {
+        return Promise.resolve(
+          new Response(JSON.stringify({
+            messages: [
+              {
+                id: 'message-2',
+                role: 'assistant',
+                content: 'new session',
+                timestamp: '2026-03-19T01:00:00Z',
+              },
+            ],
+            total: 1,
+            has_more: false,
+          }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        );
+      }
+
+      throw new Error(`Unexpected request: ${requestUrl}`);
+    });
+
+    const { result, rerender } = renderHook(
+      ({ sessionId, urlSessionId }) => useSessionHistory({
+        agentId: 'assistant',
+        userId: 'user-1',
+        sessionId,
+        urlSessionId,
+        authenticatedFetch,
+        clearImages: vi.fn(),
+        scrollContainerRef: createRef<HTMLDivElement>(),
+        setSessionId: vi.fn(),
+      }),
+      {
+        initialProps: {
+          sessionId: 'session-1',
+          urlSessionId: 'session-1',
+        },
+      }
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      expect(resolveFirstResponse).toBeTypeOf('function');
+    });
+
+    await act(async () => {
+      rerender({
+        sessionId: 'session-2',
+        urlSessionId: 'session-1',
+      });
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      resolveFirstResponse?.(
+        new Response(JSON.stringify({
+          messages: [
+            {
+              id: 'message-1',
+              role: 'assistant',
+              content: 'stale session',
+              timestamp: '2026-03-19T00:00:00Z',
+            },
+          ],
+          total: 1,
+          has_more: false,
+        }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+      await Promise.resolve();
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]).toMatchObject({
+      id: 'message-2',
+      content: 'new session',
+    });
+  });
 });

@@ -29,7 +29,7 @@ export default function ChatPage() {
   const params = useParams();
   const router = useRouter();
   const { user, loading, authenticatedFetch } = useAuth();
-  const urlSessionId = params.sessionId as string;
+  const urlSessionId = params.sessionId as string | undefined;
   const agentId = 'assistant';
   const agentInfo = agentInfoMap[agentId];
 
@@ -66,6 +66,7 @@ export default function ChatPage() {
     messages,
     setMessages,
     sessionId,
+    setSessionId,
     sessions,
     projects,
     activeProjectId,
@@ -104,6 +105,7 @@ export default function ChatPage() {
   const { isLoading, sendMessage, handleCancelMessage } = useStreamingChat({
     agentId,
     sessionId,
+    setSessionId,
     currentProjectId,
     sessions,
     messages,
