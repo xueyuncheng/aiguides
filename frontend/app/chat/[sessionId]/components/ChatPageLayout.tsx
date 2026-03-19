@@ -266,8 +266,7 @@ export function ChatPageLayout({
 
         {isEmptyState ? (
           <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 md:px-6">
-            <div className="w-full max-w-2xl flex flex-col items-center gap-6">
-              <ChatMessagesPane {...messagesPaneProps} />
+            <div className="w-full max-w-4xl">
               <ChatInput {...chatInputProps} centered />
             </div>
           </div>
