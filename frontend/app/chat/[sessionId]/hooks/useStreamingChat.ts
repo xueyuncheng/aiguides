@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Session } from '@/app/components/SessionSidebar';
+import { getChatPath, resolveSessionId } from '@/app/chat/utils/session';
 import type { Message, SelectedImage } from '../types';
 import { trimOuterNewlines } from '../utils/messages';
 import { consumeAssistantStream, createAssistantErrorMessage } from '../utils/assistantStream';
@@ -11,6 +12,7 @@ type AuthenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => Prom
 interface UseStreamingChatParams {
   agentId: string;
   sessionId: string;
+  setSessionId: React.Dispatch<React.SetStateAction<string>>;
   currentProjectId: number;
   sessions: Session[];
   messages: Message[];
@@ -25,6 +27,7 @@ interface UseStreamingChatParams {
 export function useStreamingChat({
   agentId,
   sessionId,
+  setSessionId,
   currentProjectId,
   sessions,
   messages,
@@ -38,6 +41,11 @@ export function useStreamingChat({
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const titlePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeSessionIdRef = useRef(sessionId);
+
+  useEffect(() => {
+    activeSessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const clearTitlePoll = useCallback(() => {
     if (titlePollIntervalRef.current) {
@@ -59,6 +67,14 @@ export function useStreamingChat({
   const sendMessage = useCallback(async (content: string, images: SelectedImage[], targetSessionId: string = sessionId) => {
     if (isLoading) {
       return;
+    }
+
+    const resolvedSessionId = resolveSessionId(targetSessionId, activeSessionIdRef.current);
+    const isDraftSession = !activeSessionIdRef.current;
+    if (resolvedSessionId !== activeSessionIdRef.current || isDraftSession) {
+      window.history.pushState(null, '', getChatPath(resolvedSessionId));
+      activeSessionIdRef.current = resolvedSessionId;
+      setSessionId(resolvedSessionId);
     }
 
     const trimmedContent = trimOuterNewlines(content);
@@ -107,7 +123,7 @@ export function useStreamingChat({
 
       titlePollIntervalRef.current = setInterval(async () => {
         const fetchedSessions = await loadSessions(true);
-        const currentSession = fetchedSessions?.find((item) => item.session_id === targetSessionId);
+        const currentSession = fetchedSessions?.find((item) => item.session_id === resolvedSessionId);
 
         if (currentSession?.title) {
           clearTitlePoll();
@@ -125,15 +141,15 @@ export function useStreamingChat({
       const requestMessage = isRetry ? (lastUserMessage?.content || '') : trimmedContent;
       const imageData = isRetry ? (lastUserMessage?.images || []) : images.map((image) => image.dataUrl);
       const fileNames = isRetry ? (lastUserMessage?.fileNames || []) : images.map((image) => image.name);
-      const sessionProjectId = sessions.find((item) => item.session_id === targetSessionId)?.project_id ?? currentProjectId;
+      const sessionProjectId = sessions.find((item) => item.session_id === resolvedSessionId)?.project_id ?? currentProjectId;
 
-      const response = await authenticatedFetch(`/api/${agentId}/chats/${targetSessionId}`, {
+      const response = await authenticatedFetch(`/api/${agentId}/chats/${resolvedSessionId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           user_id: userId,
-          session_id: targetSessionId,
+          session_id: resolvedSessionId,
           message: requestMessage,
           images: imageData,
           file_names: fileNames,
@@ -184,7 +200,7 @@ export function useStreamingChat({
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, messages, sessionId, sessions, setInputValue, setMessages, userId]);
+  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, messages, sessions, setInputValue, setMessages, setSessionId, userId]);
 
   useEffect(() => {
     return () => {

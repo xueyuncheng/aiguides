@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import type { Session } from '@/app/components/SessionSidebar';
+import { getChatPath } from '@/app/chat/utils/session';
 
 type AuthenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -70,14 +71,10 @@ export function useSessionsList({
   }, [agentId, authenticatedFetch, userId]);
 
   const handleNewSession = useCallback(() => {
-    const newSessionId = `session-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-
-    window.history.pushState(null, '', `/chat/${newSessionId}`);
-    setSessionId(newSessionId);
+    window.history.pushState(null, '', getChatPath());
+    setSessionId('');
     setCurrentProjectId(getProjectIdFromFilter(activeProjectId));
     onSessionReset();
-
-    return newSessionId;
   }, [activeProjectId, onSessionReset, setSessionId]);
 
   const handleDeleteSession = useCallback(async (sessionIdToDelete: string) => {
