@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import SessionSidebar from '@/app/components/SessionSidebar';
@@ -24,6 +24,9 @@ const createErrorMessage = (content: string): Message => ({
   timestamp: new Date(),
   isError: true,
 });
+
+const STREAMING_USER_MESSAGE_TOP_GUARD = 24;
+const DEFAULT_COMPOSER_OFFSET = 160;
 
 export default function ChatPage() {
   const params = useParams();
@@ -49,9 +52,11 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestUserMessageRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const chatInputContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
   const copiedUserMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [chatInputOffset, setChatInputOffset] = useState(DEFAULT_COMPOSER_OFFSET);
 
   const {
     selectedImages,
@@ -139,6 +144,10 @@ export default function ChatPage() {
   );
 
   const processedMessages = useMemo(() => mergeAssistantMessages(messages), [messages]);
+  const chatUser = useMemo(
+    () => (user ? { name: user.name, picture: user.picture } : null),
+    [user]
+  );
 
   const pageTitle = useMemo(() => {
     const currentSession = sessions.find((item) => item.session_id === sessionId);
@@ -149,27 +158,80 @@ export default function ChatPage() {
     document.title = pageTitle;
   }, [pageTitle]);
 
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || isStreamingResponse) {
+  const scrollElementAboveComposer = useCallback((element: HTMLDivElement, behavior: ScrollBehavior) => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      element.scrollIntoView({ behavior, block: 'end' });
       return;
     }
 
+    const elementRect = element.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const offsetWithinContainer = elementRect.bottom - containerRect.top;
+    const visibleHeight = container.clientHeight - chatInputOffset;
+    const targetScrollTop = container.scrollTop + offsetWithinContainer - visibleHeight;
+
+    container.scrollTo({
+      top: Math.max(0, targetScrollTop),
+      behavior,
+    });
+  }, [chatInputOffset]);
+
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage) {
+      return;
+    }
+
+    const latestUserMessageElement = latestUserMessageRef.current;
+    const scrollContainer = scrollContainerRef.current;
+
     if (lastMessage.role === 'user') {
-      isAtBottomRef.current = false;
-      latestUserMessageRef.current?.scrollIntoView({
-        behavior: shouldScrollInstantly ? 'auto' : 'smooth',
-        block: 'start',
-      });
+      isAtBottomRef.current = true;
+      if (latestUserMessageElement) {
+        scrollElementAboveComposer(
+          latestUserMessageElement,
+          shouldScrollInstantly ? 'auto' : 'smooth'
+        );
+      }
+      return;
+    }
+
+    if (lastMessage.isStreaming) {
+      if (!scrollContainer || !latestUserMessageElement) {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: 'auto',
+          block: 'end',
+        });
+        return;
+      }
+
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const latestUserMessageRect = latestUserMessageElement.getBoundingClientRect();
+      const isNearTopEdge = latestUserMessageRect.top <= containerRect.top + STREAMING_USER_MESSAGE_TOP_GUARD;
+      const hasLeftViewport = latestUserMessageRect.bottom <= containerRect.top;
+
+      if (hasLeftViewport) {
+        scrollElementAboveComposer(latestUserMessageElement, 'auto');
+        return;
+      }
+
+      if (!isNearTopEdge) {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: 'auto',
+          block: 'end',
+        });
+      }
       return;
     }
 
     if (isAtBottomRef.current) {
       messagesEndRef.current?.scrollIntoView({
         behavior: shouldScrollInstantly ? 'auto' : 'smooth',
+        block: 'end',
       });
     }
-  }, [isStreamingResponse, latestUserMessageId, messages, shouldScrollInstantly]);
+  }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollElementAboveComposer, shouldScrollInstantly]);
 
   useEffect(() => {
     if (messages.length === 0 && !isLoadingHistory) {
@@ -188,6 +250,34 @@ export default function ChatPage() {
   }, [inputValue]);
 
   useEffect(() => {
+    const chatInputElement = chatInputContainerRef.current;
+    if (!chatInputElement) {
+      return;
+    }
+
+    const updateChatInputOffset = () => {
+      const nextOffset = Math.ceil(chatInputElement.getBoundingClientRect().height) + 24;
+      setChatInputOffset((prev) => (prev === nextOffset ? prev : nextOffset));
+    };
+
+    updateChatInputOffset();
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', updateChatInputOffset);
+      return () => window.removeEventListener('resize', updateChatInputOffset);
+    }
+
+    const resizeObserver = new ResizeObserver(updateChatInputOffset);
+    resizeObserver.observe(chatInputElement);
+    window.addEventListener('resize', updateChatInputOffset);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', updateChatInputOffset);
+    };
+  }, []);
+
+  useEffect(() => {
     return () => {
       if (copiedUserMessageTimeoutRef.current) {
         clearTimeout(copiedUserMessageTimeoutRef.current);
@@ -195,7 +285,7 @@ export default function ChatPage() {
     };
   }, []);
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) {
       return;
@@ -207,18 +297,18 @@ export default function ChatPage() {
     if (shouldLoadOlderMessages(scrollTop)) {
       loadOlderMessages();
     }
-  };
+  }, [loadOlderMessages, shouldLoadOlderMessages]);
 
-  const handleStartNewSession = () => {
+  const handleStartNewSession = useCallback(() => {
     createNewSession();
     setInputValue('');
     setQuotedText('');
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 0);
-  };
+  }, [createNewSession]);
 
-  const handleDeleteSession = async (targetSessionId: string) => {
+  const handleDeleteSession = useCallback(async (targetSessionId: string) => {
     await deleteSession(targetSessionId);
     if (targetSessionId === sessionId) {
       setInputValue('');
@@ -227,9 +317,9 @@ export default function ChatPage() {
         textareaRef.current?.focus();
       }, 0);
     }
-  };
+  }, [deleteSession, sessionId]);
 
-  const handleEditUserMessage = (message: Message) => {
+  const handleEditUserMessage = useCallback((message: Message) => {
     if (isLoading || isSavingEdit) {
       return;
     }
@@ -244,18 +334,18 @@ export default function ChatPage() {
 
     setEditingMessageId(message.id);
     setEditingValue(message.content || '');
-  };
+  }, [isLoading, isSavingEdit, setMessages]);
 
-  const handleCancelEditUserMessage = () => {
+  const handleCancelEditUserMessage = useCallback(() => {
     if (isSavingEdit) {
       return;
     }
 
     setEditingMessageId(null);
     setEditingValue('');
-  };
+  }, [isSavingEdit]);
 
-  const handleSaveEditedUserMessage = async (message: Message) => {
+  const handleSaveEditedUserMessage = useCallback(async (message: Message) => {
     if (isLoading || isSavingEdit) {
       return;
     }
@@ -326,9 +416,9 @@ export default function ChatPage() {
     } finally {
       setIsSavingEdit(false);
     }
-  };
+  }, [agentId, authenticatedFetch, editingValue, isLoading, isSavingEdit, loadSessionHistory, loadSessions, sendMessage, sessionId, setMessages, user?.user_id]);
 
-  const handleCopyUserMessage = async (message: Message) => {
+  const handleCopyUserMessage = useCallback(async (message: Message) => {
     const content = message.content || '';
     if (!content.trim()) {
       return;
@@ -349,31 +439,31 @@ export default function ChatPage() {
     } catch (error) {
       console.error('Failed to copy user message:', error);
     }
-  };
+  }, []);
 
-  const handleAskAI = (text: string) => {
+  const handleAskAI = useCallback((text: string) => {
     setQuotedText(text);
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 0);
-  };
+  }, []);
 
-  const buildMessageWithQuote = (text: string) => (
+  const buildMessageWithQuote = useCallback((text: string) => (
     quotedText
       ? `> ${quotedText.split('\n').join('\n> ')}\n\n${text}`.trim()
       : text
-  );
+  ), [quotedText]);
 
   const canSend = inputValue.trim().length > 0 || selectedImages.length > 0 || quotedText.length > 0;
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handleSubmit = useCallback((event: React.FormEvent) => {
     event.preventDefault();
     const fullMessage = buildMessageWithQuote(inputValue);
     setQuotedText('');
     sendMessage(fullMessage, selectedImages);
-  };
+  }, [buildMessageWithQuote, inputValue, selectedImages, sendMessage]);
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       if (!canSend) {
         return;
@@ -384,7 +474,41 @@ export default function ChatPage() {
       setQuotedText('');
       sendMessage(fullMessage, selectedImages);
     }
-  };
+  }, [buildMessageWithQuote, canSend, inputValue, selectedImages, sendMessage]);
+
+  const handleOpenCreateProjectModal = useCallback(() => {
+    setIsCreateProjectModalOpen(true);
+  }, []);
+
+  const handleStartRenameProject = useCallback((projectId: number, projectName: string) => {
+    setRenamingProjectId(projectId);
+    setRenamingProjectName(projectName);
+  }, []);
+
+  const handleOpenShareModal = useCallback((targetSessionId: string) => {
+    setShareSessionId(targetSessionId);
+    setIsShareModalOpen(true);
+  }, []);
+
+  const handleToggleMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleOpenMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(true);
+  }, []);
+
+  const handleRetry = useCallback(() => {
+    sendMessage('', []);
+  }, [sendMessage]);
+
+  const handleClearQuote = useCallback(() => {
+    setQuotedText('');
+  }, []);
+
+  const handleInputFocus = useCallback(() => {
+    // Intentionally empty; keeps ChatInput props stable.
+  }, []);
 
   if (loading || !agentInfo) {
     return (
@@ -404,27 +528,21 @@ export default function ChatPage() {
         currentSessionId={sessionId}
         onSessionSelect={handleSessionSelect}
         onProjectSelect={setActiveProjectId}
-        onCreateProject={() => setIsCreateProjectModalOpen(true)}
-        onRenameProject={(projectId, projectName) => {
-          setRenamingProjectId(projectId);
-          setRenamingProjectName(projectName);
-        }}
+        onCreateProject={handleOpenCreateProjectModal}
+        onRenameProject={handleStartRenameProject}
         onDeleteProject={handleDeleteProject}
         onAssignSessionProject={handleAssignSessionProject}
         onNewSession={handleStartNewSession}
         onDeleteSession={handleDeleteSession}
-        onShareSession={(targetSessionId) => {
-          setShareSessionId(targetSessionId);
-          setIsShareModalOpen(true);
-        }}
+        onShareSession={handleOpenShareModal}
         isMobileOpen={isMobileSidebarOpen}
-        onMobileToggle={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+        onMobileToggle={handleToggleMobileSidebar}
       />
 
       <div className="flex flex-col flex-1 h-full md:pl-[260px] relative transition-all duration-300">
         <div className="md:hidden fixed top-3 left-3 z-30">
           <Button
-            onClick={() => setIsMobileSidebarOpen(true)}
+            onClick={handleOpenMobileSidebar}
             size="icon"
             variant="outline"
             className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
@@ -440,15 +558,16 @@ export default function ChatPage() {
           onScroll={handleScroll}
         >
           <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 py-6 sm:py-8 md:py-10">
+            <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10" style={{ paddingBottom: `${chatInputOffset}px` }}>
               <ChatMessagesPane
                 agentInfo={agentInfo}
-                user={user ? { name: user.name, picture: user.picture } : null}
+                user={chatUser}
                 messages={messages}
                 processedMessages={processedMessages}
                 latestUserMessageId={latestUserMessageId}
                 latestUserMessageRef={latestUserMessageRef}
                 messagesEndRef={messagesEndRef}
+                isStreamingResponse={isStreamingResponse}
                 isLoadingOlderMessages={isLoadingOlderMessages}
                 hasMoreMessages={hasMoreMessages}
                 totalMessageCount={totalMessageCount}
@@ -459,7 +578,7 @@ export default function ChatPage() {
                 isSavingEdit={isSavingEdit}
                 copiedMessageId={copiedMessageId}
                 onLoadOlderMessages={loadOlderMessages}
-                onRetry={() => sendMessage('', [])}
+                onRetry={handleRetry}
                 onEditingValueChange={setEditingValue}
                 onStartEdit={handleEditUserMessage}
                 onSaveEdit={handleSaveEditedUserMessage}
@@ -471,6 +590,7 @@ export default function ChatPage() {
         </div>
 
         <ChatInput
+          containerRef={chatInputContainerRef}
           ref={textareaRef}
           inputValue={inputValue}
           onInputChange={setInputValue}
@@ -478,7 +598,7 @@ export default function ChatPage() {
           onPaste={handlePaste}
           onSubmit={handleSubmit}
           onCancel={handleCancelMessage}
-          onFocus={() => {}}
+          onFocus={handleInputFocus}
           selectedImages={selectedImages}
           onRemoveImage={handleRemoveImage}
           onImageSelect={handleImageSelect}
@@ -488,7 +608,7 @@ export default function ChatPage() {
           canSend={canSend}
           agentName={agentInfo.name}
           quotedText={quotedText}
-          onClearQuote={() => setQuotedText('')}
+          onClearQuote={handleClearQuote}
         />
       </div>
 
