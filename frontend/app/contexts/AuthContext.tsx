@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface User {
@@ -27,14 +27,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const handleUnauthorized = () => {
+  const handleUnauthorized = useCallback(() => {
     setUser(null);
     if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
       router.push('/login');
     }
-  };
+  }, [router]);
 
-  const authenticatedFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const authenticatedFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit) => {
     const response = await fetch(input, {
       ...init,
       credentials: 'include',
@@ -66,9 +66,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     return response;
-  };
+  }, [handleUnauthorized]);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authenticatedFetch, handleUnauthorized]);
 
   const login = async () => {
     try {
@@ -122,7 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     checkAuth();
-  }, []);
+  }, [checkAuth]);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, logout, checkAuth, handleUnauthorized, authenticatedFetch }}>

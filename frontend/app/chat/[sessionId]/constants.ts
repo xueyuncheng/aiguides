@@ -8,11 +8,6 @@ export const agentInfoMap: Record<string, AgentInfo> = {
     description: '信息检索和事实核查',
     icon: '🔍',
     color: 'bg-blue-500',
-    examples: [
-      '什么是量子计算？',
-      '请帮我查找关于人工智能的最新研究',
-      '核查一下这个新闻是否准确...',
-    ],
   },
 };
 

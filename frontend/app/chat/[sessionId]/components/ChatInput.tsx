@@ -76,6 +76,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
                       <span>PDF</span>
                     </div>
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image.dataUrl}
                       alt={image.name || `已选图片 ${index + 1}`}

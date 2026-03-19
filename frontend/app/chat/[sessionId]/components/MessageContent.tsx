@@ -211,6 +211,7 @@ export const AIMessageContent = memo(({
         {images && images.length > 0 && (
           <div className="mb-4 space-y-3">
             {images.map((imageData, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={index}
                 src={imageData}

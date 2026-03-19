@@ -23,7 +23,6 @@ interface ChatMessagesPaneProps {
   isSavingEdit: boolean;
   copiedMessageId: string | null;
   onLoadOlderMessages: () => void;
-  onExampleClick: (example: string) => void;
   onRetry: () => void;
   onEditingValueChange: (value: string) => void;
   onStartEdit: (message: Message) => void;
@@ -50,7 +49,6 @@ export function ChatMessagesPane({
   isSavingEdit,
   copiedMessageId,
   onLoadOlderMessages,
-  onExampleClick,
   onRetry,
   onEditingValueChange,
   onStartEdit,
@@ -74,18 +72,8 @@ export function ChatMessagesPane({
             <span className="text-3xl sm:text-4xl">{agentInfo.icon}</span>
           </div>
         </div>
-        <h2 className="text-2xl font-semibold mb-8 tracking-tight">{agentInfo.name} 能够为您做什么？</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl mx-auto">
-          {agentInfo.examples.map((example, index) => (
-            <button
-              key={index}
-              onClick={() => onExampleClick(example)}
-              className="p-3 sm:p-4 text-left border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 rounded-lg sm:rounded-xl bg-zinc-50/50 dark:bg-zinc-900/30 hover:bg-white dark:hover:bg-zinc-900 active:bg-zinc-100 dark:active:bg-zinc-800 shadow-sm hover:shadow-md transition-all duration-200 text-xs sm:text-sm text-balance tap-highlight-transparent min-h-[44px]"
-            >
-              {example}
-            </button>
-          ))}
-        </div>
+        <h2 className="text-2xl font-semibold mb-3 tracking-tight">{agentInfo.name}</h2>
+        <p className="text-sm text-muted-foreground">{agentInfo.description}</p>
       </div>
     );
   }
