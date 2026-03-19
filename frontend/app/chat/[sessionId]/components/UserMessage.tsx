@@ -46,6 +46,7 @@ export function UserMessage({ content, images, fileNames, files }: UserMessagePr
                 <span className="text-sm text-zinc-700 dark:text-zinc-300">{fileName}</span>
               </div>
             ) : (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={index}
                 src={imageData}

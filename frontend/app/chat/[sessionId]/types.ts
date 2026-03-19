@@ -46,7 +46,6 @@ export interface AgentInfo {
   description: string;
   icon: string;
   color: string;
-  examples: string[];
 }
 
 export interface ChatRequest {

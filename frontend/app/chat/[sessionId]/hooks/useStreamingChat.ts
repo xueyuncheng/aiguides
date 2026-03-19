@@ -200,7 +200,7 @@ export function useStreamingChat({
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, messages, sessions, setInputValue, setMessages, setSessionId, userId]);
+  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, messages, sessionId, sessions, setInputValue, setMessages, setSessionId, userId]);
 
   useEffect(() => {
     return () => {

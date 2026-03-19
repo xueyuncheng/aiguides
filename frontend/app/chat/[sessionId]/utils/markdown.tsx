@@ -7,7 +7,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, Quote } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 
 // Markdown plugins
@@ -109,9 +109,10 @@ export const markdownComponents: Components = {
   a: (props) => (
     <a {...props} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-4 font-medium" />
   ),
-  img: ({ src, ...props }) => {
+  img: ({ src, alt, ...props }) => {
     if (!src) return null;
-    return <img src={src} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt || ''} {...props} className="max-w-full h-auto rounded-lg border my-6" loading="lazy" />;
   },
   table: ({ className, ...props }: React.TableHTMLAttributes<HTMLTableElement>) => (
     <div className={markdownTableStyles.wrapper}>

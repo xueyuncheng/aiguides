@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
@@ -73,25 +73,19 @@ export default function EmailServersPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastId = useRef(0);
 
-  const notify = (message: string, type: ToastType = 'info') => {
+  const notify = useCallback((message: string, type: ToastType = 'info') => {
     const id = toastId.current++;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3200);
-  };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
     }
   }, [user, loading, router]);
-
-  useEffect(() => {
-    if (user) {
-      loadConfigs();
-    }
-  }, [user]);
 
   useEffect(() => {
     if (!deleteTarget) {
@@ -108,7 +102,7 @@ export default function EmailServersPage() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [deleteTarget, deletingId]);
 
-  const loadConfigs = async () => {
+  const loadConfigs = useCallback(async () => {
     try {
       const response = await fetch('/api/email_server_configs', {
         credentials: 'include',
@@ -124,7 +118,13 @@ export default function EmailServersPage() {
       const msg = '加载邮件服务器配置失败: ' + (err as Error).message;
       notify(msg, 'error');
     }
-  };
+  }, [notify]);
+
+  useEffect(() => {
+    if (user) {
+      loadConfigs();
+    }
+  }, [loadConfigs, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

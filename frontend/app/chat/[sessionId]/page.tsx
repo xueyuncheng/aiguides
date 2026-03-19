@@ -386,14 +386,6 @@ export default function ChatPage() {
     }
   };
 
-  const handleExampleClick = (example: string) => {
-    if (isLoading) {
-      return;
-    }
-
-    sendMessage(example, []);
-  };
-
   if (loading || !agentInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -467,7 +459,6 @@ export default function ChatPage() {
                 isSavingEdit={isSavingEdit}
                 copiedMessageId={copiedMessageId}
                 onLoadOlderMessages={loadOlderMessages}
-                onExampleClick={handleExampleClick}
                 onRetry={() => sendMessage('', [])}
                 onEditingValueChange={setEditingValue}
                 onStartEdit={handleEditUserMessage}

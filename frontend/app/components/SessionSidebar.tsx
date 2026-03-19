@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, memo, useEffect } from 'react';
+import { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
@@ -142,13 +142,13 @@ const SessionSidebar = memo(({
     }
   };
 
-  const handleNewSessionClick = () => {
+  const handleNewSessionClick = useCallback(() => {
     onNewSession();
     // Close mobile menu after action
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
-  };
+  }, [isMobileOpen, onMobileToggle, onNewSession]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -167,7 +167,7 @@ const SessionSidebar = memo(({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onNewSession, isMobileOpen, onMobileToggle]);
+  }, [handleNewSessionClick]);
 
   // Desktop collapsed state
   if (isCollapsed) {
