@@ -1,32 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Menu } from 'lucide-react';
-import SessionSidebar from '@/app/components/SessionSidebar';
-import { Button } from '@/app/components/ui/button';
 import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
-import { agentInfoMap, MAX_TEXTAREA_HEIGHT } from './constants';
-import { ChatInput, CreateProjectModal, SelectionAskTooltip } from './components';
-import { ChatMessagesPane } from './components/ChatMessagesPane';
-import { ShareModal } from './components/ShareModal';
+import { agentInfoMap } from './constants';
+import { ChatPageLayout } from './components/ChatPageLayout';
 import { useFileUpload } from './hooks/useFileUpload';
+import { useMessageActions } from './hooks/useMessageActions';
+import { useScrollManager } from './hooks/useScrollManager';
 import { useSessionData } from './hooks/useSessionData';
 import { useStreamingChat } from './hooks/useStreamingChat';
-import type { Message, SelectedImage } from './types';
-import { mergeAssistantMessages, trimOuterNewlines } from './utils/messages';
-
-const createErrorMessage = (content: string): Message => ({
-  id: `msg-${Date.now()}-error`,
-  role: 'assistant',
-  content,
-  timestamp: new Date(),
-  isError: true,
-});
-
-const STREAMING_USER_MESSAGE_TOP_GUARD = 24;
-const DEFAULT_COMPOSER_OFFSET = 160;
+import { useUIState } from './hooks/useUIState';
+import { mergeAssistantMessages } from './utils/messages';
 
 export default function ChatPage() {
   const params = useParams();
@@ -36,36 +22,15 @@ export default function ChatPage() {
   const agentId = 'assistant';
   const agentInfo = agentInfoMap[agentId];
 
-  const [inputValue, setInputValue] = useState('');
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editingValue, setEditingValue] = useState('');
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [shareSessionId, setShareSessionId] = useState('');
-  const [isCreateProjectModalOpen, setIsCreateProjectModalOpen] = useState(false);
-  const [renamingProjectId, setRenamingProjectId] = useState<number | null>(null);
-  const [renamingProjectName, setRenamingProjectName] = useState('');
-  const [quotedText, setQuotedText] = useState('');
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const latestUserMessageRef = useRef<HTMLDivElement>(null);
+  // Shared refs — created here so both useSessionData and useScrollManager can use them
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const chatInputContainerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isAtBottomRef = useRef(true);
-  const copiedUserMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [chatInputOffset, setChatInputOffset] = useState(DEFAULT_COMPOSER_OFFSET);
+  // Stable ref — filled after actions is initialized
+  const onSessionChangeStartRef = useRef<() => void>(() => {});
+  const setInputValueRef = useRef<React.Dispatch<React.SetStateAction<string>>>(() => {});
 
-  const {
-    selectedImages,
-    imageError,
-    handleImageSelect,
-    handlePaste,
-    handleRemoveImage,
-    clearImages,
-  } = useFileUpload();
+  const { selectedImages, imageError, handleImageSelect, handlePaste, handleRemoveImage, clearImages } =
+    useFileUpload();
 
   const {
     messages,
@@ -101,10 +66,7 @@ export default function ChatPage() {
     authenticatedFetch,
     clearImages,
     scrollContainerRef,
-    onSessionChangeStart: () => {
-      setEditingMessageId(null);
-      setEditingValue('');
-    },
+    onSessionChangeStart: () => onSessionChangeStartRef.current(),
   });
 
   const { isLoading, sendMessage, handleCancelMessage } = useStreamingChat({
@@ -119,29 +81,61 @@ export default function ChatPage() {
     clearImages,
     loadSessions,
     setMessages,
-    setInputValue,
+    setInputValue: (v) => setInputValueRef.current(v),
   });
+
+  const isStreamingResponse = useMemo(
+    () => messages.some((m) => m.isStreaming),
+    [messages]
+  );
+
+  const latestUserMessageId = useMemo(
+    () => [...messages].reverse().find((m) => m.role === 'user')?.id,
+    [messages]
+  );
+
+  const actions = useMessageActions({
+    agentId,
+    sessionId,
+    userId: user?.user_id,
+    isLoading,
+    authenticatedFetch,
+    setMessages,
+    loadSessionHistory,
+    loadSessions,
+    sendMessage,
+    textareaRef,
+  });
+
+  // Wire the session-change callback now that actions is available
+  onSessionChangeStartRef.current = () => {
+    actions.setEditingMessageId(null);
+    actions.setEditingValue('');
+  };
+  setInputValueRef.current = actions.setInputValue;
+
+  const scroll = useScrollManager({
+    messages,
+    isStreamingResponse,
+    latestUserMessageId,
+    isLoadingHistory,
+    inputValue: actions.inputValue,
+    shouldScrollInstantly,
+    shouldLoadOlderMessages,
+    loadOlderMessages,
+    textareaRef,
+    scrollContainerRef,
+  });
+
+  const ui = useUIState();
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/login');
       return;
     }
-
-    if (!agentInfo) {
-      router.push('/');
-    }
+    if (!agentInfo) router.push('/');
   }, [agentInfo, loading, router, user]);
-
-  const isStreamingResponse = useMemo(
-    () => messages.some((message) => message.isStreaming),
-    [messages]
-  );
-
-  const latestUserMessageId = useMemo(
-    () => [...messages].reverse().find((message) => message.role === 'user')?.id,
-    [messages]
-  );
 
   const processedMessages = useMemo(() => mergeAssistantMessages(messages), [messages]);
   const chatUser = useMemo(
@@ -150,511 +144,148 @@ export default function ChatPage() {
   );
 
   const pageTitle = useMemo(() => {
-    const currentSession = sessions.find((item) => item.session_id === sessionId);
-    return currentSession?.title || currentSession?.first_message || '新对话';
+    const current = sessions.find((s) => s.session_id === sessionId);
+    return current?.title || current?.first_message || '新对话';
   }, [sessionId, sessions]);
 
   useEffect(() => {
     document.title = pageTitle;
   }, [pageTitle]);
 
-  const scrollElementAboveComposer = useCallback((element: HTMLDivElement, behavior: ScrollBehavior) => {
-    const container = scrollContainerRef.current;
-    if (!container) {
-      element.scrollIntoView({ behavior, block: 'end' });
-      return;
-    }
-
-    const elementRect = element.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    const offsetWithinContainer = elementRect.bottom - containerRect.top;
-    const visibleHeight = container.clientHeight - chatInputOffset;
-    const targetScrollTop = container.scrollTop + offsetWithinContainer - visibleHeight;
-
-    container.scrollTo({
-      top: Math.max(0, targetScrollTop),
-      behavior,
-    });
-  }, [chatInputOffset]);
-
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage) {
-      return;
-    }
-
-    const latestUserMessageElement = latestUserMessageRef.current;
-    const scrollContainer = scrollContainerRef.current;
-
-    if (lastMessage.role === 'user') {
-      isAtBottomRef.current = true;
-      if (latestUserMessageElement) {
-        scrollElementAboveComposer(
-          latestUserMessageElement,
-          shouldScrollInstantly ? 'auto' : 'smooth'
-        );
-      }
-      return;
-    }
-
-    if (lastMessage.isStreaming) {
-      if (!scrollContainer || !latestUserMessageElement) {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: 'auto',
-          block: 'end',
-        });
-        return;
-      }
-
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const latestUserMessageRect = latestUserMessageElement.getBoundingClientRect();
-      const isNearTopEdge = latestUserMessageRect.top <= containerRect.top + STREAMING_USER_MESSAGE_TOP_GUARD;
-      const hasLeftViewport = latestUserMessageRect.bottom <= containerRect.top;
-
-      if (hasLeftViewport) {
-        scrollElementAboveComposer(latestUserMessageElement, 'auto');
-        return;
-      }
-
-      if (!isNearTopEdge) {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: 'auto',
-          block: 'end',
-        });
-      }
-      return;
-    }
-
-    if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: shouldScrollInstantly ? 'auto' : 'smooth',
-        block: 'end',
-      });
-    }
-  }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollElementAboveComposer, shouldScrollInstantly]);
-
-  useEffect(() => {
-    if (messages.length === 0 && !isLoadingHistory) {
-      textareaRef.current?.focus();
-    }
-  }, [isLoadingHistory, messages.length]);
-
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) {
-      return;
-    }
-
-    textarea.style.height = 'auto';
-    textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
-  }, [inputValue]);
-
-  useEffect(() => {
-    const chatInputElement = chatInputContainerRef.current;
-    if (!chatInputElement) {
-      return;
-    }
-
-    const updateChatInputOffset = () => {
-      const nextOffset = Math.ceil(chatInputElement.getBoundingClientRect().height) + 24;
-      setChatInputOffset((prev) => (prev === nextOffset ? prev : nextOffset));
-    };
-
-    updateChatInputOffset();
-
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', updateChatInputOffset);
-      return () => window.removeEventListener('resize', updateChatInputOffset);
-    }
-
-    const resizeObserver = new ResizeObserver(updateChatInputOffset);
-    resizeObserver.observe(chatInputElement);
-    window.addEventListener('resize', updateChatInputOffset);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener('resize', updateChatInputOffset);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (copiedUserMessageTimeoutRef.current) {
-        clearTimeout(copiedUserMessageTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleScroll = useCallback(() => {
-    const container = scrollContainerRef.current;
-    if (!container) {
-      return;
-    }
-
-    const { scrollTop, scrollHeight, clientHeight } = container;
-    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 10;
-
-    if (shouldLoadOlderMessages(scrollTop)) {
-      loadOlderMessages();
-    }
-  }, [loadOlderMessages, shouldLoadOlderMessages]);
-
   const handleStartNewSession = useCallback(() => {
     createNewSession();
-    setInputValue('');
-    setQuotedText('');
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 0);
-  }, [createNewSession]);
+    actions.setInputValue('');
+    actions.setQuotedText('');
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, [actions, createNewSession]);
 
-  const handleDeleteSession = useCallback(async (targetSessionId: string) => {
-    await deleteSession(targetSessionId);
-    if (targetSessionId === sessionId) {
-      setInputValue('');
-      setQuotedText('');
-      setTimeout(() => {
-        textareaRef.current?.focus();
-      }, 0);
-    }
-  }, [deleteSession, sessionId]);
-
-  const handleEditUserMessage = useCallback((message: Message) => {
-    if (isLoading || isSavingEdit) {
-      return;
-    }
-
-    if (message.id.startsWith('msg-')) {
-      setMessages((prev) => [
-        ...prev,
-        createErrorMessage('这条消息还没有同步到历史记录。请刷新页面后再编辑。'),
-      ]);
-      return;
-    }
-
-    setEditingMessageId(message.id);
-    setEditingValue(message.content || '');
-  }, [isLoading, isSavingEdit, setMessages]);
-
-  const handleCancelEditUserMessage = useCallback(() => {
-    if (isSavingEdit) {
-      return;
-    }
-
-    setEditingMessageId(null);
-    setEditingValue('');
-  }, [isSavingEdit]);
-
-  const handleSaveEditedUserMessage = useCallback(async (message: Message) => {
-    if (isLoading || isSavingEdit) {
-      return;
-    }
-
-    const trimmedEditedText = trimOuterNewlines(editingValue);
-    const hasImages = (message.images?.length || 0) > 0;
-    if (!trimmedEditedText && !hasImages) {
-      setMessages((prev) => [...prev, createErrorMessage('编辑后的消息不能为空。')]);
-      return;
-    }
-
-    try {
-      setIsSavingEdit(true);
-
-      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionId}/edit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          user_id: user?.user_id,
-          message_id: message.id,
-          new_content: trimmedEditedText,
-          images: message.images || [],
-          file_names: message.fileNames || [],
-        }),
-      });
-
-      if (!response.ok) {
-        let errorDetail = `HTTP error! status: ${response.status}`;
-        try {
-          const errorData = await response.json();
-          if (errorData?.error) {
-            errorDetail += ` - ${errorData.error}`;
-          }
-        } catch {
-          // Keep status message when body is not JSON.
-        }
-
-        throw new Error(errorDetail);
+  const handleDeleteSession = useCallback(
+    async (targetSessionId: string) => {
+      await deleteSession(targetSessionId);
+      if (targetSessionId === sessionId) {
+        actions.setInputValue('');
+        actions.setQuotedText('');
+        setTimeout(() => textareaRef.current?.focus(), 0);
       }
+    },
+    [actions, deleteSession, sessionId]
+  );
 
-      const data = await response.json();
-      const newSessionId = data?.new_session_id;
-      if (!newSessionId) {
-        throw new Error('编辑成功但未返回新会话 ID');
-      }
+  const canSend = actions.canSend(selectedImages);
 
-      const editedImages: SelectedImage[] = (message.images || []).map((dataUrl, index) => ({
-        id: `edited-${Date.now()}-${index}`,
-        dataUrl,
-        name: message.fileNames?.[index] || `文件 ${index + 1}`,
-        isPdf: dataUrl.startsWith('data:application/pdf'),
-      }));
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => actions.handleSubmit(e, selectedImages),
+    [actions, selectedImages]
+  );
 
-      setEditingMessageId(null);
-      setEditingValue('');
-      await loadSessionHistory(newSessionId, true);
-      await sendMessage(trimmedEditedText, editedImages, newSessionId);
-      await loadSessions(true);
-    } catch (error) {
-      console.error('Error editing message:', error);
-      setMessages((prev) => [
-        ...prev,
-        createErrorMessage(
-          '编辑消息失败，请稍后重试。\n\n错误详情：' + (error instanceof Error ? error.message : String(error))
-        ),
-      ]);
-    } finally {
-      setIsSavingEdit(false);
-    }
-  }, [agentId, authenticatedFetch, editingValue, isLoading, isSavingEdit, loadSessionHistory, loadSessions, sendMessage, sessionId, setMessages, user?.user_id]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => actions.handleKeyDown(e, selectedImages),
+    [actions, selectedImages]
+  );
 
-  const handleCopyUserMessage = useCallback(async (message: Message) => {
-    const content = message.content || '';
-    if (!content.trim()) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(content);
-      setCopiedMessageId(message.id);
-
-      if (copiedUserMessageTimeoutRef.current) {
-        clearTimeout(copiedUserMessageTimeoutRef.current);
-      }
-
-      copiedUserMessageTimeoutRef.current = setTimeout(() => {
-        setCopiedMessageId(null);
-        copiedUserMessageTimeoutRef.current = null;
-      }, 1500);
-    } catch (error) {
-      console.error('Failed to copy user message:', error);
-    }
-  }, []);
-
-  const handleAskAI = useCallback((text: string) => {
-    setQuotedText(text);
-    setTimeout(() => {
-      textareaRef.current?.focus();
-    }, 0);
-  }, []);
-
-  const buildMessageWithQuote = useCallback((text: string) => (
-    quotedText
-      ? `> ${quotedText.split('\n').join('\n> ')}\n\n${text}`.trim()
-      : text
-  ), [quotedText]);
-
-  const canSend = inputValue.trim().length > 0 || selectedImages.length > 0 || quotedText.length > 0;
-
-  const handleSubmit = useCallback((event: React.FormEvent) => {
-    event.preventDefault();
-    const fullMessage = buildMessageWithQuote(inputValue);
-    setQuotedText('');
-    sendMessage(fullMessage, selectedImages);
-  }, [buildMessageWithQuote, inputValue, selectedImages, sendMessage]);
-
-  const handleKeyDown = useCallback((event: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
-      if (!canSend) {
-        return;
-      }
-
-      event.preventDefault();
-      const fullMessage = buildMessageWithQuote(inputValue);
-      setQuotedText('');
-      sendMessage(fullMessage, selectedImages);
-    }
-  }, [buildMessageWithQuote, canSend, inputValue, selectedImages, sendMessage]);
-
-  const handleOpenCreateProjectModal = useCallback(() => {
-    setIsCreateProjectModalOpen(true);
-  }, []);
-
-  const handleStartRenameProject = useCallback((projectId: number, projectName: string) => {
-    setRenamingProjectId(projectId);
-    setRenamingProjectName(projectName);
-  }, []);
-
-  const handleOpenShareModal = useCallback((targetSessionId: string) => {
-    setShareSessionId(targetSessionId);
-    setIsShareModalOpen(true);
-  }, []);
-
-  const handleToggleMobileSidebar = useCallback(() => {
-    setIsMobileSidebarOpen((prev) => !prev);
-  }, []);
-
-  const handleOpenMobileSidebar = useCallback(() => {
-    setIsMobileSidebarOpen(true);
-  }, []);
-
-  const handleRetry = useCallback(() => {
-    sendMessage('', []);
-  }, [sendMessage]);
-
-  const handleClearQuote = useCallback(() => {
-    setQuotedText('');
-  }, []);
-
-  const handleInputFocus = useCallback(() => {
-    // Intentionally empty; keeps ChatInput props stable.
-  }, []);
+  const handleSubmitRenameProject = useCallback(
+    async (projectName: string) => {
+      if (ui.renamingProjectId === null) return;
+      await handleRenameProject(ui.renamingProjectId, projectName);
+      ui.handleCloseRenameProjectModal();
+    },
+    [handleRenameProject, ui]
+  );
 
   if (loading || !agentInfo) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground">
-      <SessionSidebar
-        sessions={sessions}
-        projects={projects}
-        activeProjectId={activeProjectId}
-        isLoading={isSessionsLoading}
-        currentSessionId={sessionId}
-        onSessionSelect={handleSessionSelect}
-        onProjectSelect={setActiveProjectId}
-        onCreateProject={handleOpenCreateProjectModal}
-        onRenameProject={handleStartRenameProject}
-        onDeleteProject={handleDeleteProject}
-        onAssignSessionProject={handleAssignSessionProject}
-        onNewSession={handleStartNewSession}
-        onDeleteSession={handleDeleteSession}
-        onShareSession={handleOpenShareModal}
-        isMobileOpen={isMobileSidebarOpen}
-        onMobileToggle={handleToggleMobileSidebar}
-      />
-
-      <div className="flex flex-col flex-1 h-full md:pl-[260px] relative transition-all duration-300">
-        <div className="md:hidden fixed top-3 left-3 z-30">
-          <Button
-            onClick={handleOpenMobileSidebar}
-            size="icon"
-            variant="outline"
-            className="h-10 w-10 rounded-full bg-background shadow-lg tap-highlight-transparent min-h-[44px] min-w-[44px]"
-            aria-label="打开菜单"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        </div>
-
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 overflow-y-auto no-scrollbar mobile-scroll"
-          onScroll={handleScroll}
-        >
-          <div className="flex flex-col items-center">
-            <div className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10" style={{ paddingBottom: `${chatInputOffset}px` }}>
-              <ChatMessagesPane
-                agentInfo={agentInfo}
-                user={chatUser}
-                messages={messages}
-                processedMessages={processedMessages}
-                latestUserMessageId={latestUserMessageId}
-                latestUserMessageRef={latestUserMessageRef}
-                messagesEndRef={messagesEndRef}
-                isStreamingResponse={isStreamingResponse}
-                isLoadingOlderMessages={isLoadingOlderMessages}
-                hasMoreMessages={hasMoreMessages}
-                totalMessageCount={totalMessageCount}
-                isLoadingHistory={isLoadingHistory}
-                isLoading={isLoading}
-                editingMessageId={editingMessageId}
-                editingValue={editingValue}
-                isSavingEdit={isSavingEdit}
-                copiedMessageId={copiedMessageId}
-                onLoadOlderMessages={loadOlderMessages}
-                onRetry={handleRetry}
-                onEditingValueChange={setEditingValue}
-                onStartEdit={handleEditUserMessage}
-                onSaveEdit={handleSaveEditedUserMessage}
-                onCancelEdit={handleCancelEditUserMessage}
-                onCopyUserMessage={handleCopyUserMessage}
-              />
-            </div>
-          </div>
-        </div>
-
-        <ChatInput
-          containerRef={chatInputContainerRef}
-          ref={textareaRef}
-          inputValue={inputValue}
-          onInputChange={setInputValue}
-          onKeyDown={handleKeyDown}
-          onPaste={handlePaste}
-          onSubmit={handleSubmit}
-          onCancel={handleCancelMessage}
-          onFocus={handleInputFocus}
-          selectedImages={selectedImages}
-          onRemoveImage={handleRemoveImage}
-          onImageSelect={handleImageSelect}
-          imageError={imageError}
-          isLoading={isLoading}
-          isLoadingHistory={isLoadingHistory}
-          canSend={canSend}
-          agentName={agentInfo.name}
-          quotedText={quotedText}
-          onClearQuote={handleClearQuote}
-        />
-      </div>
-
-      <SelectionAskTooltip onAskAI={handleAskAI} />
-
-      <ShareModal
-        isOpen={isShareModalOpen && shareSessionId !== ''}
-        onClose={() => {
-          setIsShareModalOpen(false);
-          setShareSessionId('');
-        }}
-        sessionId={shareSessionId}
-        agentId={agentId}
-      />
-
-      <CreateProjectModal
-        isOpen={isCreateProjectModalOpen}
-        onClose={() => setIsCreateProjectModalOpen(false)}
-        onSubmit={handleCreateProject}
-        title="创建项目"
-        description="输入项目名称，用来归类当前会话。"
-        submitLabel="创建项目"
-        submittingLabel="创建中"
-      />
-
-      <CreateProjectModal
-        isOpen={renamingProjectId !== null}
-        onClose={() => {
-          setRenamingProjectId(null);
-          setRenamingProjectName('');
-        }}
-        initialValue={renamingProjectName}
-        title="重命名项目"
-        description="更新项目名称，相关会话会自动显示新名称。"
-        submitLabel="保存"
-        submittingLabel="保存中"
-        onSubmit={async (projectName) => {
-          if (renamingProjectId === null) {
-            return;
-          }
-
-          await handleRenameProject(renamingProjectId, projectName);
-          setRenamingProjectId(null);
-          setRenamingProjectName('');
-        }}
-      />
-    </div>
+    <ChatPageLayout
+      // Agent / session
+      agentInfo={agentInfo}
+      agentId={agentId}
+      sessionId={sessionId}
+      sessions={sessions}
+      projects={projects}
+      activeProjectId={activeProjectId}
+      currentProjectId={currentProjectId}
+      isSessionsLoading={isSessionsLoading}
+      chatUser={chatUser}
+      // Messages
+      messages={messages}
+      processedMessages={processedMessages}
+      isLoadingHistory={isLoadingHistory}
+      isLoadingOlderMessages={isLoadingOlderMessages}
+      hasMoreMessages={hasMoreMessages}
+      totalMessageCount={totalMessageCount}
+      isStreamingResponse={isStreamingResponse}
+      isLoading={isLoading}
+      latestUserMessageId={latestUserMessageId}
+      // Editing
+      editingMessageId={actions.editingMessageId}
+      editingValue={actions.editingValue}
+      isSavingEdit={actions.isSavingEdit}
+      copiedMessageId={actions.copiedMessageId}
+      // Scroll refs
+      scrollContainerRef={scrollContainerRef}
+      messagesEndRef={scroll.messagesEndRef}
+      latestUserMessageRef={scroll.latestUserMessageRef}
+      chatInputContainerRef={scroll.chatInputContainerRef}
+      textareaRef={textareaRef}
+      chatInputOffset={scroll.chatInputOffset}
+      // Input
+      inputValue={actions.inputValue}
+      quotedText={actions.quotedText}
+      selectedImages={selectedImages}
+      imageError={imageError}
+      canSend={canSend}
+      // UI state
+      isMobileSidebarOpen={ui.isMobileSidebarOpen}
+      isShareModalOpen={ui.isShareModalOpen}
+      shareSessionId={ui.shareSessionId}
+      isCreateProjectModalOpen={ui.isCreateProjectModalOpen}
+      renamingProjectId={ui.renamingProjectId}
+      renamingProjectName={ui.renamingProjectName}
+      // Session/sidebar handlers
+      onSessionSelect={handleSessionSelect}
+      onProjectSelect={setActiveProjectId}
+      onNewSession={handleStartNewSession}
+      onDeleteSession={handleDeleteSession}
+      onShareSession={ui.handleOpenShareModal}
+      onCreateProject={ui.handleOpenCreateProjectModal}
+      onRenameProject={ui.handleStartRenameProject}
+      onDeleteProject={handleDeleteProject}
+      onAssignSessionProject={handleAssignSessionProject}
+      onToggleMobileSidebar={ui.handleToggleMobileSidebar}
+      onOpenMobileSidebar={ui.handleOpenMobileSidebar}
+      // Message handlers
+      onLoadOlderMessages={loadOlderMessages}
+      onRetry={actions.handleRetry}
+      onEditingValueChange={actions.setEditingValue}
+      onStartEdit={actions.handleEditUserMessage}
+      onSaveEdit={actions.handleSaveEditedUserMessage}
+      onCancelEdit={actions.handleCancelEditUserMessage}
+      onCopyUserMessage={actions.handleCopyUserMessage}
+      onAskAI={actions.handleAskAI}
+      // Input handlers
+      onInputChange={actions.setInputValue}
+      onKeyDown={handleKeyDown}
+      onPaste={handlePaste}
+      onSubmit={handleSubmit}
+      onCancel={handleCancelMessage}
+      onFocus={actions.handleInputFocus}
+      onRemoveImage={handleRemoveImage}
+      onImageSelect={handleImageSelect}
+      onClearQuote={actions.handleClearQuote}
+      // Modal handlers
+      onCloseShareModal={ui.handleCloseShareModal}
+      onCloseCreateProjectModal={ui.handleCloseCreateProjectModal}
+      onSubmitCreateProject={handleCreateProject}
+      onCloseRenameProjectModal={ui.handleCloseRenameProjectModal}
+      onSubmitRenameProject={handleSubmitRenameProject}
+      // Scroll
+      onScroll={scroll.handleScroll}
+    />
   );
 }
