@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://s6-outheart.lol';
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://backend:8080';
 
 const nextConfig: NextConfig = {
   compress: false,
