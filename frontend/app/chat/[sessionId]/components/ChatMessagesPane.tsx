@@ -68,14 +68,13 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
 
   if (messages.length === 0) {
     return (
-      <div className="text-center animate-fade-in px-4 pb-8">
+      <div className="text-center animate-fade-in px-4 pb-2">
         <div className="flex justify-center mb-5 sm:mb-6">
           <div className="p-4 sm:p-5 bg-secondary rounded-2xl sm:rounded-3xl shadow-sm">
             <span className="text-4xl sm:text-5xl">{agentInfo.icon}</span>
           </div>
         </div>
         <h2 className="text-2xl sm:text-3xl font-semibold mb-3 tracking-tight">{agentInfo.name}</h2>
-        <p className="text-sm text-muted-foreground leading-relaxed">{agentInfo.description}</p>
       </div>
     );
   }
