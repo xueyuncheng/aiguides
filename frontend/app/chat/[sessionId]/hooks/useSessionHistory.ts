@@ -47,6 +47,7 @@ export function useSessionHistory({
   const resetSessionView = useCallback((preserveRequestId = false) => {
     if (!preserveRequestId) {
       historyRequestIdRef.current += 1;
+      autoLoadedSessionIdRef.current = null;
     }
 
     setMessages([]);
