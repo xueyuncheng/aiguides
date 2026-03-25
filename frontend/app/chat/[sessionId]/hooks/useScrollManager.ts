@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { MAX_TEXTAREA_HEIGHT } from '../constants';
 import type { Message } from '../types';
 
-const STREAMING_USER_MESSAGE_TOP_GUARD = 24;
 const DEFAULT_COMPOSER_OFFSET = 160;
 
 interface UseScrollManagerParams {
@@ -87,23 +86,20 @@ export function useScrollManager({
     }
 
     if (lastMessage.isStreaming) {
-      if (!scrollContainer || !latestUserMessageElement) {
+      // Stop auto-scrolling if the user has manually scrolled up.
+      // isAtBottomRef is kept up-to-date by handleScroll (scroll event listener).
+      if (!isAtBottomRef.current) return;
+
+      if (!scrollContainer) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
         return;
       }
 
-      const containerRect = scrollContainer.getBoundingClientRect();
-      const latestUserMessageRect = latestUserMessageElement.getBoundingClientRect();
-      const isNearTopEdge =
-        latestUserMessageRect.top <= containerRect.top + STREAMING_USER_MESSAGE_TOP_GUARD;
-      const hasLeftViewport = latestUserMessageRect.bottom <= containerRect.top;
-
-      if (hasLeftViewport) {
-        scrollElementAboveComposer(latestUserMessageElement, 'auto');
-        return;
-      }
-
-      if (!isNearTopEdge) {
+      // Only scroll when new content has pushed past the visible area so the
+      // user message stays anchored at the top for as long as possible.
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      if (distanceFromBottom > chatInputOffset + 10) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
       }
       return;
