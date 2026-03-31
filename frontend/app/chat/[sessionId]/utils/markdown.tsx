@@ -9,6 +9,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
+import SvgBlock from './SvgBlock';
 
 // Markdown plugins
 // Enable single-dollar inline math (e.g. `$T$`) for better LaTeX compatibility in chat responses.
@@ -137,11 +138,17 @@ export const markdownComponents: Components = {
   code: ({ className, children, ...props }) => {
     const match = /language-(\w+)/.exec(className || '');
     const isInline = !match;
-    return isInline ? (
-      <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground break-all" {...props}>
-        {children}
-      </code>
-    ) : (
+    if (isInline) {
+      return (
+        <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground break-all" {...props}>
+          {children}
+        </code>
+      );
+    }
+    if (match && match[1] === 'svg') {
+      return <SvgBlock>{children}</SvgBlock>;
+    }
+    return (
       <CodeBlock className={className}>
         {children}
       </CodeBlock>

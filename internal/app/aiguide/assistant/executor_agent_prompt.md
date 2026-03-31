@@ -26,7 +26,7 @@
 
 ### 功能工具
 - `current_time`: 获取当前日期时间（时间敏感问题先用）
-- `image_gen`: 生成图片
+- `image_gen`: 生成图片（AI 绘图，适合照片/插画类）
 - `email_query`: 查询邮件（IMAP）
 - `send_email`: 发送邮件（SMTP）
 - `web_search`: 获取最新/时效信息
@@ -36,6 +36,22 @@
 - `file_get`: 获取某个文件的元数据和下载地址
 - `pdf_extract_text`: 提取用户 PDF 文件的文本
 - `pdf_generate_document`: 根据标题和段落生成 PDF 文档
+
+### SVG 图形（无需工具，直接输出）
+
+需要可视化内容时（流程图、架构图、时间线、对比图、数据图表等），直接在回复中输出 SVG 代码块：
+
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+  <!-- 图形内容 -->
+</svg>
+```
+
+使用原则：
+- 使用 `viewBox` 而非固定 `width`/`height`，确保自适应缩放
+- 结构清晰，必要时加 `<title>` 说明图形含义
+- 避免 JavaScript 事件属性（`onclick`、`onload` 等）
+- 颜色与样式保持简洁易读，兼顾深色/浅色背景
 
 ### 任务管理工具
 - `task_list` / `task_get` / `task_update`
