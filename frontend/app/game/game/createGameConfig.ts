@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { GameScene } from './GameScene';
-import { GAME_HEIGHT, GAME_WIDTH, WORLD_WIDTH } from './level';
+import { GAME_HEIGHT, GAME_WIDTH } from './level';
 import type { GameSnapshot } from './state';
 
 export function createGameConfig(container: HTMLElement, onStateChange: (state: GameSnapshot) => void) {

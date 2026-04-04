@@ -10,6 +10,18 @@ export interface GameSnapshot {
   worldWidth: number;
 }
 
+export function areGameSnapshotsEqual(left: GameSnapshot, right: GameSnapshot) {
+  return (
+    left.coinsCollected === right.coinsCollected &&
+    left.totalCoins === right.totalCoins &&
+    left.status === right.status &&
+    left.playerX === right.playerX &&
+    left.lives === right.lives &&
+    left.canJump === right.canJump &&
+    left.worldWidth === right.worldWidth
+  );
+}
+
 export const INITIAL_GAME_STATE: GameSnapshot = {
   coinsCollected: 0,
   totalCoins: 0,

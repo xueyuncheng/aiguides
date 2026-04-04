@@ -13,6 +13,10 @@ import {
 const PLAYER_SIZE = { width: 34, height: 48 };
 const MOVE_SPEED = 220;
 const JUMP_SPEED = -420;
+const SHORT_HOP_SPEED = -210;
+const JUMP_BUFFER_MS = 140;
+const COYOTE_TIME_MS = 110;
+const STATE_POSITION_STEP = 18;
 
 export class GameScene extends Phaser.Scene {
   private readonly onStateChange: (state: GameSnapshot) => void;
@@ -32,6 +36,10 @@ export class GameScene extends Phaser.Scene {
   private lives = 3;
   private touchState = { left: false, right: false, jump: false };
   private gamepadState = { left: false, right: false, jump: false };
+  private previousJumpRequested = false;
+  private jumpQueuedUntil = 0;
+  private lastGroundedAt = 0;
+  private lastPublishedState?: GameSnapshot;
 
   constructor(onStateChange: (state: GameSnapshot) => void) {
     super('GameScene');
@@ -39,6 +47,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   create() {
+    this.resetRunState();
+
     this.cameras.main.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
     this.physics.world.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT + 120);
 
@@ -51,13 +61,17 @@ export class GameScene extends Phaser.Scene {
     this.bindSceneEvents();
 
     this.status = 'running';
-    this.emitState();
+    this.emitState(true);
   }
 
-  update() {
+  update(_: number, delta: number) {
     if (!this.player?.body || this.status === 'paused' || this.status === 'won' || this.status === 'lost') {
       return;
     }
+
+    const now = this.time.now;
+    const body = this.player.body as Phaser.Physics.Arcade.Body;
+    const isGrounded = body.blocked.down || body.touching.down;
 
     const moveLeft =
       this.touchState.left || this.gamepadState.left || !!this.cursors?.left.isDown || !!this.keys?.left.isDown;
@@ -70,6 +84,14 @@ export class GameScene extends Phaser.Scene {
       !!this.cursors?.space?.isDown ||
       !!this.keys?.jump.isDown;
 
+    if (isGrounded) {
+      this.lastGroundedAt = now;
+    }
+
+    if (wantsJump && !this.previousJumpRequested) {
+      this.jumpQueuedUntil = now + JUMP_BUFFER_MS;
+    }
+
     if (moveLeft === moveRight) {
       this.player.setVelocityX(0);
     } else if (moveLeft) {
@@ -78,14 +100,23 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocityX(MOVE_SPEED);
     }
 
-    if (wantsJump && this.player.body.blocked.down) {
+    const hasJumpBuffer = this.jumpQueuedUntil >= now;
+    const hasGroundGrace = isGrounded || now - this.lastGroundedAt <= COYOTE_TIME_MS;
+    if (hasJumpBuffer && hasGroundGrace) {
       this.player.setVelocityY(JUMP_SPEED);
+      this.jumpQueuedUntil = 0;
+      this.lastGroundedAt = now - COYOTE_TIME_MS - delta;
       this.touchState.jump = false;
       this.gamepadState.jump = false;
+    } else if (!wantsJump && body.velocity.y < SHORT_HOP_SPEED) {
+      this.player.setVelocityY(SHORT_HOP_SPEED);
     }
+
+    this.previousJumpRequested = wantsJump;
 
     if (this.player.y > GAME_HEIGHT + 80) {
       this.loseLife();
+      return;
     }
 
     const reachedGoal = this.player.x >= GOAL_X - 30;
@@ -93,6 +124,8 @@ export class GameScene extends Phaser.Scene {
       this.status = 'won';
       this.player.setVelocity(0, 0);
       this.player.body.enable = false;
+      this.emitState(true);
+      return;
     }
 
     this.emitState();
@@ -131,9 +164,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private bindSceneEvents() {
-    this.events.on(Phaser.Scenes.Events.SHUTDOWN, () => {
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.touchState = { left: false, right: false, jump: false };
       this.gamepadState = { left: false, right: false, jump: false };
+      this.previousJumpRequested = false;
+      this.jumpQueuedUntil = 0;
+      this.lastGroundedAt = 0;
+      this.lastPublishedState = undefined;
     });
   }
 
@@ -147,6 +184,19 @@ export class GameScene extends Phaser.Scene {
         jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
       };
     }
+  }
+
+  private resetRunState() {
+    this.status = 'ready';
+    this.coinsCollected = 0;
+    this.totalCoins = COIN_LAYOUT.length;
+    this.lives = 3;
+    this.touchState = { left: false, right: false, jump: false };
+    this.gamepadState = { left: false, right: false, jump: false };
+    this.previousJumpRequested = false;
+    this.jumpQueuedUntil = 0;
+    this.lastGroundedAt = this.time.now;
+    this.lastPublishedState = undefined;
   }
 
   private createPlatforms() {
@@ -245,24 +295,54 @@ export class GameScene extends Phaser.Scene {
       this.physics.world.pause();
       this.player?.setVelocity(0, 0);
       this.player?.setPosition(PLAYER_START.x, PLAYER_START.y);
-      this.emitState();
+      this.emitState(true);
       return;
     }
 
     this.player?.setVelocity(0, 0);
     this.player?.setPosition(PLAYER_START.x, PLAYER_START.y);
-    this.emitState();
+    this.jumpQueuedUntil = 0;
+    this.lastGroundedAt = this.time.now;
+    this.emitState(true);
   }
 
-  private emitState() {
-    this.onStateChange({
+  private emitState(force = false) {
+    const snapshot = {
       coinsCollected: this.coinsCollected,
       totalCoins: this.totalCoins,
       status: this.status,
       playerX: this.player?.x ?? PLAYER_START.x,
       lives: this.lives,
-      canJump: Boolean(this.player?.body?.blocked.down),
+      canJump: this.canPlayerJump(),
       worldWidth: WORLD_WIDTH,
-    });
+    } satisfies GameSnapshot;
+
+    if (!force && this.lastPublishedState) {
+      const last = this.lastPublishedState;
+      const stateChanged =
+        snapshot.coinsCollected !== last.coinsCollected ||
+        snapshot.totalCoins !== last.totalCoins ||
+        snapshot.status !== last.status ||
+        snapshot.lives !== last.lives ||
+        snapshot.canJump !== last.canJump ||
+        snapshot.worldWidth !== last.worldWidth;
+      const movedEnough = Math.abs(snapshot.playerX - last.playerX) >= STATE_POSITION_STEP;
+
+      if (!stateChanged && !movedEnough) {
+        return;
+      }
+    }
+
+    this.lastPublishedState = snapshot;
+    this.onStateChange(snapshot);
+  }
+
+  private canPlayerJump() {
+    const body = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
+    if (!body) {
+      return false;
+    }
+
+    return body.blocked.down || body.touching.down || this.time.now - this.lastGroundedAt <= COYOTE_TIME_MS;
   }
 }

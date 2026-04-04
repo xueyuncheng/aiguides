@@ -4,10 +4,11 @@ import { useEffect, useRef } from 'react';
 import type * as Phaser from 'phaser';
 import { createGameConfig } from '../game/createGameConfig';
 import type { GameSnapshot } from '../game/state';
+import type { GameSceneHandle } from '../types';
 
 interface PhaserGameCanvasProps {
   onStateChange: (state: GameSnapshot) => void;
-  sceneRef: React.MutableRefObject<unknown>;
+  sceneRef: React.MutableRefObject<GameSceneHandle | null>;
 }
 
 export function PhaserGameCanvas({ onStateChange, sceneRef }: PhaserGameCanvasProps) {
