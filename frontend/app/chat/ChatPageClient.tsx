@@ -4,21 +4,22 @@ import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import 'katex/dist/katex.min.css';
-import { agentInfoMap } from './constants';
-import { ChatPageLayout } from './components/ChatPageLayout';
-import { useFileUpload } from './hooks/useFileUpload';
-import { useMessageActions } from './hooks/useMessageActions';
-import { useScrollManager } from './hooks/useScrollManager';
-import { useSessionData } from './hooks/useSessionData';
-import { useStreamingChat } from './hooks/useStreamingChat';
-import { useUIState } from './hooks/useUIState';
-import { mergeAssistantMessages } from './utils/messages';
+import { agentInfoMap } from './[sessionId]/constants';
+import { ChatPageLayout } from './[sessionId]/components/ChatPageLayout';
+import { useFileUpload } from './[sessionId]/hooks/useFileUpload';
+import { useMessageActions } from './[sessionId]/hooks/useMessageActions';
+import { useScrollManager } from './[sessionId]/hooks/useScrollManager';
+import { useSessionData } from './[sessionId]/hooks/useSessionData';
+import { useStreamingChat } from './[sessionId]/hooks/useStreamingChat';
+import { useUIState } from './[sessionId]/hooks/useUIState';
+import { mergeAssistantMessages } from './[sessionId]/utils/messages';
 
-export default function ChatPage() {
+export default function ChatPageClient() {
   const params = useParams();
   const router = useRouter();
   const { user, loading, authenticatedFetch } = useAuth();
-  const urlSessionId = params.sessionId as string | undefined;
+  const routeSessionId = params.sessionId;
+  const urlSessionId = Array.isArray(routeSessionId) ? routeSessionId[0] : routeSessionId as string | undefined;
   const agentId = 'assistant';
   const agentInfo = agentInfoMap[agentId];
 
@@ -205,7 +206,6 @@ export default function ChatPage() {
 
   return (
     <ChatPageLayout
-      // Agent / session
       agentInfo={agentInfo}
       agentId={agentId}
       sessionId={sessionId}
@@ -215,7 +215,6 @@ export default function ChatPage() {
       currentProjectId={currentProjectId}
       isSessionsLoading={isSessionsLoading}
       chatUser={chatUser}
-      // Messages
       messages={messages}
       processedMessages={processedMessages}
       isLoadingHistory={isLoadingHistory}
@@ -225,32 +224,27 @@ export default function ChatPage() {
       isStreamingResponse={isStreamingResponse}
       isLoading={isLoading}
       latestUserMessageId={latestUserMessageId}
-      // Editing
       editingMessageId={actions.editingMessageId}
       editingValue={actions.editingValue}
       isSavingEdit={actions.isSavingEdit}
       copiedMessageId={actions.copiedMessageId}
-      // Scroll refs
       scrollContainerRef={scrollContainerRef}
       messagesEndRef={scroll.messagesEndRef}
       latestUserMessageRef={scroll.latestUserMessageRef}
       chatInputContainerRef={scroll.chatInputContainerRef}
       textareaRef={textareaRef}
       chatInputOffset={scroll.chatInputOffset}
-      // Input
       inputValue={actions.inputValue}
       quotedText={actions.quotedText}
       selectedImages={selectedImages}
       imageError={imageError}
       canSend={canSend}
-      // UI state
       isMobileSidebarOpen={ui.isMobileSidebarOpen}
       isShareModalOpen={ui.isShareModalOpen}
       shareSessionId={ui.shareSessionId}
       isCreateProjectModalOpen={ui.isCreateProjectModalOpen}
       renamingProjectId={ui.renamingProjectId}
       renamingProjectName={ui.renamingProjectName}
-      // Session/sidebar handlers
       onSessionSelect={handleSessionSelect}
       onProjectSelect={setActiveProjectId}
       onNewSession={handleStartNewSession}
@@ -262,7 +256,6 @@ export default function ChatPage() {
       onAssignSessionProject={handleAssignSessionProject}
       onToggleMobileSidebar={ui.handleToggleMobileSidebar}
       onOpenMobileSidebar={ui.handleOpenMobileSidebar}
-      // Message handlers
       onLoadOlderMessages={loadOlderMessages}
       onRetry={actions.handleRetry}
       onEditingValueChange={actions.setEditingValue}
@@ -271,7 +264,6 @@ export default function ChatPage() {
       onCancelEdit={actions.handleCancelEditUserMessage}
       onCopyUserMessage={actions.handleCopyUserMessage}
       onAskAI={actions.handleAskAI}
-      // Input handlers
       onInputChange={actions.setInputValue}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
@@ -281,13 +273,11 @@ export default function ChatPage() {
       onRemoveImage={handleRemoveImage}
       onImageSelect={handleImageSelect}
       onClearQuote={actions.handleClearQuote}
-      // Modal handlers
       onCloseShareModal={ui.handleCloseShareModal}
       onCloseCreateProjectModal={ui.handleCloseCreateProjectModal}
       onSubmitCreateProject={handleCreateProject}
       onCloseRenameProjectModal={ui.handleCloseRenameProjectModal}
       onSubmitRenameProject={handleSubmitRenameProject}
-      // Scroll
       onScroll={scroll.handleScroll}
     />
   );

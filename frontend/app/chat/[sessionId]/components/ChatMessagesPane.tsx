@@ -247,8 +247,8 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
         className={cn(
           'transition-all duration-300',
           messages.length > 0 && (messages[messages.length - 1].role === 'user' || isStreamingResponse)
-            ? 'h-20 sm:h-24 md:h-28'
-            : 'h-12 sm:h-16'
+            ? 'h-2 sm:h-3 md:h-4'
+            : 'h-px'
         )}
       />
     </div>

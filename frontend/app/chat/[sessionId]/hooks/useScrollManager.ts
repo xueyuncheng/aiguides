@@ -134,7 +134,7 @@ export function useScrollManager({
     if (!chatInputElement) return;
 
     const updateChatInputOffset = () => {
-      const nextOffset = Math.ceil(chatInputElement.getBoundingClientRect().height) + 24;
+      const nextOffset = Math.ceil(chatInputElement.getBoundingClientRect().height) + 8;
       setChatInputOffset((prev) => (prev === nextOffset ? prev : nextOffset));
     };
 
