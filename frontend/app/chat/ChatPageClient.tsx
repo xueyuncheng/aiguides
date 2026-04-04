@@ -132,6 +132,49 @@ export default function ChatPageClient() {
   });
 
   const ui = useUIState();
+  const wasLoadingRef = useRef(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (ui.isShareModalOpen || ui.isCreateProjectModalOpen || ui.renamingProjectId !== null) {
+        return;
+      }
+
+      if (event.ctrlKey && event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        textareaRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [ui.isCreateProjectModalOpen, ui.isShareModalOpen, ui.renamingProjectId]);
+
+  useEffect(() => {
+    const wasLoading = wasLoadingRef.current;
+    wasLoadingRef.current = isLoading;
+
+    if (!wasLoading || isLoading || isLoadingHistory) {
+      return;
+    }
+
+    if (ui.isShareModalOpen || ui.isCreateProjectModalOpen || ui.renamingProjectId !== null) {
+      return;
+    }
+
+    if (actions.editingMessageId !== null) {
+      return;
+    }
+
+    setTimeout(() => textareaRef.current?.focus(), 0);
+  }, [
+    actions.editingMessageId,
+    isLoading,
+    isLoadingHistory,
+    ui.isCreateProjectModalOpen,
+    ui.isShareModalOpen,
+    ui.renamingProjectId,
+  ]);
 
   useEffect(() => {
     if (!loading && !user) {
