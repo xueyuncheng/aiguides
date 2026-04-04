@@ -280,7 +280,7 @@ export function ChatPageLayout({
               <div className="flex flex-col items-center">
                 <div
                   className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10"
-                  style={{ paddingBottom: `${chatInputOffset}px` }}
+                  style={{ paddingBottom: `${Math.max(12, chatInputOffset - 36)}px` }}
                 >
                   <ChatMessagesPane {...messagesPaneProps} />
                 </div>
