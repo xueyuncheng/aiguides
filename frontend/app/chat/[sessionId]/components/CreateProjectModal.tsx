@@ -6,6 +6,9 @@ import { Loader2, X } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 
+const isImeComposing = (event: React.KeyboardEvent<HTMLInputElement>) =>
+  event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -136,6 +139,11 @@ export function CreateProjectModal({
                 setProjectName(event.target.value);
                 if (error) {
                   setError('');
+                }
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && isImeComposing(event)) {
+                  event.preventDefault();
                 }
               }}
               placeholder="例如：内容策划、招聘流程、产品调研"

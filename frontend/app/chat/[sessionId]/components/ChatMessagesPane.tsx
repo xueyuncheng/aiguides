@@ -5,6 +5,9 @@ import { cn } from '@/app/lib/utils';
 import { ChatSkeleton, AIMessageContent, UserMessage, UserAvatar } from './index';
 import type { AgentInfo, Message } from '../types';
 
+const isImeComposing = (event: React.KeyboardEvent<HTMLTextAreaElement>) =>
+  event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+
 interface ChatMessagesPaneProps {
   agentInfo: AgentInfo;
   user: { name: string; picture?: string } | null;
@@ -133,7 +136,7 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
                           value={editingValue}
                           onChange={(event) => onEditingValueChange(event.target.value)}
                           onKeyDown={(event) => {
-                            if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+                            if (event.key === 'Enter' && !isImeComposing(event) && (event.ctrlKey || event.metaKey)) {
                               event.preventDefault();
                               onSaveEdit(message);
                             } else if (event.key === 'Escape') {

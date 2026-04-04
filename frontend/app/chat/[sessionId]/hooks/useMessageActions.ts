@@ -93,10 +93,12 @@ export function useMessageActions({
 
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLTextAreaElement>, selectedImages: SelectedImage[]) => {
+      const isComposing = event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+
       if (
         event.key === 'Enter' &&
         !event.shiftKey &&
-        !event.nativeEvent.isComposing &&
+        !isComposing &&
         canSend(selectedImages)
       ) {
         event.preventDefault();
