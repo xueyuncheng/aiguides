@@ -1,25 +1,43 @@
 import * as Phaser from 'phaser';
-import type { GameSnapshot } from './state';
+import type { GameSnapshot, GameStatus } from './state';
 import {
-  COIN_LAYOUT,
-  FLOOR_Y,
+  DEFAULT_LEVEL,
   GAME_HEIGHT,
-  GOAL_X,
-  PLATFORM_LAYOUT,
-  PLAYER_START,
-  WORLD_WIDTH,
+  LEVELS,
+  TOTAL_RUN_COINS,
+  type LevelConfig,
 } from './level';
+import {
+  createCheckpoints,
+  createCoins,
+  createEnemies,
+  createGoal,
+  createHazards,
+  createPlatforms,
+  createPlayer,
+  drawBackdrop,
+} from './scene/builders';
+import type {
+  CheckpointInstance,
+  EnemyInstance,
+  InputState,
+  MovingPlatformInstance,
+  RespawnPoint,
+  SceneStartData,
+} from './scene/types';
 
-const PLAYER_SIZE = { width: 34, height: 48 };
 const MOVE_SPEED = 220;
 const JUMP_SPEED = -420;
 const SHORT_HOP_SPEED = -210;
 const JUMP_BUFFER_MS = 140;
 const COYOTE_TIME_MS = 110;
+const DAMAGE_COOLDOWN_MS = 900;
 const STATE_POSITION_STEP = 18;
 
 export class GameScene extends Phaser.Scene {
   private readonly onStateChange: (state: GameSnapshot) => void;
+  private levelIndex = 0;
+  private level: LevelConfig = DEFAULT_LEVEL;
   private player?: Phaser.Physics.Arcade.Sprite;
   private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
   private keys?: {
@@ -29,34 +47,82 @@ export class GameScene extends Phaser.Scene {
   };
   private platforms?: Phaser.Physics.Arcade.StaticGroup;
   private coins?: Phaser.Physics.Arcade.Group;
-  private goal?: Phaser.GameObjects.Rectangle;
-  private status: GameSnapshot['status'] = 'ready';
+  private status: GameStatus = 'ready';
   private coinsCollected = 0;
-  private totalCoins = COIN_LAYOUT.length;
+  private totalCoins = 0;
   private lives = 3;
-  private touchState = { left: false, right: false, jump: false };
-  private gamepadState = { left: false, right: false, jump: false };
+  private deathCount = 0;
+  private runCoinsCollected = 0;
+  private touchState: InputState = { left: false, right: false, jump: false };
+  private gamepadState: InputState = { left: false, right: false, jump: false };
   private previousJumpRequested = false;
   private jumpQueuedUntil = 0;
   private lastGroundedAt = 0;
   private lastPublishedState?: GameSnapshot;
+  private movingPlatforms: MovingPlatformInstance[] = [];
+  private enemies: EnemyInstance[] = [];
+  private checkpoints: CheckpointInstance[] = [];
+  private respawnPoint: RespawnPoint = {
+    x: DEFAULT_LEVEL.playerStart.x,
+    y: DEFAULT_LEVEL.playerStart.y,
+    label: '起点',
+  };
+  private checkpointLabel = '起点';
+  private runStartedAt = 0;
+  private totalFrozenMs = 0;
+  private freezeStartedAt: number | null = null;
+  private damageCooldownUntil = 0;
 
   constructor(onStateChange: (state: GameSnapshot) => void) {
     super('GameScene');
     this.onStateChange = onStateChange;
   }
 
+  init(data: SceneStartData = {}) {
+    this.levelIndex = data.levelIndex ?? 0;
+    this.level = LEVELS[this.levelIndex] ?? DEFAULT_LEVEL;
+    this.lives = data.lives ?? 3;
+    this.deathCount = data.deathCount ?? 0;
+    this.runCoinsCollected = data.runCoinsCollected ?? 0;
+    this.runStartedAt = data.runStartedAt ?? 0;
+    this.totalFrozenMs = data.totalFrozenMs ?? 0;
+    this.freezeStartedAt = null;
+  }
+
   create() {
-    this.resetRunState();
+    if (!this.runStartedAt) {
+      this.runStartedAt = this.time.now;
+    }
 
-    this.cameras.main.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT);
-    this.physics.world.setBounds(0, 0, WORLD_WIDTH, GAME_HEIGHT + 120);
+    this.resetLevelState();
+    this.cameras.main.setBounds(0, 0, this.level.worldWidth, GAME_HEIGHT);
+    this.physics.world.setBounds(0, 0, this.level.worldWidth, GAME_HEIGHT + 140);
 
-    this.drawBackdrop();
-    this.createPlatforms();
-    this.createGoal();
-    this.createCoins();
-    this.createPlayer();
+    drawBackdrop(this, this.level, this.levelIndex);
+    const platformResult = createPlatforms(this, this.level);
+    this.platforms = platformResult.platforms;
+    this.movingPlatforms = platformResult.movingPlatforms;
+    createGoal(this, this.level);
+    this.player = createPlayer(this, this.level, this.platforms, this.movingPlatforms);
+    this.coins = createCoins(this, this.level, this.player, () => {
+      this.coinsCollected += 1;
+      this.emitState(true);
+    });
+    this.checkpoints = createCheckpoints(this, this.level, this.player, (label) => {
+      this.activateCheckpoint(label);
+    });
+    createHazards(this, this.level, this.player, () => {
+      this.loseLife();
+    });
+    this.enemies = createEnemies(
+      this,
+      this.level,
+      this.player,
+      this.platforms,
+      this.movingPlatforms,
+      this.handlePlayerEnemyCollision,
+      this
+    );
     this.createControls();
     this.bindSceneEvents();
 
@@ -65,9 +131,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_: number, delta: number) {
-    if (!this.player?.body || this.status === 'paused' || this.status === 'won' || this.status === 'lost') {
+    if (!this.player?.body || this.status !== 'running') {
       return;
     }
+
+    this.updateMovingPlatforms();
+    this.updateEnemies();
 
     const now = this.time.now;
     const body = this.player.body as Phaser.Physics.Arcade.Body;
@@ -96,8 +165,10 @@ export class GameScene extends Phaser.Scene {
       this.player.setVelocityX(0);
     } else if (moveLeft) {
       this.player.setVelocityX(-MOVE_SPEED);
+      this.player.setFlipX(true);
     } else {
       this.player.setVelocityX(MOVE_SPEED);
+      this.player.setFlipX(false);
     }
 
     const hasJumpBuffer = this.jumpQueuedUntil >= now;
@@ -119,23 +190,19 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    const reachedGoal = this.player.x >= GOAL_X - 30;
-    if (reachedGoal && this.status === 'running') {
-      this.status = 'won';
-      this.player.setVelocity(0, 0);
-      this.player.body.enable = false;
-      this.emitState(true);
+    if (this.player.x >= this.level.goalX - 30) {
+      this.handleGoalReached();
       return;
     }
 
     this.emitState();
   }
 
-  setTouchInput(nextState: Partial<typeof this.touchState>) {
+  setTouchInput(nextState: Partial<InputState>) {
     this.touchState = { ...this.touchState, ...nextState };
   }
 
-  setGamepadInput(nextState: Partial<typeof this.gamepadState>) {
+  setGamepadInput(nextState: Partial<InputState>) {
     this.gamepadState = { ...this.gamepadState, ...nextState };
   }
 
@@ -146,6 +213,7 @@ export class GameScene extends Phaser.Scene {
 
     this.status = 'paused';
     this.physics.world.pause();
+    this.freezeRunTimer();
     this.emitState();
   }
 
@@ -156,11 +224,34 @@ export class GameScene extends Phaser.Scene {
 
     this.status = 'running';
     this.physics.world.resume();
+    this.resumeRunTimer();
     this.emitState();
   }
 
   restartGame() {
-    this.scene.restart();
+    this.scene.restart({
+      levelIndex: 0,
+      lives: 3,
+      deathCount: 0,
+      runCoinsCollected: 0,
+      runStartedAt: 0,
+      totalFrozenMs: 0,
+    } satisfies SceneStartData);
+  }
+
+  advanceToNextLevel() {
+    if (this.status !== 'level-complete' || this.levelIndex >= LEVELS.length - 1) {
+      return;
+    }
+
+    this.scene.restart({
+      levelIndex: this.levelIndex + 1,
+      lives: this.lives,
+      deathCount: this.deathCount,
+      runCoinsCollected: this.getRunCoinCount(),
+      runStartedAt: this.runStartedAt,
+      totalFrozenMs: this.getTotalFrozenMs(),
+    } satisfies SceneStartData);
   }
 
   private bindSceneEvents() {
@@ -171,6 +262,7 @@ export class GameScene extends Phaser.Scene {
       this.jumpQueuedUntil = 0;
       this.lastGroundedAt = 0;
       this.lastPublishedState = undefined;
+      this.freezeStartedAt = null;
     });
   }
 
@@ -186,146 +278,282 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private resetRunState() {
+  private resetLevelState() {
     this.status = 'ready';
     this.coinsCollected = 0;
-    this.totalCoins = COIN_LAYOUT.length;
-    this.lives = 3;
+    this.totalCoins = this.level.coins.length;
     this.touchState = { left: false, right: false, jump: false };
     this.gamepadState = { left: false, right: false, jump: false };
     this.previousJumpRequested = false;
     this.jumpQueuedUntil = 0;
     this.lastGroundedAt = this.time.now;
     this.lastPublishedState = undefined;
+    this.movingPlatforms = [];
+    this.enemies = [];
+    this.checkpoints = [];
+    this.respawnPoint = {
+      x: this.level.playerStart.x,
+      y: this.level.playerStart.y,
+      label: '起点',
+    };
+    this.checkpointLabel = '起点';
+    this.damageCooldownUntil = 0;
+    this.freezeStartedAt = null;
   }
 
-  private createPlatforms() {
-    const groundHeight = GAME_HEIGHT - FLOOR_Y;
-    this.platforms = this.physics.add.staticGroup();
-
-    const floor = this.add.rectangle(WORLD_WIDTH / 2, FLOOR_Y + groundHeight / 2, WORLD_WIDTH, groundHeight, 0x3f6212);
-    this.physics.add.existing(floor, true);
-    this.platforms.add(floor as unknown as Phaser.Physics.Arcade.Image);
-
-    for (const platform of PLATFORM_LAYOUT) {
-      const block = this.add.rectangle(
-        platform.x + platform.width / 2,
-        platform.y + platform.height / 2,
-        platform.width,
-        platform.height,
-        0xb45309
-      );
-      block.setStrokeStyle(2, 0xf59e0b);
-      this.physics.add.existing(block, true);
-      this.platforms.add(block as unknown as Phaser.Physics.Arcade.Image);
-    }
-  }
-
-  private createCoins() {
-    this.coins = this.physics.add.group({ allowGravity: false, immovable: true });
-
-    for (const coinPosition of COIN_LAYOUT) {
-      const coin = this.add.circle(coinPosition.x, coinPosition.y, 10, 0xfacc15);
-      coin.setStrokeStyle(3, 0xfde68a);
-      this.physics.add.existing(coin);
-      const coinBody = coin.body as Phaser.Physics.Arcade.Body;
-      coinBody.setAllowGravity(false);
-      coinBody.setCircle(10);
-      this.coins.add(coin as unknown as Phaser.Physics.Arcade.Sprite);
-    }
-  }
-
-  private createGoal() {
-    this.add.rectangle(GOAL_X, FLOOR_Y - 90, 12, 190, 0xe5e7eb).setOrigin(0, 0);
-    this.goal = this.add.rectangle(GOAL_X + 26, FLOOR_Y - 90, 56, 36, 0xef4444).setOrigin(0, 0);
-  }
-
-  private createPlayer() {
-    const textureKey = 'player-block';
-    if (!this.textures.exists(textureKey)) {
-      const graphics = this.add.graphics();
-      graphics.fillStyle(0xf97316);
-      graphics.fillRoundedRect(0, 0, PLAYER_SIZE.width, PLAYER_SIZE.height, 8);
-      graphics.fillStyle(0xfef3c7);
-      graphics.fillRoundedRect(7, 8, PLAYER_SIZE.width - 14, PLAYER_SIZE.height - 20, 6);
-      graphics.generateTexture(textureKey, PLAYER_SIZE.width, PLAYER_SIZE.height);
-      graphics.destroy();
+  private updateMovingPlatforms() {
+    if (this.movingPlatforms.length === 0) {
+      return;
     }
 
-    this.player = this.physics.add.sprite(PLAYER_START.x, PLAYER_START.y, textureKey);
-    this.player.setCollideWorldBounds(true);
-    this.player.setBounce(0.03);
-    this.player.body?.setSize(PLAYER_SIZE.width, PLAYER_SIZE.height);
+    const playerBody = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
 
-    if (this.platforms) {
-      this.physics.add.collider(this.player, this.platforms);
-    }
+    for (const platform of this.movingPlatforms) {
+      platform.previousX = platform.block.x;
+      platform.previousY = platform.block.y;
 
-    if (this.coins) {
-      this.physics.add.overlap(this.player, this.coins, (_, coin) => {
-        coin.destroy();
-        this.coinsCollected += 1;
-        this.emitState();
-      });
-    }
+      const movement = platform.config.movement;
+      if (!movement) {
+        platform.deltaX = 0;
+        platform.deltaY = 0;
+        continue;
+      }
 
-    this.cameras.main.startFollow(this.player, true, 0.1, 0.1, -160, 40);
-    this.cameras.main.setDeadzone(180, 140);
-  }
+      const angle = ((this.time.now / movement.duration) + (movement.phase ?? 0)) * Math.PI * 2;
+      const offset = Math.sin(angle) * movement.distance;
+      const nextX = platform.originX + (movement.axis === 'x' ? offset : 0);
+      const nextY = platform.originY + (movement.axis === 'y' ? offset : 0);
 
-  private drawBackdrop() {
-    this.add.rectangle(WORLD_WIDTH / 2, GAME_HEIGHT / 2, WORLD_WIDTH, GAME_HEIGHT, 0x60a5fa);
+      platform.block.setPosition(nextX, nextY);
+      platform.body.updateFromGameObject();
+      platform.deltaX = nextX - platform.previousX;
+      platform.deltaY = nextY - platform.previousY;
 
-    for (const cloudX of [180, 540, 960, 1320, 1760, 2140]) {
-      this.add.ellipse(cloudX, 120, 92, 44, 0xffffff, 0.85);
-      this.add.ellipse(cloudX + 40, 110, 76, 36, 0xffffff, 0.85);
-      this.add.ellipse(cloudX - 36, 110, 70, 34, 0xffffff, 0.85);
-    }
+      if (!playerBody || this.status !== 'running') {
+        continue;
+      }
 
-    for (const hill of [320, 860, 1540, 2050]) {
-      this.add.triangle(hill, FLOOR_Y, 0, 160, 160, 0, 320, 160, 0x34d399).setOrigin(0.5, 1);
-      this.add.triangle(hill + 190, FLOOR_Y, 0, 120, 120, 0, 240, 120, 0x10b981).setOrigin(0.5, 1);
+      const isStandingOnPlatform =
+        (playerBody.blocked.down || playerBody.touching.down) &&
+        Math.abs(playerBody.bottom - platform.body.top) < 14 &&
+        playerBody.right > platform.body.left + 10 &&
+        playerBody.left < platform.body.right - 10;
+
+      if (isStandingOnPlatform) {
+        this.player?.setPosition((this.player?.x ?? 0) + platform.deltaX, (this.player?.y ?? 0) + platform.deltaY);
+      }
     }
   }
 
-  private loseLife() {
-    this.lives -= 1;
-    if (this.lives <= 0) {
-      this.status = 'lost';
-      this.physics.world.pause();
-      this.player?.setVelocity(0, 0);
-      this.player?.setPosition(PLAYER_START.x, PLAYER_START.y);
+  private updateEnemies() {
+    this.enemies = this.enemies.filter((enemy) => enemy.sprite.active);
+
+    for (const enemy of this.enemies) {
+      if (!enemy.sprite.body) {
+        continue;
+      }
+
+      if (enemy.sprite.x <= enemy.config.minX) {
+        enemy.direction = 1;
+      } else if (enemy.sprite.x >= enemy.config.maxX) {
+        enemy.direction = -1;
+      }
+
+      enemy.sprite.setVelocityX(enemy.config.speed * enemy.direction);
+      enemy.sprite.setFlipX(enemy.direction < 0);
+    }
+  }
+
+  private handlePlayerEnemyCollision(
+    playerObject:
+      | Phaser.Types.Physics.Arcade.GameObjectWithBody
+      | Phaser.Physics.Arcade.Body
+      | Phaser.Physics.Arcade.StaticBody
+      | Phaser.Tilemaps.Tile,
+    enemyObject:
+      | Phaser.Types.Physics.Arcade.GameObjectWithBody
+      | Phaser.Physics.Arcade.Body
+      | Phaser.Physics.Arcade.StaticBody
+      | Phaser.Tilemaps.Tile
+  ) {
+    if (this.status !== 'running' || !this.player) {
+      return;
+    }
+
+    if (!('body' in playerObject) || !('body' in enemyObject)) {
+      return;
+    }
+
+    const playerBody = playerObject.body as Phaser.Physics.Arcade.Body;
+    const enemyBody = enemyObject.body as Phaser.Physics.Arcade.Body;
+
+    const stompedEnemy =
+      playerBody.velocity.y > 120 &&
+      playerBody.bottom <= enemyBody.top + 18 &&
+      playerBody.center.x > enemyBody.left - 12 &&
+      playerBody.center.x < enemyBody.right + 12;
+
+    if (stompedEnemy) {
+      enemyObject.destroy();
+      this.player.setVelocityY(JUMP_SPEED * 0.58);
       this.emitState(true);
       return;
     }
 
-    this.player?.setVelocity(0, 0);
-    this.player?.setPosition(PLAYER_START.x, PLAYER_START.y);
-    this.jumpQueuedUntil = 0;
-    this.lastGroundedAt = this.time.now;
+    this.loseLife();
+  }
+
+  private activateCheckpoint(label: string) {
+    const nextCheckpoint = this.checkpoints.find((checkpoint) => checkpoint.definition.label === label);
+    if (!nextCheckpoint || nextCheckpoint.active) {
+      return;
+    }
+
+    this.checkpoints.forEach((checkpoint) => {
+      checkpoint.active = checkpoint === nextCheckpoint;
+      checkpoint.banner.setFillStyle(checkpoint.active ? 0x22c55e : 0x475569);
+    });
+
+    this.checkpointLabel = label;
+    this.respawnPoint = {
+      x: nextCheckpoint.definition.x,
+      y: nextCheckpoint.definition.y,
+      label,
+    };
     this.emitState(true);
   }
 
+  private handleGoalReached() {
+    if (!this.player) {
+      return;
+    }
+
+    this.player.setVelocity(0, 0);
+
+    if (this.levelIndex < LEVELS.length - 1) {
+      this.status = 'level-complete';
+      this.physics.world.pause();
+      this.freezeRunTimer();
+      this.emitState(true);
+      return;
+    }
+
+    this.status = 'won';
+    this.physics.world.pause();
+    this.freezeRunTimer();
+    this.emitState(true);
+  }
+
+  private loseLife() {
+    if (!this.player || this.status !== 'running' || this.time.now < this.damageCooldownUntil) {
+      return;
+    }
+
+    this.damageCooldownUntil = this.time.now + DAMAGE_COOLDOWN_MS;
+    this.deathCount += 1;
+    this.lives -= 1;
+
+    if (this.lives <= 0) {
+      this.status = 'lost';
+      this.physics.world.pause();
+      this.freezeRunTimer();
+      this.player.setVelocity(0, 0);
+      this.player.setTint(0xfb7185);
+      this.emitState(true);
+      return;
+    }
+
+    this.player.setTint(0xfdba74);
+    this.player.setVelocity(0, 0);
+    this.player.setPosition(this.respawnPoint.x, this.respawnPoint.y);
+    this.jumpQueuedUntil = 0;
+    this.lastGroundedAt = this.time.now;
+    this.time.delayedCall(DAMAGE_COOLDOWN_MS, () => {
+      this.player?.clearTint();
+    });
+    this.emitState(true);
+  }
+
+  private freezeRunTimer() {
+    if (this.freezeStartedAt === null) {
+      this.freezeStartedAt = this.time.now;
+    }
+  }
+
+  private resumeRunTimer() {
+    if (this.freezeStartedAt !== null) {
+      this.totalFrozenMs += this.time.now - this.freezeStartedAt;
+      this.freezeStartedAt = null;
+    }
+  }
+
+  private getElapsedSeconds() {
+    const referenceTime = this.freezeStartedAt ?? this.time.now;
+    return Math.max(0, Math.floor((referenceTime - this.runStartedAt - this.totalFrozenMs) / 1000));
+  }
+
+  private getTotalFrozenMs() {
+    return this.totalFrozenMs + (this.freezeStartedAt === null ? 0 : this.time.now - this.freezeStartedAt);
+  }
+
+  private getRunCoinCount() {
+    return this.runCoinsCollected + this.coinsCollected;
+  }
+
+  private getScore(elapsedSeconds: number) {
+    const coinScore = this.getRunCoinCount() * 140;
+    const lifeBonus = this.lives * 250;
+    const stageBonus = this.levelIndex * 350;
+    const speedBonus = Math.max(0, 2600 - elapsedSeconds * 14);
+    const deathPenalty = this.deathCount * 90;
+    const finishBonus = this.status === 'won' ? 550 : this.status === 'level-complete' ? 220 : 0;
+
+    return Math.max(0, coinScore + lifeBonus + stageBonus + speedBonus + finishBonus - deathPenalty);
+  }
+
   private emitState(force = false) {
+    const elapsedSeconds = this.getElapsedSeconds();
     const snapshot = {
+      levelNumber: this.levelIndex + 1,
+      totalLevels: LEVELS.length,
+      levelName: this.level.name,
+      levelTagline: this.level.tagline,
       coinsCollected: this.coinsCollected,
       totalCoins: this.totalCoins,
+      runCoinsCollected: this.getRunCoinCount(),
+      runCoinsTotal: TOTAL_RUN_COINS,
       status: this.status,
-      playerX: this.player?.x ?? PLAYER_START.x,
+      playerX: this.player?.x ?? this.level.playerStart.x,
       lives: this.lives,
+      deathCount: this.deathCount,
+      score: this.getScore(elapsedSeconds),
+      elapsedSeconds,
+      checkpointLabel: this.checkpointLabel,
       canJump: this.canPlayerJump(),
-      worldWidth: WORLD_WIDTH,
+      worldWidth: this.level.worldWidth,
+      goalX: this.level.goalX,
     } satisfies GameSnapshot;
 
     if (!force && this.lastPublishedState) {
       const last = this.lastPublishedState;
       const stateChanged =
+        snapshot.levelNumber !== last.levelNumber ||
+        snapshot.totalLevels !== last.totalLevels ||
+        snapshot.levelName !== last.levelName ||
+        snapshot.levelTagline !== last.levelTagline ||
         snapshot.coinsCollected !== last.coinsCollected ||
         snapshot.totalCoins !== last.totalCoins ||
+        snapshot.runCoinsCollected !== last.runCoinsCollected ||
+        snapshot.runCoinsTotal !== last.runCoinsTotal ||
         snapshot.status !== last.status ||
         snapshot.lives !== last.lives ||
+        snapshot.deathCount !== last.deathCount ||
+        snapshot.score !== last.score ||
+        snapshot.elapsedSeconds !== last.elapsedSeconds ||
+        snapshot.checkpointLabel !== last.checkpointLabel ||
         snapshot.canJump !== last.canJump ||
-        snapshot.worldWidth !== last.worldWidth;
+        snapshot.worldWidth !== last.worldWidth ||
+        snapshot.goalX !== last.goalX;
       const movedEnough = Math.abs(snapshot.playerX - last.playerX) >= STATE_POSITION_STEP;
 
       if (!stateChanged && !movedEnough) {

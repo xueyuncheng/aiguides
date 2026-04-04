@@ -10,6 +10,7 @@ export type GameSceneHandle = {
   pauseGame: () => void;
   resumeGame: () => void;
   restartGame: () => void;
+  advanceToNextLevel: () => void;
   setTouchInput: (nextState: ControlInputState) => void;
   setGamepadInput: (nextState: ControlInputState) => void;
 };
