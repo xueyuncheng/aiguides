@@ -8,6 +8,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
   const animationFrameRef = useRef<number | null>(null);
   const lastDebugUpdateRef = useRef(0);
   const previousStartPressedRef = useRef(false);
+  const previousAttackPressedRef = useRef(false);
   const gameStateRef = useRef<GameSnapshot>(gameState);
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const [gamepadDebug, setGamepadDebug] = useState<GamepadDebugInfo[]>([]);
@@ -67,8 +68,9 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
       }
 
       if (!pad) {
-        scene?.setGamepadInput({ left: false, right: false, jump: false });
+        scene?.setGamepadInput({ left: false, right: false, jump: false, attack: false });
         previousStartPressedRef.current = false;
+        previousAttackPressedRef.current = false;
         animationFrameRef.current = window.requestAnimationFrame(updateGamepad);
         return;
       }
@@ -77,9 +79,10 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
       const moveLeft = horizontalAxis < -0.35 || Boolean(pad.buttons[14]?.pressed);
       const moveRight = horizontalAxis > 0.35 || Boolean(pad.buttons[15]?.pressed);
       const jump = Boolean(pad.buttons[0]?.pressed || pad.buttons[1]?.pressed);
+      const attackPressed = Boolean(pad.buttons[2]?.pressed || pad.buttons[5]?.pressed);
       const startPressed = Boolean(pad.buttons[9]?.pressed);
 
-      scene?.setGamepadInput({ left: moveLeft, right: moveRight, jump });
+      scene?.setGamepadInput({ left: moveLeft, right: moveRight, jump, attack: attackPressed && !previousAttackPressedRef.current });
 
       if (startPressed && !previousStartPressedRef.current) {
         const currentState = gameStateRef.current.status;
@@ -91,6 +94,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
       }
 
       previousStartPressedRef.current = startPressed;
+      previousAttackPressedRef.current = attackPressed;
       animationFrameRef.current = window.requestAnimationFrame(updateGamepad);
     };
 
@@ -119,7 +123,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
         window.cancelAnimationFrame(animationFrameRef.current);
       }
       setGamepadDebug([]);
-      latestScene?.setGamepadInput({ left: false, right: false, jump: false });
+      latestScene?.setGamepadInput({ left: false, right: false, jump: false, attack: false });
     };
   }, [sceneRef]);
 

@@ -2,6 +2,7 @@ import { act, renderHook } from '@testing-library/react';
 import type { SetStateAction } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Session } from '@/app/components/SessionSidebar';
+import type { Message } from '../types';
 import { useStreamingChat } from './useStreamingChat';
 
 const createResponse = () => {
@@ -27,7 +28,7 @@ describe('useStreamingChat', () => {
     const pushStateSpy = vi.spyOn(window.history, 'pushState');
     const authenticatedFetch = vi.fn().mockResolvedValue(createResponse());
     const loadSessions = vi.fn().mockResolvedValue([] as Session[]);
-    const setMessages = vi.fn<(updater: SetStateAction<unknown[]>) => void>();
+    const setMessages = vi.fn<(updater: SetStateAction<Message[]>) => void>();
     const setInputValue = vi.fn<(value: SetStateAction<string>) => void>();
     const clearImages = vi.fn();
 

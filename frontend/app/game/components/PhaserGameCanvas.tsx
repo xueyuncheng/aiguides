@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type * as Phaser from 'phaser';
 import { createGameConfig } from '../game/createGameConfig';
+import type { GameScene } from '../game/GameScene';
 import type { GameSnapshot } from '../game/state';
 import type { GameSceneHandle } from '../types';
 
@@ -33,7 +34,7 @@ export function PhaserGameCanvas({ onStateChange, sceneRef }: PhaserGameCanvasPr
       gameRef.current = game;
 
       game.events.once(PhaserModule.Core.Events.READY, () => {
-        sceneRef.current = game.scene.getScene('GameScene');
+        sceneRef.current = game.scene.getScene('GameScene') as GameScene & GameSceneHandle;
       });
     };
 

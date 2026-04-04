@@ -259,11 +259,12 @@ export default function GamePage() {
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
                   <div className="rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2 text-xs text-slate-100 backdrop-blur">
                     <p className="uppercase tracking-[0.24em] text-slate-400">控制</p>
-                    <p className="mt-1">`P / Esc` 暂停，`R` 重开，`W / Space` 起跳，过关后 `Enter` 进入下一关</p>
+                    <p className="mt-1">`A / D` 移动，`W / Space` 起跳与二段跳，`J` 攻击，`P / Esc` 暂停，`R` 重开，过关后 `Enter` 进入下一关</p>
                   </div>
                   <div className="rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2 text-right text-xs text-slate-100 backdrop-blur">
                     <p className="uppercase tracking-[0.24em] text-slate-400">输入状态</p>
                     <p className="mt-1">{gamepadConnected ? '已接入手柄' : '键盘 / 触控模式'} · {statusLabel}</p>
+                    <p className="mt-1 text-slate-300">{gameState.isAttacking ? '攻击特效播放中' : gameState.canAttack ? '攻击已就绪' : '攻击冷却中'}</p>
                   </div>
                 </div>
                 <PhaserGameCanvas onStateChange={handleStateChange} sceneRef={sceneRef} />
@@ -295,7 +296,7 @@ export default function GamePage() {
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
                   <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">双关卡短流程</span>
                   <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">checkpoint 复活</span>
-                  <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">敌人 / 危险区 / 移动平台</span>
+                  <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">敌人 / 攻击 / 危险区 / 移动平台</span>
                 </div>
               </div>
 

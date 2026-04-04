@@ -1,7 +1,7 @@
 'use client';
 
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { ArrowBigLeftDash, ArrowBigRightDash, ArrowUp } from 'lucide-react';
+import { ArrowBigLeftDash, ArrowBigRightDash, ArrowUp, Swords } from 'lucide-react';
 import type { ControlInputState } from '../types';
 
 const CONTROL_BUTTON_CLASS =
@@ -13,7 +13,7 @@ interface GameTouchControlsProps {
 
 export function GameTouchControls({ onInputChange }: GameTouchControlsProps) {
   return (
-    <div className="grid grid-cols-3 gap-3 rounded-[28px] border border-white/10 bg-white/5 p-3 backdrop-blur sm:w-[240px]">
+    <div className="grid grid-cols-2 gap-3 rounded-[28px] border border-white/10 bg-white/5 p-3 backdrop-blur sm:w-[320px]">
       <TouchButton
         label="向左"
         icon={<ArrowBigLeftDash className="h-5 w-5" />}
@@ -31,6 +31,12 @@ export function GameTouchControls({ onInputChange }: GameTouchControlsProps) {
         icon={<ArrowBigRightDash className="h-5 w-5" />}
         onPress={() => onInputChange({ right: true })}
         onRelease={() => onInputChange({ right: false })}
+      />
+      <TouchButton
+        label="攻击"
+        icon={<Swords className="h-5 w-5" />}
+        onPress={() => onInputChange({ attack: true })}
+        onRelease={() => onInputChange({ attack: false })}
       />
     </div>
   );
