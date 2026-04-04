@@ -22,6 +22,12 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
     }
 
     let mounted = true;
+    let latestScene: GameSceneHandle | null = null;
+
+    const getScene = () => {
+      latestScene = sceneRef.current;
+      return latestScene;
+    };
 
     const readActiveGamepad = () => {
       const pads = Array.from(navigator.getGamepads?.() ?? []);
@@ -53,6 +59,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
     const updateGamepad = () => {
       const pad = syncConnectionState();
       const now = performance.now();
+      const scene = getScene();
 
       if (now - lastDebugUpdateRef.current > 150) {
         syncDebugState();
@@ -60,7 +67,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
       }
 
       if (!pad) {
-        sceneRef.current?.setGamepadInput({ left: false, right: false, jump: false });
+        scene?.setGamepadInput({ left: false, right: false, jump: false });
         previousStartPressedRef.current = false;
         animationFrameRef.current = window.requestAnimationFrame(updateGamepad);
         return;
@@ -72,14 +79,14 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
       const jump = Boolean(pad.buttons[0]?.pressed || pad.buttons[1]?.pressed);
       const startPressed = Boolean(pad.buttons[9]?.pressed);
 
-      sceneRef.current?.setGamepadInput({ left: moveLeft, right: moveRight, jump });
+      scene?.setGamepadInput({ left: moveLeft, right: moveRight, jump });
 
       if (startPressed && !previousStartPressedRef.current) {
         const currentState = gameStateRef.current.status;
         if (currentState === 'paused') {
-          sceneRef.current?.resumeGame();
+          scene?.resumeGame();
         } else if (currentState === 'running') {
-          sceneRef.current?.pauseGame();
+          scene?.pauseGame();
         }
       }
 
@@ -112,7 +119,7 @@ export function useGamepadControls(sceneRef: React.RefObject<GameSceneHandle | n
         window.cancelAnimationFrame(animationFrameRef.current);
       }
       setGamepadDebug([]);
-      sceneRef.current?.setGamepadInput({ left: false, right: false, jump: false });
+      latestScene?.setGamepadInput({ left: false, right: false, jump: false });
     };
   }, [sceneRef]);
 

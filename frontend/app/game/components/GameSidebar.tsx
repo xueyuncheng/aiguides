@@ -1,8 +1,9 @@
 'use client';
 
-import { Trophy } from 'lucide-react';
+import { Flag, Gamepad2, Heart, Sparkles, Trophy } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { GOAL_X } from '../game/level';
 import type { GameSnapshot } from '../game/state';
 import type { GamepadDebugInfo } from '../types';
 
@@ -14,33 +15,48 @@ interface GameSidebarProps {
 }
 
 export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onRestart }: GameSidebarProps) {
+  const distanceToGoal = Math.max(0, Math.round((GOAL_X - 30) - gameState.playerX));
+  const completion = gameState.status === 'won' ? 100 : Math.min(100, Math.round((gameState.playerX / (GOAL_X - 30)) * 100));
+
   return (
     <aside className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
       <Card className="border-white/10 bg-white/8 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
         <CardHeader>
-          <CardTitle>游戏状态</CardTitle>
-          <CardDescription className="text-slate-300">当前关卡只做了一条可通关路线。</CardDescription>
+          <CardTitle>本局速览</CardTitle>
+          <CardDescription className="text-slate-300">把主要状态压成一眼可读的 HUD。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
-          <StatusRow label="硬币" value={`${gameState.coinsCollected} / ${gameState.totalCoins}`} />
-          <StatusRow label="生命" value={`${gameState.lives}`} />
-          <StatusRow label="跳跃" value={gameState.canJump ? '可起跳' : '空中'} />
-          <StatusRow label="手柄" value={gamepadConnected ? '已连接' : '未连接'} />
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+            <MetricTile icon={<Sparkles className="h-4 w-4 text-amber-300" />} label="硬币" value={`${gameState.coinsCollected} / ${gameState.totalCoins}`} />
+            <MetricTile icon={<Heart className="h-4 w-4 text-rose-300" />} label="生命" value={`${gameState.lives}`} />
+            <MetricTile icon={<Flag className="h-4 w-4 text-sky-300" />} label="距终点" value={distanceToGoal === 0 ? '已抵达' : `${distanceToGoal}px`} />
+            <MetricTile icon={<Gamepad2 className="h-4 w-4 text-emerald-300" />} label="输入设备" value={gamepadConnected ? '手柄在线' : '键盘 / 触控'} />
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-black/15 px-4 py-3">
+            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-slate-400">
+              <span>关卡完成度</span>
+              <span>{completion}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300" style={{ width: `${completion}%` }} />
+            </div>
+          </div>
           <StatusRow label="状态" value={formatStatus(gameState.status)} />
+          <StatusRow label="跳跃窗口" value={gameState.canJump ? '地面 / 缓冲可用' : '空中判定'} />
         </CardContent>
       </Card>
 
       <Card className="border-white/10 bg-white/8 text-white shadow-xl shadow-slate-950/20 backdrop-blur">
         <CardHeader>
-          <CardTitle>玩法提示</CardTitle>
-          <CardDescription className="text-slate-300">先做了最小可玩版，后续可以继续扩展。</CardDescription>
+          <CardTitle>操作说明</CardTitle>
+          <CardDescription className="text-slate-300">把当前版本最常用的输入统一列出来。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-200">
-          <p>目标是收集金币并冲到最右侧旗帜。</p>
-          <p>掉出画面会扣命，命用完后可直接重开。</p>
-          <p>手柄支持左摇杆或 D-pad 左右移动，`A / B` 跳跃，`Start/Menu` 暂停。</p>
-          <p>如果刚插上仍未识别，先按一下手柄任意键，浏览器通常会在首次输入后暴露设备。</p>
-          <p>如果你想继续做，我下一步可以补敌人、蘑菇、砖块和音效。</p>
+          <p>目标是收齐硬币并冲到最右侧旗帜，掉出画面会扣命。</p>
+          <p>键盘支持方向键或 `A / D` 移动，`W / Space / ↑` 跳跃，`P` 或 `Esc` 暂停，`R` 重开。</p>
+          <p>手柄支持左摇杆或 D-pad 左右移动，`A / B` 跳跃，`Start / Menu` 暂停。</p>
+          <p>移动端按钮已加上 pointer capture，长按时不会轻易因为滑出按钮而丢输入。</p>
+          <p>跳跃新增了缓冲和 coyote time，落点边缘也更容易接住输入。</p>
         </CardContent>
       </Card>
 
@@ -94,6 +110,18 @@ function StatusRow({ label, value }: { label: string; value: string }) {
     <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-black/10 px-3 py-2">
       <span className="text-slate-300">{label}</span>
       <span className="font-medium text-white">{value}</span>
+    </div>
+  );
+}
+
+function MetricTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/10 px-3 py-3">
+      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-slate-400">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="text-base font-semibold text-white">{value}</p>
     </div>
   );
 }
