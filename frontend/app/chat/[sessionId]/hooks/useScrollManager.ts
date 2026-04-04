@@ -72,8 +72,6 @@ export function useScrollManager({
     if (!lastMessage) return;
 
     const latestUserMessageElement = latestUserMessageRef.current;
-    const scrollContainer = scrollContainerRef.current;
-
     if (lastMessage.role === 'user') {
       isAtBottomRef.current = true;
       if (latestUserMessageElement) {
@@ -90,26 +88,19 @@ export function useScrollManager({
       // isAtBottomRef is kept up-to-date by handleScroll (scroll event listener).
       if (!isAtBottomRef.current) return;
 
-      if (!scrollContainer) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-        return;
-      }
-
-      // Only scroll when new content has pushed past the visible area so the
-      // user message stays anchored at the top for as long as possible.
-      const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      if (distanceFromBottom > chatInputOffset + 10) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
+      if (messagesEndRef.current) {
+        scrollElementAboveComposer(messagesEndRef.current, 'auto');
       }
       return;
     }
 
     if (isAtBottomRef.current) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: shouldScrollInstantly ? 'auto' : 'smooth',
-        block: 'end',
-      });
+      if (messagesEndRef.current) {
+        scrollElementAboveComposer(
+          messagesEndRef.current,
+          shouldScrollInstantly ? 'auto' : 'smooth'
+        );
+      }
     }
   }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollContainerRef, scrollElementAboveComposer, shouldScrollInstantly]);
 
@@ -160,12 +151,13 @@ export function useScrollManager({
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
-    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < 10;
+    const bottomThreshold = Math.max(10, chatInputOffset + 10);
+    isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < bottomThreshold;
 
     if (shouldLoadOlderMessages(scrollTop)) {
       loadOlderMessages();
     }
-  }, [loadOlderMessages, scrollContainerRef, shouldLoadOlderMessages]);
+  }, [chatInputOffset, loadOlderMessages, scrollContainerRef, shouldLoadOlderMessages]);
 
   return {
     messagesEndRef,
