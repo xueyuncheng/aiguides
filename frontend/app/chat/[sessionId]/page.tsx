@@ -107,12 +107,15 @@ export default function ChatPage() {
     textareaRef,
   });
 
-  // Wire the session-change callback now that actions is available
-  onSessionChangeStartRef.current = () => {
-    actions.setEditingMessageId(null);
-    actions.setEditingValue('');
-  };
-  setInputValueRef.current = actions.setInputValue;
+  const { setEditingMessageId, setEditingValue, setInputValue } = actions;
+
+  useEffect(() => {
+    onSessionChangeStartRef.current = () => {
+      setEditingMessageId(null);
+      setEditingValue('');
+    };
+    setInputValueRef.current = setInputValue;
+  }, [setEditingMessageId, setEditingValue, setInputValue]);
 
   const scroll = useScrollManager({
     messages,
