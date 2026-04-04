@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo, memo, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Gamepad2 } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -76,6 +77,7 @@ const SessionSidebar = memo(({
   onMobileToggle,
 }: SessionSidebarProps) => {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const filteredSessions = useMemo(() => {
@@ -149,6 +151,20 @@ const SessionSidebar = memo(({
       onMobileToggle();
     }
   }, [isMobileOpen, onMobileToggle, onNewSession]);
+
+  const handleGameCenterClick = useCallback(() => {
+    router.push('/game');
+    if (onMobileToggle && isMobileOpen) {
+      onMobileToggle();
+    }
+  }, [isMobileOpen, onMobileToggle, router]);
+
+  const handleMemoryCenterClick = useCallback(() => {
+    router.push('/memory');
+    if (onMobileToggle && isMobileOpen) {
+      onMobileToggle();
+    }
+  }, [isMobileOpen, onMobileToggle, router]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -480,11 +496,14 @@ const SessionSidebar = memo(({
               <DropdownMenuContent align="start" side="top" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-100">
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.location.href = '/memory';
-                    }
-                  }}
+                  onClick={handleGameCenterClick}
+                >
+                  <Gamepad2 className="mr-2 h-4 w-4" />
+                  <span>游戏中心</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={handleMemoryCenterClick}
                 >
                   <Brain className="mr-2 h-4 w-4" />
                   <span>记忆中心</span>
