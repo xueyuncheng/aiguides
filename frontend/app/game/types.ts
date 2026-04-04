@@ -4,6 +4,7 @@ export type ControlInputState = {
   left?: boolean;
   right?: boolean;
   jump?: boolean;
+  attack?: boolean;
 };
 
 export type GameSceneHandle = {

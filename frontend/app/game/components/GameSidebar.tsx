@@ -44,7 +44,7 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
           </div>
           <StatusRow label="流程关卡" value={`${gameState.levelNumber} / ${gameState.totalLevels}`} />
           <StatusRow label="状态" value={formatStatus(gameState.status)} />
-          <StatusRow label="跳跃窗口" value={gameState.canJump ? '地面 / 缓冲可用' : '空中判定'} />
+          <StatusRow label="跳跃状态" value={gameState.canJump ? '起跳 / 二段跳可衔接' : '空中移动中'} />
         </CardContent>
       </Card>
 
@@ -56,11 +56,13 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
         <CardContent className="space-y-4 text-sm text-slate-200">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <MetricTile icon={<Sparkles className="h-4 w-4 text-cyan-300" />} label="总得分" value={`${gameState.score}`} />
+            <MetricTile icon={<Swords className="h-4 w-4 text-orange-300" />} label="击败敌人" value={`${gameState.defeatedEnemies}`} />
             <MetricTile icon={<Clock3 className="h-4 w-4 text-sky-300" />} label="总用时" value={formatElapsed(gameState.elapsedSeconds)} />
             <MetricTile icon={<Flag className="h-4 w-4 text-amber-300" />} label="总收集" value={`${gameState.runCoinsCollected} / ${gameState.runCoinsTotal}`} />
-            <MetricTile icon={<Swords className="h-4 w-4 text-rose-300" />} label="失误次数" value={`${gameState.deathCount}`} />
+            <MetricTile icon={<Heart className="h-4 w-4 text-rose-300" />} label="失误次数" value={`${gameState.deathCount}`} />
           </div>
           <StatusRow label="输入设备" value={gamepadConnected ? '手柄在线' : '键盘 / 触控'} />
+          <StatusRow label="攻击状态" value={gameState.isAttacking ? '挥击中' : gameState.canAttack ? '可攻击' : '冷却中'} />
         </CardContent>
       </Card>
 
@@ -71,10 +73,10 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-200">
           <p>目标是穿过两关，收集硬币、踩掉敌人并躲开尖刺或熔岩。</p>
-          <p>键盘支持方向键或 `A / D` 移动，`W / Space / ↑` 跳跃，`P` 或 `Esc` 暂停，`R` 重开。</p>
+          <p>键盘支持方向键或 `A / D` 移动，`W / Space / ↑` 跳跃与二段跳，`J` 近战攻击，`P` 或 `Esc` 暂停，`R` 重开。</p>
           <p>过关后可直接进下一关；第二关加入了更长危险区和垂直移动平台。</p>
-          <p>移动端按钮继续保留 pointer capture，长按输入更稳，跳跃也有缓冲与 coyote time。</p>
-          <p>手柄支持左摇杆或 D-pad 左右移动，`A / B` 跳跃，`Start / Menu` 暂停。</p>
+          <p>移动端按钮继续保留 pointer capture，长按输入更稳，跳跃也保留缓冲、coyote time 和一次带冲击特效的空中二段跳。</p>
+          <p>手柄支持左摇杆或 D-pad 左右移动，`A / B` 跳跃，`X / RB` 攻击，`Start / Menu` 暂停。</p>
         </CardContent>
       </Card>
 

@@ -32,6 +32,15 @@ const SHORT_HOP_SPEED = -210;
 const JUMP_BUFFER_MS = 140;
 const COYOTE_TIME_MS = 110;
 const DAMAGE_COOLDOWN_MS = 900;
+const ATTACK_COOLDOWN_MS = 320;
+const ATTACK_ACTIVE_MS = 120;
+const ATTACK_RANGE_X = 56;
+const ATTACK_RANGE_Y = 52;
+const ATTACK_DASH_SPEED = 64;
+const AIR_JUMP_COUNT = 1;
+const DEFAULT_LIVES = 100;
+const LANDING_SNAP_Y_TOLERANCE = 18;
+const LANDING_SNAP_X_MARGIN = 14;
 const STATE_POSITION_STEP = 18;
 
 export class GameScene extends Phaser.Scene {
@@ -44,22 +53,27 @@ export class GameScene extends Phaser.Scene {
     left: Phaser.Input.Keyboard.Key;
     right: Phaser.Input.Keyboard.Key;
     jump: Phaser.Input.Keyboard.Key;
+    attack: Phaser.Input.Keyboard.Key;
   };
   private platforms?: Phaser.Physics.Arcade.StaticGroup;
   private coins?: Phaser.Physics.Arcade.Group;
   private status: GameStatus = 'ready';
   private coinsCollected = 0;
   private totalCoins = 0;
-  private lives = 3;
+  private lives = DEFAULT_LIVES;
   private deathCount = 0;
+  private defeatedEnemies = 0;
   private runCoinsCollected = 0;
-  private touchState: InputState = { left: false, right: false, jump: false };
-  private gamepadState: InputState = { left: false, right: false, jump: false };
+  private touchState: InputState = { left: false, right: false, jump: false, attack: false };
+  private gamepadState: InputState = { left: false, right: false, jump: false, attack: false };
   private previousJumpRequested = false;
+  private previousAttackRequested = false;
   private jumpQueuedUntil = 0;
+  private airJumpsRemaining = AIR_JUMP_COUNT;
   private lastGroundedAt = 0;
   private lastPublishedState?: GameSnapshot;
   private movingPlatforms: MovingPlatformInstance[] = [];
+  private attachedPlatform?: MovingPlatformInstance;
   private enemies: EnemyInstance[] = [];
   private checkpoints: CheckpointInstance[] = [];
   private respawnPoint: RespawnPoint = {
@@ -72,6 +86,10 @@ export class GameScene extends Phaser.Scene {
   private totalFrozenMs = 0;
   private freezeStartedAt: number | null = null;
   private damageCooldownUntil = 0;
+  private attackCooldownUntil = 0;
+  private attackActiveUntil = 0;
+  private attackEffect?: Phaser.GameObjects.Arc;
+  private airJumpEffects: Phaser.GameObjects.GameObject[] = [];
 
   constructor(onStateChange: (state: GameSnapshot) => void) {
     super('GameScene');
@@ -81,8 +99,9 @@ export class GameScene extends Phaser.Scene {
   init(data: SceneStartData = {}) {
     this.levelIndex = data.levelIndex ?? 0;
     this.level = LEVELS[this.levelIndex] ?? DEFAULT_LEVEL;
-    this.lives = data.lives ?? 3;
+    this.lives = data.lives ?? DEFAULT_LIVES;
     this.deathCount = data.deathCount ?? 0;
+    this.defeatedEnemies = data.defeatedEnemies ?? 0;
     this.runCoinsCollected = data.runCoinsCollected ?? 0;
     this.runStartedAt = data.runStartedAt ?? 0;
     this.totalFrozenMs = data.totalFrozenMs ?? 0;
@@ -135,7 +154,6 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    this.updateMovingPlatforms();
     this.updateEnemies();
 
     const now = this.time.now;
@@ -152,13 +170,19 @@ export class GameScene extends Phaser.Scene {
       !!this.cursors?.up.isDown ||
       !!this.cursors?.space?.isDown ||
       !!this.keys?.jump.isDown;
+    const wantsAttack = this.touchState.attack || this.gamepadState.attack || !!this.keys?.attack.isDown;
 
     if (isGrounded) {
       this.lastGroundedAt = now;
+      this.airJumpsRemaining = AIR_JUMP_COUNT;
     }
 
     if (wantsJump && !this.previousJumpRequested) {
       this.jumpQueuedUntil = now + JUMP_BUFFER_MS;
+    }
+
+    if (wantsAttack && !this.previousAttackRequested) {
+      this.tryAttack();
     }
 
     if (moveLeft === moveRight) {
@@ -174,16 +198,26 @@ export class GameScene extends Phaser.Scene {
     const hasJumpBuffer = this.jumpQueuedUntil >= now;
     const hasGroundGrace = isGrounded || now - this.lastGroundedAt <= COYOTE_TIME_MS;
     if (hasJumpBuffer && hasGroundGrace) {
+      this.attachedPlatform = undefined;
       this.player.setVelocityY(JUMP_SPEED);
       this.jumpQueuedUntil = 0;
       this.lastGroundedAt = now - COYOTE_TIME_MS - delta;
       this.touchState.jump = false;
       this.gamepadState.jump = false;
+    } else if (hasJumpBuffer && this.airJumpsRemaining > 0) {
+      this.attachedPlatform = undefined;
+      this.player.setVelocityY(JUMP_SPEED * 0.94);
+      this.airJumpsRemaining -= 1;
+      this.jumpQueuedUntil = 0;
+      this.touchState.jump = false;
+      this.gamepadState.jump = false;
+      this.renderAirJumpEffect();
     } else if (!wantsJump && body.velocity.y < SHORT_HOP_SPEED) {
       this.player.setVelocityY(SHORT_HOP_SPEED);
     }
 
     this.previousJumpRequested = wantsJump;
+    this.previousAttackRequested = wantsAttack;
 
     if (this.player.y > GAME_HEIGHT + 80) {
       this.loseLife();
@@ -231,8 +265,9 @@ export class GameScene extends Phaser.Scene {
   restartGame() {
     this.scene.restart({
       levelIndex: 0,
-      lives: 3,
+      lives: DEFAULT_LIVES,
       deathCount: 0,
+      defeatedEnemies: 0,
       runCoinsCollected: 0,
       runStartedAt: 0,
       totalFrozenMs: 0,
@@ -248,6 +283,7 @@ export class GameScene extends Phaser.Scene {
       levelIndex: this.levelIndex + 1,
       lives: this.lives,
       deathCount: this.deathCount,
+      defeatedEnemies: this.defeatedEnemies,
       runCoinsCollected: this.getRunCoinCount(),
       runStartedAt: this.runStartedAt,
       totalFrozenMs: this.getTotalFrozenMs(),
@@ -255,15 +291,32 @@ export class GameScene extends Phaser.Scene {
   }
 
   private bindSceneEvents() {
+    this.events.on(Phaser.Scenes.Events.PRE_UPDATE, this.handleScenePreUpdate, this);
+
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
-      this.touchState = { left: false, right: false, jump: false };
-      this.gamepadState = { left: false, right: false, jump: false };
+      this.events.off(Phaser.Scenes.Events.PRE_UPDATE, this.handleScenePreUpdate, this);
+      this.attackEffect?.destroy();
+      this.attackEffect = undefined;
+      this.clearAirJumpEffects();
+      this.attachedPlatform = undefined;
+      this.touchState = { left: false, right: false, jump: false, attack: false };
+      this.gamepadState = { left: false, right: false, jump: false, attack: false };
       this.previousJumpRequested = false;
+      this.previousAttackRequested = false;
       this.jumpQueuedUntil = 0;
+      this.airJumpsRemaining = AIR_JUMP_COUNT;
       this.lastGroundedAt = 0;
       this.lastPublishedState = undefined;
       this.freezeStartedAt = null;
     });
+  }
+
+  private handleScenePreUpdate() {
+    if (this.status !== 'running') {
+      return;
+    }
+
+    this.updateMovingPlatforms();
   }
 
   private createControls() {
@@ -274,6 +327,7 @@ export class GameScene extends Phaser.Scene {
         left: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A),
         right: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D),
         jump: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W),
+        attack: this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.J),
       };
     }
   }
@@ -282,13 +336,16 @@ export class GameScene extends Phaser.Scene {
     this.status = 'ready';
     this.coinsCollected = 0;
     this.totalCoins = this.level.coins.length;
-    this.touchState = { left: false, right: false, jump: false };
-    this.gamepadState = { left: false, right: false, jump: false };
+    this.touchState = { left: false, right: false, jump: false, attack: false };
+    this.gamepadState = { left: false, right: false, jump: false, attack: false };
     this.previousJumpRequested = false;
+    this.previousAttackRequested = false;
     this.jumpQueuedUntil = 0;
+    this.airJumpsRemaining = AIR_JUMP_COUNT;
     this.lastGroundedAt = this.time.now;
     this.lastPublishedState = undefined;
     this.movingPlatforms = [];
+    this.attachedPlatform = undefined;
     this.enemies = [];
     this.checkpoints = [];
     this.respawnPoint = {
@@ -298,6 +355,11 @@ export class GameScene extends Phaser.Scene {
     };
     this.checkpointLabel = '起点';
     this.damageCooldownUntil = 0;
+    this.attackCooldownUntil = 0;
+    this.attackActiveUntil = 0;
+    this.attackEffect?.destroy();
+    this.attackEffect = undefined;
+    this.clearAirJumpEffects();
     this.freezeStartedAt = null;
   }
 
@@ -307,8 +369,22 @@ export class GameScene extends Phaser.Scene {
     }
 
     const playerBody = this.player?.body as Phaser.Physics.Arcade.Body | undefined;
+    let nextAttachedPlatform: MovingPlatformInstance | undefined;
 
     for (const platform of this.movingPlatforms) {
+      const previousTop = platform.body.top;
+      const previousLeft = platform.body.left;
+      const previousRight = platform.body.right;
+      const playerStandingGap = playerBody ? playerBody.bottom - previousTop : 0;
+      const wasStandingOnPlatform =
+        !!playerBody &&
+        this.status === 'running' &&
+        (this.attachedPlatform === platform || playerBody.velocity.y >= -40) &&
+        playerStandingGap >= -10 &&
+        playerStandingGap <= 16 &&
+        playerBody.right > previousLeft + 10 &&
+        playerBody.left < previousRight - 10;
+
       platform.previousX = platform.block.x;
       platform.previousY = platform.block.y;
 
@@ -321,8 +397,8 @@ export class GameScene extends Phaser.Scene {
 
       const angle = ((this.time.now / movement.duration) + (movement.phase ?? 0)) * Math.PI * 2;
       const offset = Math.sin(angle) * movement.distance;
-      const nextX = platform.originX + (movement.axis === 'x' ? offset : 0);
-      const nextY = platform.originY + (movement.axis === 'y' ? offset : 0);
+      const nextX = Math.round(platform.originX + (movement.axis === 'x' ? offset : 0));
+      const nextY = Math.round(platform.originY + (movement.axis === 'y' ? offset : 0));
 
       platform.block.setPosition(nextX, nextY);
       platform.body.updateFromGameObject();
@@ -333,16 +409,40 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      const isStandingOnPlatform =
-        (playerBody.blocked.down || playerBody.touching.down) &&
-        Math.abs(playerBody.bottom - platform.body.top) < 14 &&
-        playerBody.right > platform.body.left + 10 &&
-        playerBody.left < platform.body.right - 10;
+      if (wasStandingOnPlatform) {
+        nextAttachedPlatform = platform;
+        playerBody.x += platform.deltaX;
+        playerBody.y += platform.deltaY;
 
-      if (isStandingOnPlatform) {
-        this.player?.setPosition((this.player?.x ?? 0) + platform.deltaX, (this.player?.y ?? 0) + platform.deltaY);
+        const snappedTop = platform.body.top - playerBody.height;
+        const correctionY = snappedTop - playerBody.y;
+        if (Math.abs(correctionY) <= 12) {
+          playerBody.y += correctionY;
+        }
+
+        this.player?.setPosition(playerBody.x + playerBody.halfWidth, playerBody.y + playerBody.halfHeight);
+        continue;
+      }
+
+      const canSnapLanding =
+        this.attachedPlatform === undefined &&
+        playerBody.velocity.y >= 0 &&
+        playerBody.bottom <= platform.body.top + LANDING_SNAP_Y_TOLERANCE &&
+        playerBody.bottom >= platform.body.top - LANDING_SNAP_Y_TOLERANCE &&
+        playerBody.right > platform.body.left + LANDING_SNAP_X_MARGIN &&
+        playerBody.left < platform.body.right - LANDING_SNAP_X_MARGIN;
+
+      if (canSnapLanding) {
+        nextAttachedPlatform = platform;
+        playerBody.y = platform.body.top - playerBody.height;
+        playerBody.velocity.y = 0;
+        this.lastGroundedAt = this.time.now;
+        this.airJumpsRemaining = AIR_JUMP_COUNT;
+        this.player?.setPosition(playerBody.x + playerBody.halfWidth, playerBody.y + playerBody.halfHeight);
       }
     }
+
+    this.attachedPlatform = nextAttachedPlatform;
   }
 
   private updateEnemies() {
@@ -394,13 +494,163 @@ export class GameScene extends Phaser.Scene {
       playerBody.center.x < enemyBody.right + 12;
 
     if (stompedEnemy) {
-      enemyObject.destroy();
+      this.defeatEnemy(enemyObject);
       this.player.setVelocityY(JUMP_SPEED * 0.58);
       this.emitState(true);
       return;
     }
 
     this.loseLife();
+  }
+
+  private tryAttack() {
+    if (!this.player || this.status !== 'running' || this.time.now < this.attackCooldownUntil) {
+      return;
+    }
+
+    const now = this.time.now;
+    this.attackCooldownUntil = now + ATTACK_COOLDOWN_MS;
+    this.attackActiveUntil = now + ATTACK_ACTIVE_MS;
+
+    const playerBody = this.player.body as Phaser.Physics.Arcade.Body;
+    const facing = this.player.flipX ? -1 : 1;
+    this.player.setVelocityX(playerBody.velocity.x + facing * ATTACK_DASH_SPEED);
+    this.player.setScale(1.18, 0.9);
+    const attackCenterX = this.player.x + facing * ATTACK_RANGE_X * 0.5;
+    const attackBounds = new Phaser.Geom.Rectangle(
+      attackCenterX - ATTACK_RANGE_X / 2,
+      this.player.y - ATTACK_RANGE_Y / 2,
+      ATTACK_RANGE_X,
+      ATTACK_RANGE_Y
+    );
+
+    let hitEnemy = false;
+    for (const enemy of this.enemies) {
+      if (!enemy.sprite.active || !enemy.sprite.body) {
+        continue;
+      }
+
+      const enemyBounds = enemy.sprite.getBounds();
+      if (!Phaser.Geom.Intersects.RectangleToRectangle(attackBounds, enemyBounds)) {
+        continue;
+      }
+
+      this.defeatEnemy(enemy.sprite);
+      hitEnemy = true;
+    }
+
+    this.renderAttackEffect(facing, hitEnemy);
+    this.player.setTint(hitEnemy ? 0xfef08a : 0xfda4af);
+    this.time.delayedCall(ATTACK_ACTIVE_MS, () => {
+      if (this.player && this.status !== 'lost') {
+        this.player.clearTint();
+        this.player.setScale(1, 1);
+      }
+      this.emitState(true);
+    });
+
+    this.emitState(true);
+  }
+
+  private renderAttackEffect(facing: 1 | -1, hitEnemy: boolean) {
+    if (!this.player) {
+      return;
+    }
+
+    this.attackEffect?.destroy();
+    const effectColor = hitEnemy ? 0xfacc15 : 0xf97316;
+    const startAngle = facing > 0 ? 312 : 48;
+    const endAngle = facing > 0 ? 48 : 132;
+    const effect = this.add.arc(
+      this.player.x + facing * 26,
+      this.player.y - 4,
+      30,
+      startAngle,
+      endAngle,
+      false,
+      effectColor,
+      0.28
+    );
+    effect.setStrokeStyle(8, 0xf8fafc, hitEnemy ? 0.95 : 0.7);
+    effect.setDepth(18);
+    this.attackEffect = effect;
+
+    this.tweens.add({
+      targets: effect,
+      alpha: 0,
+      scaleX: 1.28,
+      scaleY: 0.82,
+      x: effect.x + facing * 14,
+      duration: ATTACK_ACTIVE_MS,
+      ease: 'Cubic.Out',
+      onComplete: () => {
+        if (this.attackEffect === effect) {
+          this.attackEffect = undefined;
+        }
+        effect.destroy();
+      },
+    });
+  }
+
+  private renderAirJumpEffect() {
+    if (!this.player) {
+      return;
+    }
+
+    this.clearAirJumpEffects();
+
+    const ring = this.add.circle(this.player.x, this.player.y + 18, 12, 0x67e8f9, 0.2);
+    ring.setStrokeStyle(4, 0xf8fafc, 0.9);
+    ring.setDepth(17);
+
+    const leftTrail = this.add.triangle(this.player.x - 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0x38bdf8, 0.7);
+    leftTrail.setDepth(16);
+    leftTrail.setAngle(-18);
+
+    const rightTrail = this.add.triangle(this.player.x + 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0x22d3ee, 0.7);
+    rightTrail.setDepth(16);
+    rightTrail.setAngle(18);
+
+    this.airJumpEffects = [ring, leftTrail, rightTrail];
+
+    this.tweens.add({
+      targets: ring,
+      scaleX: 2.1,
+      scaleY: 1.45,
+      alpha: 0,
+      y: ring.y + 10,
+      duration: 220,
+      ease: 'Quad.Out',
+      onComplete: () => ring.destroy(),
+    });
+
+    this.tweens.add({
+      targets: [leftTrail, rightTrail],
+      y: '+=18',
+      scaleX: 0.5,
+      scaleY: 1.8,
+      alpha: 0,
+      duration: 220,
+      ease: 'Cubic.Out',
+      onComplete: () => {
+        leftTrail.destroy();
+        rightTrail.destroy();
+      },
+    });
+
+    this.time.delayedCall(240, () => {
+      this.airJumpEffects = this.airJumpEffects.filter((effect) => effect.active);
+    });
+  }
+
+  private clearAirJumpEffects() {
+    this.airJumpEffects.forEach((effect) => effect.destroy());
+    this.airJumpEffects = [];
+  }
+
+  private defeatEnemy(enemyObject: Phaser.GameObjects.GameObject) {
+    enemyObject.destroy();
+    this.defeatedEnemies += 1;
   }
 
   private activateCheckpoint(label: string) {
@@ -411,7 +661,10 @@ export class GameScene extends Phaser.Scene {
 
     this.checkpoints.forEach((checkpoint) => {
       checkpoint.active = checkpoint === nextCheckpoint;
-      checkpoint.banner.setFillStyle(checkpoint.active ? 0x22c55e : 0x475569);
+      checkpoint.beacon.setFillStyle(checkpoint.active ? 0x22c55e : 0x38bdf8, 0.96);
+      checkpoint.beacon.setStrokeStyle(2, checkpoint.active ? 0xdcfce7 : 0xe0f2fe);
+      checkpoint.halo.setFillStyle(checkpoint.active ? 0x22c55e : 0x38bdf8, checkpoint.active ? 0.2 : 0.14);
+      checkpoint.halo.setStrokeStyle(2, checkpoint.active ? 0xbbf7d0 : 0x7dd3fc, checkpoint.active ? 0.56 : 0.42);
     });
 
     this.checkpointLabel = label;
@@ -428,6 +681,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.attachedPlatform = undefined;
     this.player.setVelocity(0, 0);
 
     if (this.levelIndex < LEVELS.length - 1) {
@@ -449,6 +703,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.attachedPlatform = undefined;
     this.damageCooldownUntil = this.time.now + DAMAGE_COOLDOWN_MS;
     this.deathCount += 1;
     this.lives -= 1;
@@ -467,6 +722,7 @@ export class GameScene extends Phaser.Scene {
     this.player.setVelocity(0, 0);
     this.player.setPosition(this.respawnPoint.x, this.respawnPoint.y);
     this.jumpQueuedUntil = 0;
+    this.airJumpsRemaining = AIR_JUMP_COUNT;
     this.lastGroundedAt = this.time.now;
     this.time.delayedCall(DAMAGE_COOLDOWN_MS, () => {
       this.player?.clearTint();
@@ -502,13 +758,14 @@ export class GameScene extends Phaser.Scene {
 
   private getScore(elapsedSeconds: number) {
     const coinScore = this.getRunCoinCount() * 140;
+    const enemyScore = this.defeatedEnemies * 180;
     const lifeBonus = this.lives * 250;
     const stageBonus = this.levelIndex * 350;
     const speedBonus = Math.max(0, 2600 - elapsedSeconds * 14);
     const deathPenalty = this.deathCount * 90;
     const finishBonus = this.status === 'won' ? 550 : this.status === 'level-complete' ? 220 : 0;
 
-    return Math.max(0, coinScore + lifeBonus + stageBonus + speedBonus + finishBonus - deathPenalty);
+    return Math.max(0, coinScore + enemyScore + lifeBonus + stageBonus + speedBonus + finishBonus - deathPenalty);
   }
 
   private emitState(force = false) {
@@ -527,9 +784,12 @@ export class GameScene extends Phaser.Scene {
       lives: this.lives,
       deathCount: this.deathCount,
       score: this.getScore(elapsedSeconds),
+      defeatedEnemies: this.defeatedEnemies,
       elapsedSeconds,
       checkpointLabel: this.checkpointLabel,
       canJump: this.canPlayerJump(),
+      canAttack: this.time.now >= this.attackCooldownUntil,
+      isAttacking: this.time.now < this.attackActiveUntil,
       worldWidth: this.level.worldWidth,
       goalX: this.level.goalX,
     } satisfies GameSnapshot;
@@ -549,9 +809,12 @@ export class GameScene extends Phaser.Scene {
         snapshot.lives !== last.lives ||
         snapshot.deathCount !== last.deathCount ||
         snapshot.score !== last.score ||
+        snapshot.defeatedEnemies !== last.defeatedEnemies ||
         snapshot.elapsedSeconds !== last.elapsedSeconds ||
         snapshot.checkpointLabel !== last.checkpointLabel ||
         snapshot.canJump !== last.canJump ||
+        snapshot.canAttack !== last.canAttack ||
+        snapshot.isAttacking !== last.isAttacking ||
         snapshot.worldWidth !== last.worldWidth ||
         snapshot.goalX !== last.goalX;
       const movedEnough = Math.abs(snapshot.playerX - last.playerX) >= STATE_POSITION_STEP;

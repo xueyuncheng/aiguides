@@ -45,12 +45,9 @@ export function createPlatforms(scene: Phaser.Scene, level: LevelConfig) {
         getPlatformFill(platform.theme)
       );
       block.setStrokeStyle(2, getPlatformStroke(platform.theme));
-      scene.physics.add.existing(block);
+      scene.physics.add.existing(block, true);
 
-      const body = block.body as Phaser.Physics.Arcade.Body;
-      body.setAllowGravity(false);
-      body.setImmovable(true);
-      body.pushable = false;
+      const body = block.body as Phaser.Physics.Arcade.StaticBody;
 
       movingPlatforms.push({
         block,
@@ -82,9 +79,40 @@ export function createPlatforms(scene: Phaser.Scene, level: LevelConfig) {
 }
 
 export function createGoal(scene: Phaser.Scene, level: LevelConfig) {
-  scene.add.rectangle(level.goalX, level.floorY - 90, 12, 190, 0xe5e7eb).setOrigin(0, 0);
-  scene.add.rectangle(level.goalX + 26, level.floorY - 90, 56, 36, level.theme.accent).setOrigin(0, 0);
-  scene.add.circle(level.goalX + 18, level.floorY - 104, 10, 0xf8fafc);
+  const pole = scene.add.rectangle(level.goalX, level.floorY - 104, 12, 204, 0xe2e8f0).setOrigin(0, 0);
+  pole.setStrokeStyle(2, 0xf8fafc, 0.8);
+
+  const glow = scene.add.circle(level.goalX + 58, level.floorY - 124, 30, level.theme.accent, 0.18);
+  glow.setStrokeStyle(2, 0xfef3c7, 0.35);
+
+  const flag = scene.add.triangle(
+    level.goalX + 66,
+    level.floorY - 92,
+    0,
+    0,
+    0,
+    46,
+    68,
+    23,
+    level.theme.accent,
+    0.98
+  );
+  flag.setOrigin(0.12, 0.1);
+  flag.setStrokeStyle(2, 0xfffbeb, 0.9);
+
+  const stripe = scene.add.rectangle(level.goalX + 43, level.floorY - 70, 28, 6, 0xfffbeb, 0.92);
+  stripe.setAngle(-16);
+
+  const finial = scene.add.circle(level.goalX + 6, level.floorY - 114, 9, 0xfef3c7);
+  finial.setStrokeStyle(2, 0xf59e0b);
+
+  const label = scene.add.text(level.goalX + 20, level.floorY - 146, 'GOAL', {
+    color: '#fff7ed',
+    fontFamily: 'monospace',
+    fontSize: '13px',
+    fontStyle: 'bold',
+  });
+  label.setShadow(0, 0, '#fb923c', 12, false, true);
 }
 
 export function createPlayer(
@@ -158,13 +186,47 @@ export function createCheckpoints(
   const checkpoints: CheckpointInstance[] = [];
 
   for (const checkpoint of level.checkpoints) {
-    scene.add.rectangle(checkpoint.x, checkpoint.y - 32, 6, 84, 0xf8fafc);
-    const banner = scene.add.rectangle(checkpoint.x + 18, checkpoint.y - 56, 34, 18, 0x475569);
-    banner.setOrigin(0, 0.5);
+    const pole = scene.add.rectangle(checkpoint.x, checkpoint.y - 42, 6, 104, 0xe2e8f0);
+    pole.setStrokeStyle(2, 0xf8fafc, 0.65);
+
+    const halo = scene.add.circle(checkpoint.x, checkpoint.y - 106, 22, 0x38bdf8, 0.16);
+    halo.setStrokeStyle(3, 0x7dd3fc, 0.48);
+
+    const beacon = scene.add.circle(checkpoint.x, checkpoint.y - 106, 9, 0x38bdf8, 0.96);
+    beacon.setStrokeStyle(2, 0xe0f2fe);
+
+    const badge = scene.add.text(checkpoint.x + 12, checkpoint.y - 114, 'CHECKPOINT', {
+      color: '#e0f2fe',
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      fontStyle: 'bold',
+      letterSpacing: 1,
+    });
+    badge.setShadow(0, 0, '#38bdf8', 10, false, true);
+
+    scene.tweens.add({
+      targets: halo,
+      alpha: { from: 0.1, to: 0.3 },
+      scaleX: { from: 0.92, to: 1.18 },
+      scaleY: { from: 0.92, to: 1.18 },
+      duration: 950,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
+
+    scene.tweens.add({
+      targets: [beacon, badge],
+      y: '-=4',
+      duration: 1200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
 
     const zone = scene.add.zone(checkpoint.x + 14, checkpoint.y - 40, 60, 92);
     scene.physics.add.existing(zone, true);
-    checkpoints.push({ definition: checkpoint, zone, banner, active: false });
+    checkpoints.push({ definition: checkpoint, zone, beacon, halo, active: false });
 
     scene.physics.add.overlap(player, zone, () => {
       onActivate(checkpoint.label);

@@ -5,12 +5,13 @@ export type SceneStartData = {
   levelIndex?: number;
   lives?: number;
   deathCount?: number;
+  defeatedEnemies?: number;
   runCoinsCollected?: number;
   runStartedAt?: number;
   totalFrozenMs?: number;
 };
 
-export type InputState = { left: boolean; right: boolean; jump: boolean };
+export type InputState = { left: boolean; right: boolean; jump: boolean; attack: boolean };
 
 export type RespawnPoint = {
   x: number;
@@ -20,7 +21,7 @@ export type RespawnPoint = {
 
 export type MovingPlatformInstance = {
   block: Phaser.GameObjects.Rectangle;
-  body: Phaser.Physics.Arcade.Body;
+  body: Phaser.Physics.Arcade.StaticBody;
   config: PlatformDefinition;
   originX: number;
   originY: number;
@@ -39,6 +40,7 @@ export type EnemyInstance = {
 export type CheckpointInstance = {
   definition: CheckpointDefinition;
   zone: Phaser.GameObjects.Zone;
-  banner: Phaser.GameObjects.Rectangle;
+  beacon: Phaser.GameObjects.Arc;
+  halo: Phaser.GameObjects.Arc;
   active: boolean;
 };
