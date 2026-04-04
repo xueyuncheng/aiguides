@@ -63,7 +63,7 @@ export function useScrollManager({
         behavior,
       });
     },
-    [chatInputOffset]
+    [chatInputOffset, scrollContainerRef]
   );
 
   // Auto-scroll when messages change
@@ -111,7 +111,7 @@ export function useScrollManager({
         block: 'end',
       });
     }
-  }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollElementAboveComposer, shouldScrollInstantly]);
+  }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollContainerRef, scrollElementAboveComposer, shouldScrollInstantly]);
 
   // Focus textarea when chat is empty
   useEffect(() => {
@@ -165,7 +165,7 @@ export function useScrollManager({
     if (shouldLoadOlderMessages(scrollTop)) {
       loadOlderMessages();
     }
-  }, [loadOlderMessages, shouldLoadOlderMessages]);
+  }, [loadOlderMessages, scrollContainerRef, shouldLoadOlderMessages]);
 
   return {
     messagesEndRef,
