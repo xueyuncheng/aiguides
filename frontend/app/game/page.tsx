@@ -5,7 +5,7 @@ import { Press_Start_2P } from 'next/font/google';
 import Link from 'next/link';
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Clock3, Flag, Layers3, Maximize, Minimize, Pause, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { ArrowLeft, Layers3, Maximize, Minimize, Play, RotateCcw } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { GameSidebar } from './components/GameSidebar';
@@ -188,107 +188,77 @@ export default function GamePage() {
     );
   }
 
-  const isPaused = gameState.status === 'paused';
-  const isRunFinished = gameState.status === 'won' || gameState.status === 'lost';
-  const isStageLocked = gameState.status === 'level-complete' || isRunFinished;
-  const distanceToGoal = Math.max(0, Math.round((gameState.goalX - 30) - gameState.playerX));
   const statusLabel = formatStatus(gameState.status);
-  const runTimer = formatElapsed(gameState.elapsedSeconds);
+  const canvasFrameStyle = isFullscreen
+    ? undefined
+    : { maxWidth: 'min(100%, max(18rem, calc((100dvh - 20rem) * 16 / 9)))' };
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,243,168,0.42),_transparent_22%),linear-gradient(180deg,#7fd7ff_0%,#9be1ff_26%,#d9f7ff_58%,#fff5d7_100%)] text-slate-950">
-      <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="space-y-2">
-            <Button asChild variant="ghost" className="-ml-3 w-fit text-slate-700 hover:bg-white/50 hover:text-slate-950">
-              <Link href="/chat">
-                <ArrowLeft />
-                返回聊天
-              </Link>
-            </Button>
-            <div>
-              <p className="mb-2 text-[11px] uppercase tracking-[0.34em] text-orange-600/80">Retro Platform Lab</p>
-              <h1 className={`${retroDisplay.className} text-2xl leading-[1.5] tracking-[0.08em] sm:text-3xl`}>/game 怀旧闯关试玩</h1>
-              <p className="max-w-2xl text-sm text-slate-700">
-                这版把原来的抽象素材换成了经典红帽平台跳跃气质的原创砖块、金币、旗台和城堡配色，玩法现在扩成了 {gameState.totalLevels} 关流程，保留存档点、巡逻敌人、移动平台和整段跑分结算。
-              </p>
-            </div>
+      <div className="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <Button asChild variant="ghost" className="-ml-3 h-7 w-fit text-slate-700 hover:bg-white/55 hover:text-slate-950">
+          <Link href="/chat">
+            <ArrowLeft />
+            返回聊天
+          </Link>
+        </Button>
+
+        <section className="flex items-center justify-between gap-3 rounded-[20px] border border-white/60 bg-white/50 px-3 py-2.5 shadow-[0_12px_34px_rgba(255,173,78,0.12)] backdrop-blur-xl">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/80 bg-white/72 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-sm shadow-orange-200/10">
+            <Layers3 className="h-3.5 w-3.5 text-cyan-500" />
+            <span>第 {gameState.levelNumber} / {gameState.totalLevels} 关</span>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-1.5">
             <Button
               variant="outline"
-              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
+              size="sm"
+              className="border-orange-200 bg-white/80 text-slate-900 hover:bg-white hover:text-slate-950"
               onClick={() => void handleToggleFullscreen()}
             >
               {isFullscreen ? <Minimize /> : <Maximize />}
               {isFullscreen ? '退出全屏' : '全屏'}
             </Button>
-            <Button
-              variant="outline"
-              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
-              onClick={handleTogglePause}
-              disabled={isStageLocked}
-            >
-              {isPaused ? <Play /> : <Pause />}
-              {isPaused ? '继续' : '暂停'}
-            </Button>
-            <Button
-              variant="outline"
-              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
-              onClick={handleRestart}
-            >
-              <RotateCcw />
-              重开
-            </Button>
           </div>
-        </div>
-
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <HeroStat label="关卡" value={`${gameState.levelNumber}/${gameState.totalLevels}`} icon={<Layers3 className="h-4 w-4 text-cyan-300" />} />
-          <HeroStat label="得分" value={`${gameState.score}`} icon={<Sparkles className="h-4 w-4 text-amber-300" />} />
-          <HeroStat label="计时" value={runTimer} icon={<Clock3 className="h-4 w-4 text-sky-300" />} />
-          <HeroStat label="距终点" value={distanceToGoal === 0 ? '终点已达' : `${distanceToGoal}px`} icon={<Flag className="h-4 w-4 text-emerald-300" />} />
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
           <section className="space-y-4">
             <div
               ref={gameShellRef}
-              className="overflow-hidden rounded-[28px] border border-orange-200/80 bg-[#fff8e8]/80 p-2 shadow-2xl shadow-orange-200/40 data-[fullscreen=true]:h-screen data-[fullscreen=true]:rounded-none data-[fullscreen=true]:border-0 data-[fullscreen=true]:p-0"
+              className="overflow-hidden rounded-[28px] border border-orange-200/80 bg-[#fff8e8]/80 p-2 shadow-2xl shadow-orange-200/40 data-[fullscreen=true]:h-screen data-[fullscreen=true]:rounded-none data-[fullscreen=true]:border-0 data-[fullscreen=true]:bg-slate-950 data-[fullscreen=true]:p-0"
               data-fullscreen={isFullscreen}
             >
-              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[22px] bg-slate-900">
-                <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
-                  <div className="rounded-2xl border border-white/20 bg-[#233250]/72 px-3 py-2 text-xs text-amber-50 backdrop-blur">
-                    <p className="uppercase tracking-[0.24em] text-amber-200/80">控制</p>
-                    <p className="mt-1">`A / D` 移动，`W / Space` 起跳与二段跳，`J` 攻击，`P / Esc` 暂停，`R` 重开，过关后 `Enter` 进入下一关</p>
+              <div className="mx-auto w-full" style={canvasFrameStyle}>
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[22px] bg-slate-900">
+                  <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap items-start justify-between gap-2 p-3 sm:p-4">
+                    <div className="rounded-full border border-white/15 bg-[#22304d]/74 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-amber-100 backdrop-blur">
+                      A / D 移动 · Space 跳跃 · J 攻击 · P 暂停 · R 重开
+                    </div>
+                    <div className="rounded-full border border-white/15 bg-[#22304d]/74 px-3 py-2 text-[11px] uppercase tracking-[0.2em] text-amber-100 backdrop-blur">
+                      {gamepadConnected ? 'Gamepad' : 'Keyboard'} · {statusLabel}
+                    </div>
                   </div>
-                  <div className="rounded-2xl border border-white/20 bg-[#233250]/72 px-3 py-2 text-right text-xs text-amber-50 backdrop-blur">
-                    <p className="uppercase tracking-[0.24em] text-amber-200/80">输入状态</p>
-                    <p className="mt-1">{gamepadConnected ? '已接入手柄' : '键盘 / 触控模式'} · {statusLabel}</p>
-                    <p className="mt-1 text-amber-100/85">{gameState.isAttacking ? '冲刺挥击中' : gameState.canAttack ? '攻击已就绪' : '攻击冷却中'}</p>
-                  </div>
+                  <PhaserGameCanvas onStateChange={handleStateChange} sceneRef={sceneRef} />
+                  <GameStatusOverlay
+                    levelNumber={gameState.levelNumber}
+                    totalLevels={gameState.totalLevels}
+                    status={gameState.status}
+                    coinsCollected={gameState.coinsCollected}
+                    totalCoins={gameState.totalCoins}
+                    score={gameState.score}
+                    elapsedSeconds={gameState.elapsedSeconds}
+                    checkpointLabel={gameState.checkpointLabel}
+                    onAdvanceLevel={handleAdvanceLevel}
+                    onRestart={handleRestart}
+                    onTogglePause={handleTogglePause}
+                  />
                 </div>
-                <PhaserGameCanvas onStateChange={handleStateChange} sceneRef={sceneRef} />
-                <GameStatusOverlay
-                  levelNumber={gameState.levelNumber}
-                  totalLevels={gameState.totalLevels}
-                  status={gameState.status}
-                  coinsCollected={gameState.coinsCollected}
-                  totalCoins={gameState.totalCoins}
-                  score={gameState.score}
-                  elapsedSeconds={gameState.elapsedSeconds}
-                  checkpointLabel={gameState.checkpointLabel}
-                  onAdvanceLevel={handleAdvanceLevel}
-                  onRestart={handleRestart}
-                  onTogglePause={handleTogglePause}
-                />
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div className="rounded-3xl border border-orange-200/80 bg-[#fff8e6]/90 px-4 py-4 shadow-lg shadow-orange-200/30 backdrop-blur">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+              <div className="rounded-[24px] border border-orange-200/80 bg-[#fff8e6]/92 px-4 py-4 shadow-lg shadow-orange-200/30 backdrop-blur">
                 <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
                   <span>整段进度</span>
                   <span>{Math.round(progress)}%</span>
@@ -297,13 +267,15 @@ export default function GamePage() {
                   <div className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-lime-500" style={{ width: `${progress}%` }} />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">红砖与云台</span>
-                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">旗台存档点</span>
-                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">金币 / 小怪 / 熔岩 / 移动平台</span>
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">存档点: {gameState.checkpointLabel}</span>
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">{gameState.coinsCollected} / {gameState.totalCoins} 金币</span>
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">{gameState.defeatedEnemies} 次踩怪</span>
                 </div>
               </div>
 
-              <GameTouchControls onInputChange={setTouchInput} />
+              <div className="md:hidden">
+                <GameTouchControls onInputChange={setTouchInput} />
+              </div>
             </div>
           </section>
 
@@ -317,18 +289,6 @@ export default function GamePage() {
         </div>
       </div>
     </main>
-  );
-}
-
-function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return (
-    <div className="rounded-[28px] border border-orange-200/80 bg-[#fff8e8]/90 px-4 py-4 shadow-lg shadow-orange-200/35 backdrop-blur">
-      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-500">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <p className="text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
-    </div>
   );
 }
 

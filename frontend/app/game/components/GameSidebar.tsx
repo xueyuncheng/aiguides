@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock3, Flag, Heart, MapPinned, Sparkles, Swords, Trophy } from 'lucide-react';
+import { Flag, Heart, MapPinned, Sparkles, Trophy } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import type { GameSnapshot } from '../game/state';
@@ -18,15 +18,20 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
   const finishLine = Math.max(1, gameState.goalX - 30);
   const distanceToGoal = Math.max(0, Math.round(finishLine - gameState.playerX));
   const completion = gameState.status === 'won' ? 100 : Math.min(100, Math.round((gameState.playerX / finishLine) * 100));
+  const shouldShowDebugPanel = gamepadConnected || gamepadDebug.length > 0;
 
   return (
-    <aside className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
+    <aside className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1 xl:self-start">
       <Card className="border-amber-200/80 bg-[#fff8e5]/90 text-slate-900 shadow-xl shadow-orange-200/40 backdrop-blur">
-        <CardHeader>
-          <CardTitle>{gameState.levelName}</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle>关卡概览</CardTitle>
           <CardDescription className="text-slate-600">{gameState.levelTagline}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
+          <div className="rounded-[24px] border border-orange-100 bg-white/75 px-4 py-4">
+            <p className="text-xs uppercase tracking-[0.22em] text-slate-500">当前场景</p>
+            <p className="mt-2 text-lg font-semibold text-slate-900">{gameState.levelName}</p>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
             <MetricTile icon={<Sparkles className="h-4 w-4 text-amber-300" />} label="关卡硬币" value={`${gameState.coinsCollected} / ${gameState.totalCoins}`} />
             <MetricTile icon={<Heart className="h-4 w-4 text-rose-300" />} label="生命" value={`${gameState.lives}`} />
@@ -44,59 +49,34 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
           </div>
           <StatusRow label="流程关卡" value={`${gameState.levelNumber} / ${gameState.totalLevels}`} />
           <StatusRow label="状态" value={formatStatus(gameState.status)} />
-          <StatusRow label="跳跃状态" value={gameState.canJump ? '地面起跳或二段跳已就绪' : '空中移动中'} />
-        </CardContent>
-      </Card>
-
-      <Card className="border-amber-200/80 bg-[#fff8e5]/90 text-slate-900 shadow-xl shadow-orange-200/40 backdrop-blur">
-        <CardHeader>
-          <CardTitle>跑分状态</CardTitle>
-          <CardDescription className="text-slate-600">现在不只是通关，还能看完整段怀旧流程的表现。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm text-slate-700">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-            <MetricTile icon={<Sparkles className="h-4 w-4 text-cyan-300" />} label="总得分" value={`${gameState.score}`} />
-            <MetricTile icon={<Swords className="h-4 w-4 text-orange-300" />} label="踩掉小怪" value={`${gameState.defeatedEnemies}`} />
-            <MetricTile icon={<Clock3 className="h-4 w-4 text-sky-300" />} label="总用时" value={formatElapsed(gameState.elapsedSeconds)} />
-            <MetricTile icon={<Flag className="h-4 w-4 text-amber-300" />} label="总收集" value={`${gameState.runCoinsCollected} / ${gameState.runCoinsTotal}`} />
-            <MetricTile icon={<Heart className="h-4 w-4 text-rose-300" />} label="跌落次数" value={`${gameState.deathCount}`} />
-          </div>
-          <StatusRow label="输入设备" value={gamepadConnected ? '手柄在线' : '键盘 / 触控'} />
-          <StatusRow label="攻击状态" value={gameState.isAttacking ? '冲刺挥击中' : gameState.canAttack ? '已就绪' : '冷却中'} />
-        </CardContent>
-      </Card>
-
-      <Card className="border-amber-200/80 bg-[#fff8e5]/90 text-slate-900 shadow-xl shadow-orange-200/40 backdrop-blur">
-        <CardHeader>
-          <CardTitle>操作说明</CardTitle>
-          <CardDescription className="text-slate-600">这版现在是偏经典主机味道的 {gameState.totalLevels} 关横版试玩。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm text-slate-700">
-          <p>目标是穿过 {gameState.totalLevels} 关，收集金币、踩掉巡逻小怪，并避开尖刺和熔岩。</p>
-          <p>键盘支持方向键或 A / D 移动，W / Space / ↑ 跳跃与二段跳，J 冲刺攻击，P 或 Esc 暂停，R 重开。</p>
-          <p>过关后可直接进下一关；后半段会逐步切进更密集的移动浮台、机关砖塔和终盘云桥。</p>
-          <p>移动端按钮继续保留 pointer capture，长按输入更稳，跳跃仍然保留缓冲、 coyote time 和一次空中二段跳。</p>
-          <p>手柄支持左摇杆或 D-pad 左右移动，A / B 跳跃，X / RB 攻击，Start / Menu 暂停。</p>
+          <StatusRow label="跳跃状态" value={gameState.canJump ? '落地可起跳 / 二段跳可用' : '空中移动中'} />
         </CardContent>
       </Card>
 
       <Card className="border-amber-200/80 bg-[#fff8e5]/90 text-slate-900 shadow-xl shadow-orange-200/40 backdrop-blur sm:col-span-2 xl:col-span-1">
-        <CardHeader>
-          <CardTitle>手柄调试</CardTitle>
-          <CardDescription className="text-slate-600">这里显示浏览器当前读到的 Gamepad 状态。</CardDescription>
+        <CardHeader className="pb-4">
+          <CardTitle>简明提示</CardTitle>
+          <CardDescription className="text-slate-600">把长说明收成一块，不再挤占首屏空间。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-700">
-          {gamepadDebug.length === 0 ? (
-            <p>当前没有检测到已连接手柄。插上后请先按一下任意键。</p>
-          ) : (
-            gamepadDebug.map((pad) => (
-              <div key={`${pad.index}-${pad.id}`} className="rounded-2xl border border-orange-100 bg-white/75 p-3">
-                <p className="font-medium text-slate-900">#{pad.index} {pad.id}</p>
-                <p className="mt-1 text-slate-600">映射: {pad.mapping}</p>
-                <p className="mt-1 text-slate-600">轴: {pad.axes}</p>
-                <p className="mt-1 text-slate-600">按下按钮: {pad.pressedButtons}</p>
+          <p>目标是穿过 {gameState.totalLevels} 关，拿金币、躲机关、踩掉巡逻小怪，最后冲过旗台。</p>
+          <p>键盘用 A / D 或方向键移动，W / Space / ↑ 起跳，J 攻击，P 或 Esc 暂停，R 立即重开。</p>
+          <p>如果接入手柄，可用左摇杆或方向键移动，A / B 跳跃，X / RB 攻击，Start / Menu 暂停。</p>
+
+          {shouldShowDebugPanel && (
+            <details className="rounded-[22px] border border-orange-100 bg-white/75 px-4 py-3">
+              <summary className="cursor-pointer list-none text-sm font-medium text-slate-900">查看输入诊断</summary>
+              <div className="mt-3 space-y-3 text-sm text-slate-700">
+                {gamepadDebug.map((pad) => (
+                  <div key={`${pad.index}-${pad.id}`} className="rounded-2xl border border-orange-100 bg-[#fff8e5] p-3">
+                    <p className="font-medium text-slate-900">#{pad.index} {pad.id}</p>
+                    <p className="mt-1 text-slate-600">映射: {pad.mapping}</p>
+                    <p className="mt-1 text-slate-600">轴: {pad.axes}</p>
+                    <p className="mt-1 text-slate-600">按下按钮: {pad.pressedButtons}</p>
+                  </div>
+                ))}
               </div>
-            ))
+            </details>
           )}
         </CardContent>
       </Card>
@@ -169,8 +149,3 @@ function formatStatus(status: GameSnapshot['status']) {
   return '进行中';
 }
 
-function formatElapsed(elapsedSeconds: number) {
-  const minutes = Math.floor(elapsedSeconds / 60);
-  const seconds = elapsedSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
