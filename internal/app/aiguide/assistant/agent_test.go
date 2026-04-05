@@ -136,6 +136,12 @@ func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
 	}
 }
 
+func TestExecutorAgentInstructionMentionsMemoryTool(t *testing.T) {
+	if !strings.Contains(executorAgentInstruction, "`manage_memory`") {
+		t.Fatal("executorAgentInstruction missing executor tool `manage_memory`")
+	}
+}
+
 func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{

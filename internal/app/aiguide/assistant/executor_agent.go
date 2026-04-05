@@ -76,6 +76,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create current time tool: %w", err)
 	}
 
+	memoryTool, err := tools.NewMemoryTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manage_memory tool: %w", err)
+	}
+
 	pdfExtractTextTool, err := tools.NewPDFExtractTextTool(config.DB, config.FileStore, config.PDFWorkDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pdf_extract_text tool: %w", err)
@@ -124,6 +129,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		Tools: []tool.Tool{
 			// 功能工具
 			currentTimeTool, // Get current date/time - use before web_search for time-sensitive queries
+			memoryTool,
 			imageGenTool,
 			emailQueryTool,
 			sendEmailTool,
