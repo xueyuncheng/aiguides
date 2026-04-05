@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Press_Start_2P } from 'next/font/google';
 import Link from 'next/link';
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +18,8 @@ const PhaserGameCanvas = dynamic(
   () => import('./components/PhaserGameCanvas').then((mod) => mod.PhaserGameCanvas),
   { ssr: false }
 );
+
+const retroDisplay = Press_Start_2P({ subsets: ['latin'], weight: '400' });
 
 export default function GamePage() {
   const router = useRouter();
@@ -193,21 +196,21 @@ export default function GamePage() {
   const runTimer = formatElapsed(gameState.elapsedSeconds);
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.18),_transparent_26%),linear-gradient(180deg,#020617_0%,#0f172a_55%,#111827_100%)] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,243,168,0.42),_transparent_22%),linear-gradient(180deg,#7fd7ff_0%,#9be1ff_26%,#d9f7ff_58%,#fff5d7_100%)] text-slate-950">
       <div className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="space-y-2">
-            <Button asChild variant="ghost" className="-ml-3 w-fit text-slate-200 hover:bg-white/10 hover:text-white">
+            <Button asChild variant="ghost" className="-ml-3 w-fit text-slate-700 hover:bg-white/50 hover:text-slate-950">
               <Link href="/chat">
                 <ArrowLeft />
                 返回聊天
               </Link>
             </Button>
             <div>
-              <p className="mb-2 text-[11px] uppercase tracking-[0.34em] text-cyan-300/80">Arcade Playground</p>
-              <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">/game 超级跳跃试玩</h1>
-              <p className="max-w-2xl text-sm text-slate-300">
-                现在已经升级成双关卡短流程：有巡逻敌人、危险地形、checkpoint 和跑分结算，方向从单关原型切到可持续扩展的小型平台游戏。
+              <p className="mb-2 text-[11px] uppercase tracking-[0.34em] text-orange-600/80">Retro Platform Lab</p>
+              <h1 className={`${retroDisplay.className} text-2xl leading-[1.5] tracking-[0.08em] sm:text-3xl`}>/game 蘑菇大道试玩</h1>
+              <p className="max-w-2xl text-sm text-slate-700">
+                这版把原来的抽象素材换成了经典红帽平台跳跃气质的原创砖块、金币、旗台和城堡配色，玩法仍然保留双关卡、存档点、巡逻敌人和跑分结算。
               </p>
             </div>
           </div>
@@ -215,7 +218,7 @@ export default function GamePage() {
           <div className="flex flex-wrap gap-3">
             <Button
               variant="outline"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
               onClick={() => void handleToggleFullscreen()}
             >
               {isFullscreen ? <Minimize /> : <Maximize />}
@@ -223,7 +226,7 @@ export default function GamePage() {
             </Button>
             <Button
               variant="outline"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
               onClick={handleTogglePause}
               disabled={isStageLocked}
             >
@@ -232,7 +235,7 @@ export default function GamePage() {
             </Button>
             <Button
               variant="outline"
-              className="border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              className="border-orange-200 bg-white/70 text-slate-900 hover:bg-white hover:text-slate-950"
               onClick={handleRestart}
             >
               <RotateCcw />
@@ -252,19 +255,19 @@ export default function GamePage() {
           <section className="space-y-4">
             <div
               ref={gameShellRef}
-              className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-900/80 p-2 shadow-2xl shadow-slate-950/40 data-[fullscreen=true]:h-screen data-[fullscreen=true]:rounded-none data-[fullscreen=true]:border-0 data-[fullscreen=true]:p-0"
+              className="overflow-hidden rounded-[28px] border border-orange-200/80 bg-[#fff8e8]/80 p-2 shadow-2xl shadow-orange-200/40 data-[fullscreen=true]:h-screen data-[fullscreen=true]:rounded-none data-[fullscreen=true]:border-0 data-[fullscreen=true]:p-0"
               data-fullscreen={isFullscreen}
             >
               <div className="relative aspect-[16/9] w-full overflow-hidden rounded-[22px] bg-slate-900">
                 <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-3 p-3">
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2 text-xs text-slate-100 backdrop-blur">
-                    <p className="uppercase tracking-[0.24em] text-slate-400">控制</p>
+                  <div className="rounded-2xl border border-white/20 bg-[#233250]/72 px-3 py-2 text-xs text-amber-50 backdrop-blur">
+                    <p className="uppercase tracking-[0.24em] text-amber-200/80">控制</p>
                     <p className="mt-1">`A / D` 移动，`W / Space` 起跳与二段跳，`J` 攻击，`P / Esc` 暂停，`R` 重开，过关后 `Enter` 进入下一关</p>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-slate-950/55 px-3 py-2 text-right text-xs text-slate-100 backdrop-blur">
-                    <p className="uppercase tracking-[0.24em] text-slate-400">输入状态</p>
+                  <div className="rounded-2xl border border-white/20 bg-[#233250]/72 px-3 py-2 text-right text-xs text-amber-50 backdrop-blur">
+                    <p className="uppercase tracking-[0.24em] text-amber-200/80">输入状态</p>
                     <p className="mt-1">{gamepadConnected ? '已接入手柄' : '键盘 / 触控模式'} · {statusLabel}</p>
-                    <p className="mt-1 text-slate-300">{gameState.isAttacking ? '攻击特效播放中' : gameState.canAttack ? '攻击已就绪' : '攻击冷却中'}</p>
+                    <p className="mt-1 text-amber-100/85">{gameState.isAttacking ? '冲刺挥击中' : gameState.canAttack ? '攻击已就绪' : '攻击冷却中'}</p>
                   </div>
                 </div>
                 <PhaserGameCanvas onStateChange={handleStateChange} sceneRef={sceneRef} />
@@ -285,18 +288,18 @@ export default function GamePage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-              <div className="rounded-3xl border border-white/10 bg-white/5 px-4 py-4 backdrop-blur">
-                <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-300">
+              <div className="rounded-3xl border border-orange-200/80 bg-[#fff8e6]/90 px-4 py-4 shadow-lg shadow-orange-200/30 backdrop-blur">
+                <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.2em] text-slate-500">
                   <span>整段进度</span>
                   <span>{Math.round(progress)}%</span>
                 </div>
-                <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500" style={{ width: `${progress}%` }} />
+                <div className="h-3 overflow-hidden rounded-full bg-orange-100">
+                  <div className="h-full rounded-full bg-gradient-to-r from-orange-500 via-amber-400 to-lime-500" style={{ width: `${progress}%` }} />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-300">
-                  <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">双关卡短流程</span>
-                  <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">checkpoint 复活</span>
-                  <span className="rounded-full border border-white/10 bg-black/10 px-3 py-1">敌人 / 攻击 / 危险区 / 移动平台</span>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">红砖与云台</span>
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">旗台存档点</span>
+                  <span className="rounded-full border border-orange-100 bg-white/75 px-3 py-1">金币 / 小怪 / 熔岩 / 移动平台</span>
                 </div>
               </div>
 
@@ -319,12 +322,12 @@ export default function GamePage() {
 
 function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="rounded-[28px] border border-white/10 bg-white/6 px-4 py-4 shadow-lg shadow-slate-950/10 backdrop-blur">
-      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-400">
+    <div className="rounded-[28px] border border-orange-200/80 bg-[#fff8e8]/90 px-4 py-4 shadow-lg shadow-orange-200/35 backdrop-blur">
+      <div className="mb-2 flex items-center gap-2 text-xs uppercase tracking-[0.24em] text-slate-500">
         {icon}
         <span>{label}</span>
       </div>
-      <p className="text-2xl font-semibold tracking-tight text-white">{value}</p>
+      <p className="text-2xl font-semibold tracking-tight text-slate-950">{value}</p>
     </div>
   );
 }
@@ -364,21 +367,21 @@ function GameStatusOverlay({
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-[32px] border border-white/15 bg-slate-950/80 p-6 text-center shadow-2xl shadow-black/50">
-        <p className="text-[11px] uppercase tracking-[0.34em] text-cyan-300/80">
+      <div className="w-full max-w-md rounded-[32px] border border-amber-200/30 bg-slate-950/82 p-6 text-center shadow-2xl shadow-black/50">
+        <p className="text-[11px] uppercase tracking-[0.34em] text-amber-300/80">
           {isPaused ? 'Paused' : isLevelComplete ? 'Checkpoint Locked In' : isWon ? 'Run Complete' : 'Try Again'}
         </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-white">
+        <h2 className={`${retroDisplay.className} mt-3 text-2xl leading-[1.5] tracking-[0.08em] text-white`}>
           {isPaused ? '游戏已暂停' : isLevelComplete ? `第 ${levelNumber} 关完成` : isWon ? '整段流程通关' : '这次翻车了'}
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-200">
           {isPaused
-            ? '可以直接继续，也可以重开这一局。键盘、触控和手柄的暂停逻辑已统一。'
+            ? '可以直接继续，也可以重开这一局。键盘、触控和手柄的暂停逻辑已经统一。'
             : isLevelComplete
-              ? `当前关卡收集 ${coinsCollected} / ${totalCoins} 枚硬币，最近 checkpoint 是“${checkpointLabel}”。按 Enter 或点按钮进入第 ${Math.min(levelNumber + 1, totalLevels)} 关。`
+              ? `当前关卡收集 ${coinsCollected} / ${totalCoins} 枚金币，最近存档点是“${checkpointLabel}”。按 Enter 或点按钮进入第 ${Math.min(levelNumber + 1, totalLevels)} 关。`
               : isWon
-                ? `本次流程总分 ${score}，总用时 ${formatElapsed(elapsedSeconds)}。你已经把当前双关卡短流程跑完了。`
-                : `最近 checkpoint 是“${checkpointLabel}”。点重开会从第一关重新开始整段流程。`}
+                ? `本次流程总分 ${score}，总用时 ${formatElapsed(elapsedSeconds)}。你已经把当前双关卡怀旧流程跑完了。`
+                : `最近存档点是“${checkpointLabel}”。点重开会从第一关重新开始整段流程。`}
         </p>
         <div className="mt-4 grid gap-2 rounded-3xl border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-slate-200 sm:grid-cols-2">
           <div>

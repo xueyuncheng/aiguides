@@ -540,7 +540,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.renderAttackEffect(facing, hitEnemy);
-    this.player.setTint(hitEnemy ? 0xfef08a : 0xfda4af);
+    this.player.setTint(hitEnemy ? 0xffef8f : 0xffb27d);
     this.time.delayedCall(ATTACK_ACTIVE_MS, () => {
       if (this.player && this.status !== 'lost') {
         this.player.clearTint();
@@ -558,7 +558,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.attackEffect?.destroy();
-    const effectColor = hitEnemy ? 0xfacc15 : 0xf97316;
+    const effectColor = hitEnemy ? 0xffd84f : 0xe55433;
     const startAngle = facing > 0 ? 312 : 48;
     const endAngle = facing > 0 ? 48 : 132;
     const effect = this.add.arc(
@@ -571,7 +571,7 @@ export class GameScene extends Phaser.Scene {
       effectColor,
       0.28
     );
-    effect.setStrokeStyle(8, 0xf8fafc, hitEnemy ? 0.95 : 0.7);
+    effect.setStrokeStyle(8, 0xfff8dd, hitEnemy ? 0.95 : 0.7);
     effect.setDepth(18);
     this.attackEffect = effect;
 
@@ -599,15 +599,15 @@ export class GameScene extends Phaser.Scene {
 
     this.clearAirJumpEffects();
 
-    const ring = this.add.circle(this.player.x, this.player.y + 18, 12, 0x67e8f9, 0.2);
-    ring.setStrokeStyle(4, 0xf8fafc, 0.9);
+    const ring = this.add.circle(this.player.x, this.player.y + 18, 12, 0xffd84f, 0.22);
+    ring.setStrokeStyle(4, 0xfff8dd, 0.9);
     ring.setDepth(17);
 
-    const leftTrail = this.add.triangle(this.player.x - 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0x38bdf8, 0.7);
+    const leftTrail = this.add.triangle(this.player.x - 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0xe55433, 0.72);
     leftTrail.setDepth(16);
     leftTrail.setAngle(-18);
 
-    const rightTrail = this.add.triangle(this.player.x + 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0x22d3ee, 0.7);
+    const rightTrail = this.add.triangle(this.player.x + 12, this.player.y + 12, 0, 16, 10, 0, 20, 16, 0xffd84f, 0.72);
     rightTrail.setDepth(16);
     rightTrail.setAngle(18);
 

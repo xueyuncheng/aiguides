@@ -2,49 +2,71 @@ import * as Phaser from 'phaser';
 import { GAME_HEIGHT, type LevelConfig, type PlatformTheme } from '../levels';
 import type { CheckpointInstance, EnemyInstance, MovingPlatformInstance } from './types';
 
-const PLAYER_SIZE = { width: 34, height: 48 };
+const PLAYER_SIZE = { width: 30, height: 44 };
 
 export function drawBackdrop(scene: Phaser.Scene, level: LevelConfig, levelIndex: number) {
   scene.add.rectangle(level.worldWidth / 2, GAME_HEIGHT / 2, level.worldWidth, GAME_HEIGHT, level.theme.sky);
-  scene.add.rectangle(level.worldWidth / 2, 96, level.worldWidth, 140, level.theme.mist, 0.18);
+  scene.add.rectangle(level.worldWidth / 2, 110, level.worldWidth, 160, level.theme.mist, levelIndex === 0 ? 0.28 : 0.18);
 
-  for (const cloudX of [180, 540, 960, 1320, 1760, 2140, 2580]) {
-    scene.add.ellipse(cloudX, 120, 92, 44, 0xffffff, levelIndex === 0 ? 0.85 : 0.22);
-    scene.add.ellipse(cloudX + 40, 110, 76, 36, 0xffffff, levelIndex === 0 ? 0.85 : 0.22);
-    scene.add.ellipse(cloudX - 36, 110, 70, 34, 0xffffff, levelIndex === 0 ? 0.85 : 0.22);
+  const sun = scene.add.circle(levelIndex === 0 ? 170 : 240, 108, levelIndex === 0 ? 54 : 44, 0xfff3a8, 0.96);
+  sun.setStrokeStyle(10, 0xffd54d, 0.35);
+
+  for (const [cloudX, cloudY] of [
+    [170, 122],
+    [520, 94],
+    [900, 136],
+    [1280, 108],
+    [1660, 128],
+    [2040, 102],
+    [2420, 140],
+  ]) {
+    drawCloud(scene, cloudX, cloudY, levelIndex === 0 ? 0.95 : 0.72);
   }
 
-  for (const hill of [320, 860, 1540, 2050, 2670]) {
-    scene.add.triangle(hill, level.floorY, 0, 160, 160, 0, 320, 160, level.theme.hillNear).setOrigin(0.5, 1);
-    scene.add.triangle(hill + 190, level.floorY, 0, 120, 120, 0, 240, 120, level.theme.hillFar).setOrigin(0.5, 1);
+  for (const hill of [250, 760, 1320, 1860, 2460]) {
+    drawHill(scene, hill, level.floorY, level.theme.hillFar, 250, 124);
+    drawHill(scene, hill + 170, level.floorY, level.theme.hillNear, 320, 172);
+  }
+
+  for (const bush of [140, 470, 920, 1430, 1810, 2240, 2690]) {
+    drawBush(scene, bush, level.floorY - 14, level.theme.hillNear);
+  }
+
+  scene.add.rectangle(level.worldWidth / 2, level.floorY - 5, level.worldWidth, 14, 0x7ccc4b, 0.9);
+
+  if (levelIndex === 1) {
+    drawCastleSilhouette(scene, level.worldWidth - 240, level.floorY - 32, 0x3e241a);
   }
 }
 
 export function createPlatforms(scene: Phaser.Scene, level: LevelConfig) {
+  ensurePlatformTextures(scene);
+
   const groundHeight = GAME_HEIGHT - level.floorY;
   const platforms = scene.physics.add.staticGroup();
   const movingPlatforms: MovingPlatformInstance[] = [];
 
-  const floor = scene.add.rectangle(
+  const floor = scene.add.tileSprite(
     level.worldWidth / 2,
     level.floorY + groundHeight / 2,
     level.worldWidth,
     groundHeight,
-    level.theme.ground
+    'ground-tile'
   );
   scene.physics.add.existing(floor, true);
   platforms.add(floor as unknown as Phaser.Physics.Arcade.Image);
 
   for (const platform of level.platforms) {
+    const textureKey = getPlatformTextureKey(platform.theme);
+
     if (platform.movement) {
-      const block = scene.add.rectangle(
+      const block = scene.add.tileSprite(
         platform.x + platform.width / 2,
         platform.y + platform.height / 2,
         platform.width,
         platform.height,
-        getPlatformFill(platform.theme)
+        textureKey
       );
-      block.setStrokeStyle(2, getPlatformStroke(platform.theme));
       scene.physics.add.existing(block, true);
 
       const body = block.body as Phaser.Physics.Arcade.StaticBody;
@@ -63,14 +85,13 @@ export function createPlatforms(scene: Phaser.Scene, level: LevelConfig) {
       continue;
     }
 
-    const block = scene.add.rectangle(
+    const block = scene.add.tileSprite(
       platform.x + platform.width / 2,
       platform.y + platform.height / 2,
       platform.width,
       platform.height,
-      getPlatformFill(platform.theme)
+      textureKey
     );
-    block.setStrokeStyle(2, getPlatformStroke(platform.theme));
     scene.physics.add.existing(block, true);
     platforms.add(block as unknown as Phaser.Physics.Arcade.Image);
   }
@@ -79,40 +100,51 @@ export function createPlatforms(scene: Phaser.Scene, level: LevelConfig) {
 }
 
 export function createGoal(scene: Phaser.Scene, level: LevelConfig) {
-  const pole = scene.add.rectangle(level.goalX, level.floorY - 104, 12, 204, 0xe2e8f0).setOrigin(0, 0);
-  pole.setStrokeStyle(2, 0xf8fafc, 0.8);
+  ensurePlatformTextures(scene);
 
-  const glow = scene.add.circle(level.goalX + 58, level.floorY - 124, 30, level.theme.accent, 0.18);
-  glow.setStrokeStyle(2, 0xfef3c7, 0.35);
+  scene.add.tileSprite(level.goalX + 54, level.floorY - 18, 120, 36, 'platform-ember');
+  const tower = scene.add.tileSprite(level.goalX + 100, level.floorY - 106, 56, 140, 'platform-ember');
+  const towerTrim = scene.add.rectangle(level.goalX + 100, level.floorY - 174, 68, 16, 0xc27a3c);
+
+  for (const offset of [-18, 0, 18]) {
+    scene.add.rectangle(level.goalX + 82 + offset, level.floorY - 190, 14, 18, 0xc27a3c);
+  }
+
+  const pole = scene.add.rectangle(level.goalX + 6, level.floorY - 112, 10, 208, 0xf8fafc).setOrigin(0, 0);
+  pole.setStrokeStyle(2, 0xf8d16e, 0.72);
 
   const flag = scene.add.triangle(
-    level.goalX + 66,
-    level.floorY - 92,
+    level.goalX + 70,
+    level.floorY - 98,
     0,
     0,
     0,
-    46,
-    68,
-    23,
-    level.theme.accent,
+    50,
+    74,
+    24,
+    0xe55433,
     0.98
   );
-  flag.setOrigin(0.12, 0.1);
-  flag.setStrokeStyle(2, 0xfffbeb, 0.9);
+  flag.setOrigin(0.1, 0.1);
+  flag.setStrokeStyle(3, 0xfff8dd, 0.92);
 
-  const stripe = scene.add.rectangle(level.goalX + 43, level.floorY - 70, 28, 6, 0xfffbeb, 0.92);
-  stripe.setAngle(-16);
+  const badge = scene.add.circle(level.goalX + 44, level.floorY - 77, 9, 0xffef8f);
+  badge.setStrokeStyle(2, 0xa8611d, 0.85);
 
-  const finial = scene.add.circle(level.goalX + 6, level.floorY - 114, 9, 0xfef3c7);
-  finial.setStrokeStyle(2, 0xf59e0b);
+  const glow = scene.add.circle(level.goalX + 42, level.floorY - 128, 34, level.theme.accent, 0.18);
+  glow.setStrokeStyle(2, 0xfff8dd, 0.42);
 
-  const label = scene.add.text(level.goalX + 20, level.floorY - 146, 'GOAL', {
-    color: '#fff7ed',
+  const finial = scene.add.circle(level.goalX + 5, level.floorY - 120, 8, 0xfff0a8);
+  finial.setStrokeStyle(2, 0xb86b1d);
+
+  const label = scene.add.text(level.goalX + 16, level.floorY - 154, 'FINISH', {
+    color: '#fff8dd',
     fontFamily: 'monospace',
     fontSize: '13px',
     fontStyle: 'bold',
   });
-  label.setShadow(0, 0, '#fb923c', 12, false, true);
+  label.setShadow(0, 0, '#ff9b3d', 12, false, true);
+  towerTrim.setDepth(tower.depth + 1);
 }
 
 export function createPlayer(
@@ -121,16 +153,36 @@ export function createPlayer(
   platforms: Phaser.Physics.Arcade.StaticGroup,
   movingPlatforms: MovingPlatformInstance[]
 ) {
-  const textureKey = 'player-block';
+  const textureKey = 'player-retro-runner';
   if (!scene.textures.exists(textureKey)) {
-    const graphics = scene.add.graphics();
-    graphics.fillStyle(0xf97316);
-    graphics.fillRoundedRect(0, 0, PLAYER_SIZE.width, PLAYER_SIZE.height, 8);
-    graphics.fillStyle(0xfef3c7);
-    graphics.fillRoundedRect(7, 8, PLAYER_SIZE.width - 14, PLAYER_SIZE.height - 20, 6);
-    graphics.fillStyle(0x111827);
-    graphics.fillCircle(11, 18, 2);
-    graphics.fillCircle(23, 18, 2);
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xc63228);
+    graphics.fillRect(7, 2, 22, 8);
+    graphics.fillRect(5, 8, 26, 4);
+    graphics.fillStyle(0x8f241d);
+    graphics.fillRect(4, 10, 28, 3);
+    graphics.fillStyle(0xf4c9a6);
+    graphics.fillRect(10, 13, 16, 10);
+    graphics.fillRect(8, 23, 20, 3);
+    graphics.fillStyle(0x23273b);
+    graphics.fillRect(13, 16, 2, 3);
+    graphics.fillRect(21, 16, 2, 3);
+    graphics.fillStyle(0xc63228);
+    graphics.fillRect(6, 24, 7, 12);
+    graphics.fillRect(23, 24, 7, 12);
+    graphics.fillStyle(0x3263b4);
+    graphics.fillRect(13, 24, 10, 14);
+    graphics.fillRect(9, 28, 6, 10);
+    graphics.fillRect(21, 28, 6, 10);
+    graphics.fillStyle(0xf0d15b);
+    graphics.fillRect(15, 28, 2, 2);
+    graphics.fillRect(19, 28, 2, 2);
+    graphics.fillStyle(0xffffff);
+    graphics.fillRect(4, 28, 4, 8);
+    graphics.fillRect(28, 28, 4, 8);
+    graphics.fillStyle(0x6f4b30);
+    graphics.fillRect(10, 38, 7, 8);
+    graphics.fillRect(19, 38, 7, 8);
     graphics.generateTexture(textureKey, PLAYER_SIZE.width, PLAYER_SIZE.height);
     graphics.destroy();
   }
@@ -138,7 +190,8 @@ export function createPlayer(
   const player = scene.physics.add.sprite(level.playerStart.x, level.playerStart.y, textureKey);
   player.setCollideWorldBounds(true);
   player.setBounce(0.03);
-  player.body?.setSize(PLAYER_SIZE.width, PLAYER_SIZE.height);
+  player.body?.setSize(PLAYER_SIZE.width - 4, PLAYER_SIZE.height - 2);
+  player.body?.setOffset(2, 2);
 
   scene.physics.add.collider(player, platforms);
   for (const platform of movingPlatforms) {
@@ -157,16 +210,26 @@ export function createCoins(
   player: Phaser.Physics.Arcade.Sprite,
   onCollect: () => void
 ) {
+  ensureCoinTexture(scene);
+
   const coins = scene.physics.add.group({ allowGravity: false, immovable: true });
 
   for (const coinPosition of level.coins) {
-    const coin = scene.add.circle(coinPosition.x, coinPosition.y, 10, 0xfacc15);
-    coin.setStrokeStyle(3, 0xfde68a);
+    const coin = scene.physics.add.sprite(coinPosition.x, coinPosition.y, 'coin-retro');
     scene.physics.add.existing(coin);
     const coinBody = coin.body as Phaser.Physics.Arcade.Body;
     coinBody.setAllowGravity(false);
-    coinBody.setCircle(10);
-    coins.add(coin as unknown as Phaser.Physics.Arcade.Sprite);
+    coinBody.setCircle(9, 1, 1);
+    coins.add(coin);
+
+    scene.tweens.add({
+      targets: coin,
+      y: coin.y - 6,
+      duration: 760,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.InOut',
+    });
   }
 
   scene.physics.add.overlap(player, coins, (_, coin) => {
@@ -186,23 +249,38 @@ export function createCheckpoints(
   const checkpoints: CheckpointInstance[] = [];
 
   for (const checkpoint of level.checkpoints) {
-    const pole = scene.add.rectangle(checkpoint.x, checkpoint.y - 42, 6, 104, 0xe2e8f0);
-    pole.setStrokeStyle(2, 0xf8fafc, 0.65);
+    const pole = scene.add.rectangle(checkpoint.x, checkpoint.y - 38, 8, 102, 0xf8fafc);
+    pole.setStrokeStyle(2, 0xf8d16e, 0.7);
 
-    const halo = scene.add.circle(checkpoint.x, checkpoint.y - 106, 22, 0x38bdf8, 0.16);
-    halo.setStrokeStyle(3, 0x7dd3fc, 0.48);
+    const pennant = scene.add.triangle(
+      checkpoint.x + 18,
+      checkpoint.y - 78,
+      0,
+      0,
+      0,
+      28,
+      38,
+      14,
+      0xe55433,
+      0.96
+    );
+    pennant.setOrigin(0.08, 0.1);
+    pennant.setStrokeStyle(2, 0xfff7dd, 0.85);
 
-    const beacon = scene.add.circle(checkpoint.x, checkpoint.y - 106, 9, 0x38bdf8, 0.96);
-    beacon.setStrokeStyle(2, 0xe0f2fe);
+    const halo = scene.add.circle(checkpoint.x + 4, checkpoint.y - 104, 24, 0xffcf5b, 0.16);
+    halo.setStrokeStyle(3, 0xffefaa, 0.52);
 
-    const badge = scene.add.text(checkpoint.x + 12, checkpoint.y - 114, 'CHECKPOINT', {
-      color: '#e0f2fe',
+    const beacon = scene.add.circle(checkpoint.x + 4, checkpoint.y - 104, 10, 0xffcf5b, 0.96);
+    beacon.setStrokeStyle(2, 0xfff7dd);
+
+    const badge = scene.add.text(checkpoint.x + 16, checkpoint.y - 114, 'SAVE', {
+      color: '#fff7dd',
       fontFamily: 'monospace',
       fontSize: '11px',
       fontStyle: 'bold',
       letterSpacing: 1,
     });
-    badge.setShadow(0, 0, '#38bdf8', 10, false, true);
+    badge.setShadow(0, 0, '#ff9b3d', 10, false, true);
 
     scene.tweens.add({
       targets: halo,
@@ -242,17 +320,17 @@ export function createHazards(
   player: Phaser.Physics.Arcade.Sprite,
   onHit: () => void
 ) {
+  ensureHazardTextures(scene);
+
   for (const hazard of level.hazards) {
-    const color = hazard.kind === 'lava' ? 0xfb7185 : 0xf43f5e;
-    const block = scene.add.rectangle(
+    const key = hazard.kind === 'lava' ? 'hazard-lava' : 'hazard-spikes';
+    const block = scene.add.tileSprite(
       hazard.x + hazard.width / 2,
       hazard.y + hazard.height / 2,
       hazard.width,
       hazard.height,
-      color,
-      hazard.kind === 'lava' ? 0.95 : 0.88
+      key
     );
-    block.setStrokeStyle(2, 0xffedd5);
     scene.physics.add.existing(block, true);
     scene.physics.add.overlap(player, block, onHit);
   }
@@ -267,16 +345,21 @@ export function createEnemies(
   collisionHandler: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback,
   collisionContext: Phaser.Scene
 ) {
-  const textureKey = 'patrol-bot';
+  const textureKey = 'patrol-critter';
   if (!scene.textures.exists(textureKey)) {
-    const graphics = scene.add.graphics();
-    graphics.fillStyle(0x0f172a);
-    graphics.fillRoundedRect(0, 0, 34, 30, 10);
-    graphics.fillStyle(0xf97316);
-    graphics.fillRoundedRect(4, 4, 26, 22, 8);
-    graphics.fillStyle(0xf8fafc);
-    graphics.fillCircle(11, 14, 3);
-    graphics.fillCircle(23, 14, 3);
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0x6d3d1f);
+    graphics.fillRect(4, 4, 26, 12);
+    graphics.fillStyle(0x895029);
+    graphics.fillRect(6, 6, 22, 8);
+    graphics.fillStyle(0xf7e2bc);
+    graphics.fillRect(8, 16, 18, 8);
+    graphics.fillStyle(0x2b1b13);
+    graphics.fillRect(12, 17, 2, 4);
+    graphics.fillRect(20, 17, 2, 4);
+    graphics.fillStyle(0xb87137);
+    graphics.fillRect(6, 23, 7, 5);
+    graphics.fillRect(21, 23, 7, 5);
     graphics.generateTexture(textureKey, 34, 30);
     graphics.destroy();
   }
@@ -301,22 +384,179 @@ export function createEnemies(
   return enemies;
 }
 
-function getPlatformFill(theme: PlatformTheme | undefined) {
-  if (theme === 'ember') {
-    return 0x9a3412;
-  }
-  if (theme === 'cloud') {
-    return 0x94a3b8;
-  }
-  return 0x65a30d;
+function drawCloud(scene: Phaser.Scene, x: number, y: number, alpha: number) {
+  scene.add.rectangle(x, y + 8, 84, 20, 0xffffff, alpha);
+  scene.add.rectangle(x - 28, y, 34, 22, 0xffffff, alpha);
+  scene.add.rectangle(x + 6, y - 8, 42, 24, 0xffffff, alpha);
+  scene.add.rectangle(x + 32, y + 2, 30, 18, 0xffffff, alpha);
+  scene.add.rectangle(x, y + 18, 90, 6, 0xd7eef9, alpha * 0.9);
 }
 
-function getPlatformStroke(theme: PlatformTheme | undefined) {
+function drawHill(scene: Phaser.Scene, centerX: number, floorY: number, color: number, width: number, height: number) {
+  const hill = scene.add.ellipse(centerX, floorY, width, height, color);
+  hill.setOrigin(0.5, 1);
+
+  const eyeLeft = scene.add.circle(centerX - 28, floorY - height * 0.48, 5, 0x152534, 0.56);
+  const eyeRight = scene.add.circle(centerX + 10, floorY - height * 0.48, 5, 0x152534, 0.56);
+  eyeLeft.setOrigin(0.5, 1);
+  eyeRight.setOrigin(0.5, 1);
+}
+
+function drawBush(scene: Phaser.Scene, x: number, y: number, color: number) {
+  scene.add.circle(x, y, 24, color);
+  scene.add.circle(x + 26, y - 6, 20, color);
+  scene.add.circle(x + 52, y, 24, color);
+}
+
+function drawCastleSilhouette(scene: Phaser.Scene, x: number, y: number, color: number) {
+  scene.add.rectangle(x, y, 124, 108, color).setOrigin(0.5, 1);
+  scene.add.rectangle(x - 42, y - 64, 34, 84, color).setOrigin(0.5, 1);
+  scene.add.rectangle(x + 42, y - 52, 34, 72, color).setOrigin(0.5, 1);
+
+  for (const offset of [-48, -22, 4, 30, 56]) {
+    scene.add.rectangle(x + offset, y - 108, 14, 18, color).setOrigin(0.5, 1);
+  }
+}
+
+function ensurePlatformTextures(scene: Phaser.Scene) {
+  ensureBrickTexture(scene, 'platform-moss', {
+    base: 0xb56a27,
+    mortar: 0x75401e,
+    highlight: 0xe6b15d,
+    cap: 0x6fb34d,
+    capShadow: 0x4d8f31,
+  });
+  ensureBrickTexture(scene, 'platform-ember', {
+    base: 0x7b3b23,
+    mortar: 0x4a2517,
+    highlight: 0xb46d3f,
+    cap: 0xc27a3c,
+    capShadow: 0x8d562b,
+  });
+
+  if (!scene.textures.exists('platform-cloud')) {
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xffffff);
+    graphics.fillRect(6, 8, 52, 16);
+    graphics.fillRect(14, 2, 38, 12);
+    graphics.fillRect(0, 14, 64, 12);
+    graphics.fillStyle(0xd8ecff);
+    graphics.fillRect(0, 22, 64, 6);
+    graphics.fillStyle(0xffef8f, 0.36);
+    graphics.fillRect(10, 6, 12, 4);
+    graphics.fillRect(40, 8, 10, 3);
+    graphics.generateTexture('platform-cloud', 64, 28);
+    graphics.destroy();
+  }
+
+  if (!scene.textures.exists('ground-tile')) {
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0x7a4a20);
+    graphics.fillRect(0, 0, 96, 64);
+    graphics.fillStyle(0x8a5728);
+    graphics.fillRect(0, 18, 96, 14);
+    graphics.fillRect(0, 44, 96, 10);
+    graphics.fillStyle(0x70ba49);
+    graphics.fillRect(0, 0, 96, 10);
+    graphics.fillStyle(0x4e9832);
+    graphics.fillRect(0, 10, 96, 6);
+    graphics.fillStyle(0xc98a4d);
+    graphics.fillRect(8, 24, 12, 8);
+    graphics.fillRect(38, 36, 16, 8);
+    graphics.fillRect(72, 22, 12, 8);
+    graphics.generateTexture('ground-tile', 96, 64);
+    graphics.destroy();
+  }
+}
+
+function ensureBrickTexture(
+  scene: Phaser.Scene,
+  key: string,
+  colors: { base: number; mortar: number; highlight: number; cap: number; capShadow: number }
+) {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  graphics.fillStyle(colors.base);
+  graphics.fillRect(0, 0, 64, 32);
+  graphics.fillStyle(colors.cap);
+  graphics.fillRect(0, 0, 64, 7);
+  graphics.fillStyle(colors.capShadow);
+  graphics.fillRect(0, 6, 64, 3);
+  graphics.lineStyle(2, colors.mortar, 0.95);
+  graphics.strokeRect(1, 1, 62, 30);
+  graphics.beginPath();
+  graphics.moveTo(0, 17);
+  graphics.lineTo(64, 17);
+  graphics.moveTo(16, 7);
+  graphics.lineTo(16, 17);
+  graphics.moveTo(48, 7);
+  graphics.lineTo(48, 17);
+  graphics.moveTo(32, 17);
+  graphics.lineTo(32, 32);
+  graphics.strokePath();
+  graphics.fillStyle(colors.highlight, 0.4);
+  graphics.fillRect(4, 10, 10, 4);
+  graphics.fillRect(35, 20, 14, 4);
+  graphics.generateTexture(key, 64, 32);
+  graphics.destroy();
+}
+
+function ensureCoinTexture(scene: Phaser.Scene) {
+  if (scene.textures.exists('coin-retro')) {
+    return;
+  }
+
+  const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  graphics.fillStyle(0xa05b00);
+  graphics.fillCircle(10, 10, 9);
+  graphics.fillStyle(0xffd84f);
+  graphics.fillCircle(10, 10, 7);
+  graphics.fillStyle(0xfff2a8);
+  graphics.fillRect(8, 4, 4, 12);
+  graphics.fillRect(6, 6, 2, 4);
+  graphics.generateTexture('coin-retro', 20, 20);
+  graphics.destroy();
+}
+
+function ensureHazardTextures(scene: Phaser.Scene) {
+  if (!scene.textures.exists('hazard-lava')) {
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0xa62b18);
+    graphics.fillRect(0, 0, 64, 16);
+    graphics.fillStyle(0xe95533);
+    graphics.fillRect(0, 2, 64, 14);
+    graphics.fillStyle(0xffd24b);
+    graphics.fillCircle(8, 6, 3);
+    graphics.fillCircle(24, 10, 2);
+    graphics.fillCircle(40, 5, 3);
+    graphics.fillCircle(56, 9, 2);
+    graphics.generateTexture('hazard-lava', 64, 16);
+    graphics.destroy();
+  }
+
+  if (!scene.textures.exists('hazard-spikes')) {
+    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    graphics.fillStyle(0x8aa0b3);
+    graphics.fillRect(0, 10, 64, 6);
+    graphics.fillStyle(0xe7eef5);
+    for (let index = 0; index < 8; index += 1) {
+      const x = index * 8;
+      graphics.fillTriangle(x, 10, x + 4, 0, x + 8, 10);
+    }
+    graphics.generateTexture('hazard-spikes', 64, 16);
+    graphics.destroy();
+  }
+}
+
+function getPlatformTextureKey(theme: PlatformTheme | undefined) {
   if (theme === 'ember') {
-    return 0xfdba74;
+    return 'platform-ember';
   }
   if (theme === 'cloud') {
-    return 0xe2e8f0;
+    return 'platform-cloud';
   }
-  return 0xfacc15;
+  return 'platform-moss';
 }
