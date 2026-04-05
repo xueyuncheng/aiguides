@@ -268,6 +268,11 @@ export function ChatPageLayout({
         {isEmptyState ? (
           <div className="flex-1 flex flex-col items-center justify-center px-3 sm:px-4 md:px-6">
             <div className="w-full max-w-4xl">
+              <div className="mx-auto mb-6 max-w-2xl px-3 text-center sm:mb-8">
+                <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 sm:text-3xl">
+                  开始对话
+                </h1>
+              </div>
               <ChatInput {...chatInputProps} centered />
             </div>
           </div>
