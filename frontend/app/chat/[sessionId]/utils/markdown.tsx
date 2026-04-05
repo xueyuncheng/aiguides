@@ -11,12 +11,55 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import SvgBlock from './SvgBlock';
 
+function getCodeLanguage(className?: string): string | undefined {
+  return /language-([^\s]+)/.exec(className || '')?.[1]?.toLowerCase();
+}
+
+function isSvgLanguage(language?: string): boolean {
+  return language === 'svg' || language === 'xml' || language === 'html' || language === 'svg+xml';
+}
+
+function looksLikeSvgMarkup(code: string): boolean {
+  const normalizedCode = code.trimStart().toLowerCase();
+  return normalizedCode.startsWith('<svg') || normalizedCode.startsWith('<?xml');
+}
+
+function getCodeChild(children: React.ReactNode): React.ReactElement<{ className?: string }> | null {
+  if (!React.isValidElement(children)) {
+    return null;
+  }
+
+  return children as React.ReactElement<{ className?: string }>;
+}
+
+function isSvgCodeElement(element: React.ReactElement<{ className?: string }> | null): boolean {
+  const language = getCodeLanguage(element?.props.className);
+  const codeString = React.Children.toArray(element?.props.children).join('').replace(/\n$/, '');
+
+  return language === 'svg' || (isSvgLanguage(language) && looksLikeSvgMarkup(codeString));
+}
+
 // Markdown plugins
 // Enable single-dollar inline math (e.g. `$T$`) for better LaTeX compatibility in chat responses.
 // Preprocess markdown to escape currency dollar signs (e.g. `$100`) before remark-math parses them.
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 
 const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),?!:;%\]]|\.(?!\d))/g;
+const fencedCodeBlockPattern = /(```[\s\S]*?```)/g;
+const rawSvgPattern = /(?:<\?xml[\s\S]*?\?>\s*)?(?:<!DOCTYPE[\s\S]*?>\s*)?<svg\b[\s\S]*?<\/svg>/gi;
+
+function transformOutsideCodeFences(content: string, transform: (segment: string) => string): string {
+  return content
+    .split(fencedCodeBlockPattern)
+    .map((segment, index) => (index % 2 === 1 ? segment : transform(segment)))
+    .join('');
+}
+
+function normalizeRawSvgBlocks(content: string): string {
+  return transformOutsideCodeFences(content, (segment) => (
+    segment.replace(rawSvgPattern, (svg) => `\n\`\`\`svg\n${svg.trim()}\n\`\`\`\n`)
+  ));
+}
 
 /**
  * Escapes dollar signs that look like standalone currency amounts,
@@ -24,7 +67,9 @@ const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),?!:;%\]]|\
  * e.g. "$100" -> "\$100", but "$2^{30} \approx 10^9$" remains unchanged.
  */
 export function preprocessMarkdown(content: string): string {
-  return content.replace(currencyPattern, '\\$$1');
+  return transformOutsideCodeFences(normalizeRawSvgBlocks(content), (segment) => (
+    segment.replace(currencyPattern, (_, amount: string) => `\\$${amount}`)
+  ));
 }
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
 
@@ -38,7 +83,7 @@ const markdownTableStyles = {
 
 // Code Block component with syntax highlighting and copy button
 const CodeBlock = ({ className, children }: { className?: string; children: React.ReactNode }) => {
-  const match = /language-(\w+)/.exec(className || '');
+  const language = getCodeLanguage(className);
   const [codeCopied, setCodeCopied] = useState(false);
   const codeString = String(children).replace(/\n$/, '');
 
@@ -55,7 +100,7 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
   return (
     <div className="my-6 rounded-lg overflow-x-auto border bg-zinc-950 dark:bg-zinc-900 text-zinc-50 relative group shadow-sm">
       <div className="px-4 py-2 text-xs bg-zinc-900 border-b border-zinc-800 flex justify-between items-center">
-        <span>{match?.[1] || 'code'}</span>
+        <span>{language || 'code'}</span>
         <button
           onClick={handleCodeCopy}
           className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-1.5 px-2 py-1 rounded hover:bg-zinc-700 text-zinc-300 hover:text-white"
@@ -76,7 +121,7 @@ const CodeBlock = ({ className, children }: { className?: string; children: Reac
         </button>
       </div>
       <SyntaxHighlighter
-        language={match?.[1] || 'text'}
+        language={language || 'text'}
         style={vscDarkPlus}
         customStyle={{
           margin: 0,
@@ -135,18 +180,31 @@ export const markdownComponents: Components = {
       className={cn(markdownTableStyles.td, className)}
     />
   ),
+  pre: ({ children, ...props }) => {
+    const codeChild = getCodeChild(children);
+
+    if (isSvgCodeElement(codeChild)) {
+      return <>{children}</>;
+    }
+
+    return <pre {...props}>{children}</pre>;
+  },
   code: ({ className, children, ...props }) => {
-    const match = /language-(\w+)/.exec(className || '');
-    const isInline = !match;
+    const language = getCodeLanguage(className);
+    const codeString = String(children).replace(/\n$/, '');
+    const isSvgBlock = language === 'svg' || (isSvgLanguage(language) && looksLikeSvgMarkup(codeString));
+    const isInline = !language;
+
+    if (isSvgBlock) {
+      return <SvgBlock>{children}</SvgBlock>;
+    }
+
     if (isInline) {
       return (
         <code className="bg-muted px-1.5 py-0.5 rounded text-[13px] font-mono text-foreground break-all" {...props}>
           {children}
         </code>
       );
-    }
-    if (match && match[1] === 'svg') {
-      return <SvgBlock>{children}</SvgBlock>;
     }
     return (
       <CodeBlock className={className}>
