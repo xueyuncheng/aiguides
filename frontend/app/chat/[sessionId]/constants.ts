@@ -34,3 +34,4 @@ export const MIN_SCROLL_THRESHOLD = 5; // 像素
 export const MIN_SCROLL_DISTANCE = 100; // 像素
 export const SCROLL_DEBOUNCE_DELAY = 50; // 毫秒
 export const FEEDBACK_TIMEOUT_MS = 2000; // 毫秒
+export const COMPOSER_MESSAGE_GAP = 48; // 像素

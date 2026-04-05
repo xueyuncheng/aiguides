@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MAX_TEXTAREA_HEIGHT } from '../constants';
+import { COMPOSER_MESSAGE_GAP, MAX_TEXTAREA_HEIGHT } from '../constants';
 import type { Message } from '../types';
 
 const DEFAULT_COMPOSER_OFFSET = 160;
@@ -55,7 +55,7 @@ export function useScrollManager({
       const elementRect = element.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
       const offsetWithinContainer = elementRect.bottom - containerRect.top;
-      const visibleHeight = container.clientHeight - chatInputOffset;
+      const visibleHeight = container.clientHeight - chatInputOffset - COMPOSER_MESSAGE_GAP;
       const targetScrollTop = container.scrollTop + offsetWithinContainer - visibleHeight;
 
       container.scrollTo({
