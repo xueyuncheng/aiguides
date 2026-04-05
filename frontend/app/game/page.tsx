@@ -208,9 +208,9 @@ export default function GamePage() {
             </Button>
             <div>
               <p className="mb-2 text-[11px] uppercase tracking-[0.34em] text-orange-600/80">Retro Platform Lab</p>
-              <h1 className={`${retroDisplay.className} text-2xl leading-[1.5] tracking-[0.08em] sm:text-3xl`}>/game 蘑菇大道试玩</h1>
+              <h1 className={`${retroDisplay.className} text-2xl leading-[1.5] tracking-[0.08em] sm:text-3xl`}>/game 怀旧闯关试玩</h1>
               <p className="max-w-2xl text-sm text-slate-700">
-                这版把原来的抽象素材换成了经典红帽平台跳跃气质的原创砖块、金币、旗台和城堡配色，玩法仍然保留双关卡、存档点、巡逻敌人和跑分结算。
+                这版把原来的抽象素材换成了经典红帽平台跳跃气质的原创砖块、金币、旗台和城堡配色，玩法现在扩成了 {gameState.totalLevels} 关流程，保留存档点、巡逻敌人、移动平台和整段跑分结算。
               </p>
             </div>
           </div>
@@ -380,7 +380,7 @@ function GameStatusOverlay({
             : isLevelComplete
               ? `当前关卡收集 ${coinsCollected} / ${totalCoins} 枚金币，最近存档点是“${checkpointLabel}”。按 Enter 或点按钮进入第 ${Math.min(levelNumber + 1, totalLevels)} 关。`
               : isWon
-                ? `本次流程总分 ${score}，总用时 ${formatElapsed(elapsedSeconds)}。你已经把当前双关卡怀旧流程跑完了。`
+                ? `本次流程总分 ${score}，总用时 ${formatElapsed(elapsedSeconds)}。你已经把当前 ${totalLevels} 关怀旧流程跑完了。`
                 : `最近存档点是“${checkpointLabel}”。点重开会从第一关重新开始整段流程。`}
         </p>
         <div className="mt-4 grid gap-2 rounded-3xl border border-white/10 bg-black/20 px-4 py-3 text-left text-sm text-slate-200 sm:grid-cols-2">

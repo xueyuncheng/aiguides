@@ -436,16 +436,41 @@ function ensurePlatformTextures(scene: Phaser.Scene) {
 
   if (!scene.textures.exists('platform-cloud')) {
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
-    graphics.fillStyle(0xffffff);
-    graphics.fillRect(6, 8, 52, 16);
-    graphics.fillRect(14, 2, 38, 12);
-    graphics.fillRect(0, 14, 64, 12);
-    graphics.fillStyle(0xd8ecff);
-    graphics.fillRect(0, 22, 64, 6);
-    graphics.fillStyle(0xffef8f, 0.36);
-    graphics.fillRect(10, 6, 12, 4);
-    graphics.fillRect(40, 8, 10, 3);
-    graphics.generateTexture('platform-cloud', 64, 28);
+    graphics.fillStyle(0xb7ddff);
+    graphics.fillRect(0, 20, 96, 12);
+    graphics.fillStyle(0x8ec5ff);
+    graphics.fillRect(0, 24, 96, 8);
+
+    graphics.fillStyle(0xf6fbff);
+    graphics.fillCircle(12, 18, 12);
+    graphics.fillCircle(30, 12, 14);
+    graphics.fillCircle(48, 17, 13);
+    graphics.fillCircle(66, 11, 14);
+    graphics.fillCircle(84, 18, 12);
+    graphics.fillRect(8, 14, 80, 14);
+    graphics.fillRect(2, 20, 92, 8);
+
+    graphics.fillStyle(0xffffff, 0.9);
+    graphics.fillRect(10, 10, 10, 3);
+    graphics.fillRect(39, 8, 12, 3);
+    graphics.fillRect(70, 9, 10, 3);
+    graphics.fillRect(24, 18, 48, 2);
+
+    graphics.fillStyle(0xdbefff);
+    graphics.fillRect(6, 22, 84, 5);
+    graphics.fillRect(0, 28, 96, 2);
+
+    graphics.fillStyle(0xfff5bf, 0.65);
+    graphics.fillRect(16, 24, 8, 2);
+    graphics.fillRect(46, 23, 10, 2);
+    graphics.fillRect(74, 24, 8, 2);
+
+    graphics.lineStyle(2, 0xffffff, 0.75);
+    graphics.strokeLineShape(new Phaser.Geom.Line(8, 27, 88, 27));
+    graphics.lineStyle(2, 0x7fb4ef, 0.72);
+    graphics.strokeLineShape(new Phaser.Geom.Line(0, 31, 96, 31));
+
+    graphics.generateTexture('platform-cloud', 96, 32);
     graphics.destroy();
   }
 
@@ -539,12 +564,17 @@ function ensureHazardTextures(scene: Phaser.Scene) {
 
   if (!scene.textures.exists('hazard-spikes')) {
     const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
-    graphics.fillStyle(0x8aa0b3);
+    graphics.fillStyle(0x6f0f15);
     graphics.fillRect(0, 10, 64, 6);
-    graphics.fillStyle(0xe7eef5);
+    graphics.fillStyle(0xff4d57);
     for (let index = 0; index < 8; index += 1) {
       const x = index * 8;
       graphics.fillTriangle(x, 10, x + 4, 0, x + 8, 10);
+    }
+    graphics.fillStyle(0xffb3b8, 0.92);
+    for (let index = 0; index < 8; index += 1) {
+      const x = index * 8;
+      graphics.fillTriangle(x + 2, 10, x + 4, 3, x + 6, 10);
     }
     graphics.generateTexture('hazard-spikes', 64, 16);
     graphics.destroy();

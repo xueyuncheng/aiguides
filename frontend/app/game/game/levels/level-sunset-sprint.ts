@@ -22,7 +22,7 @@ export const sunsetSprintLevel: LevelConfig = {
       width: 140,
       height: 18,
       theme: 'cloud',
-      movement: { axis: 'x', distance: 120, duration: 2800, phase: 0.15 },
+      movement: { axis: 'x', distance: 120, duration: 3600, phase: 0.15 },
     },
   ],
   coins: [

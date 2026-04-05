@@ -42,6 +42,7 @@ const DEFAULT_LIVES = 100;
 const LANDING_SNAP_Y_TOLERANCE = 18;
 const LANDING_SNAP_X_MARGIN = 14;
 const STATE_POSITION_STEP = 18;
+const CLOUD_PLATFORM_DURATION_MULTIPLIER = 1.35;
 
 export class GameScene extends Phaser.Scene {
   private readonly onStateChange: (state: GameSnapshot) => void;
@@ -395,7 +396,10 @@ export class GameScene extends Phaser.Scene {
         continue;
       }
 
-      const angle = ((this.time.now / movement.duration) + (movement.phase ?? 0)) * Math.PI * 2;
+      const effectiveDuration = platform.config.theme === 'cloud'
+        ? movement.duration * CLOUD_PLATFORM_DURATION_MULTIPLIER
+        : movement.duration;
+      const angle = ((this.time.now / effectiveDuration) + (movement.phase ?? 0)) * Math.PI * 2;
       const offset = Math.sin(angle) * movement.distance;
       const nextX = Math.round(platform.originX + (movement.axis === 'x' ? offset : 0));
       const nextY = Math.round(platform.originY + (movement.axis === 'y' ? offset : 0));
@@ -761,11 +765,12 @@ export class GameScene extends Phaser.Scene {
     const enemyScore = this.defeatedEnemies * 180;
     const lifeBonus = this.lives * 250;
     const stageBonus = this.levelIndex * 350;
-    const speedBonus = Math.max(0, 2600 - elapsedSeconds * 14);
     const deathPenalty = this.deathCount * 90;
+    const isScoreFinalized = this.status === 'level-complete' || this.status === 'won' || this.status === 'lost';
+    const timeBonus = isScoreFinalized ? Math.max(0, 2600 - elapsedSeconds * 14) : 0;
     const finishBonus = this.status === 'won' ? 550 : this.status === 'level-complete' ? 220 : 0;
 
-    return Math.max(0, coinScore + enemyScore + lifeBonus + stageBonus + speedBonus + finishBonus - deathPenalty);
+    return Math.max(0, coinScore + enemyScore + lifeBonus + stageBonus + timeBonus + finishBonus - deathPenalty);
   }
 
   private emitState(force = false) {

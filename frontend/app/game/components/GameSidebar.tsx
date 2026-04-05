@@ -69,12 +69,12 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
       <Card className="border-amber-200/80 bg-[#fff8e5]/90 text-slate-900 shadow-xl shadow-orange-200/40 backdrop-blur">
         <CardHeader>
           <CardTitle>操作说明</CardTitle>
-          <CardDescription className="text-slate-600">这版现在是偏经典主机味道的双关卡横版试玩。</CardDescription>
+          <CardDescription className="text-slate-600">这版现在是偏经典主机味道的 {gameState.totalLevels} 关横版试玩。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-slate-700">
-          <p>目标是穿过两关，收集金币、踩掉巡逻小怪，并避开尖刺和熔岩。</p>
+          <p>目标是穿过 {gameState.totalLevels} 关，收集金币、踩掉巡逻小怪，并避开尖刺和熔岩。</p>
           <p>键盘支持方向键或 A / D 移动，W / Space / ↑ 跳跃与二段跳，J 冲刺攻击，P 或 Esc 暂停，R 重开。</p>
-          <p>过关后可直接进下一关；第二关切成了更明显的城堡熔岩段和移动浮台节奏。</p>
+          <p>过关后可直接进下一关；后半段会逐步切进更密集的移动浮台、机关砖塔和终盘云桥。</p>
           <p>移动端按钮继续保留 pointer capture，长按输入更稳，跳跃仍然保留缓冲、 coyote time 和一次空中二段跳。</p>
           <p>手柄支持左摇杆或 D-pad 左右移动，A / B 跳跃，X / RB 攻击，Start / Menu 暂停。</p>
         </CardContent>
@@ -112,7 +112,7 @@ export function GameSidebar({ gameState, gamepadConnected, gamepadDebug, onAdvan
               {gameState.status === 'level-complete'
                 ? '这一关已经结算完成，可以直接切入下一关。'
                 : gameState.status === 'won'
-                  ? '双关卡怀旧流程已经打穿，后面可以继续扩成 Boss 关或隐藏路线。'
+                  ? `当前 ${gameState.totalLevels} 关怀旧流程已经打穿，后面还可以继续扩 Boss 关或隐藏路线。`
                   : '这次掉空或被碰掉了，点重开就能整段再来一把。'}
             </CardDescription>
           </CardHeader>

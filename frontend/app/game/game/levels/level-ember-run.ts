@@ -27,7 +27,7 @@ export const emberRunLevel: LevelConfig = {
       width: 150,
       height: 18,
       theme: 'cloud',
-      movement: { axis: 'x', distance: 140, duration: 3000, phase: 0.62 },
+      movement: { axis: 'x', distance: 140, duration: 3900, phase: 0.62 },
     },
     { x: 2050, y: 350, width: 180, height: 20, theme: 'ember' },
     { x: 2340, y: 270, width: 170, height: 20, theme: 'cloud' },
