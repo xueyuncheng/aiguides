@@ -5,6 +5,7 @@ import { Button } from '@/app/components/ui/button';
 import { ChatInput, CreateProjectModal, SelectionAskTooltip } from './index';
 import { ChatMessagesPane } from './ChatMessagesPane';
 import { ShareModal } from './ShareModal';
+import { COMPOSER_MESSAGE_GAP } from '../constants';
 import type { AgentInfo, Message, SelectedImage } from '../types';
 import type { Session, Project } from '@/app/components/SessionSidebar';
 
@@ -280,7 +281,7 @@ export function ChatPageLayout({
               <div className="flex flex-col items-center">
                 <div
                   className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10"
-                  style={{ paddingBottom: `${Math.max(12, chatInputOffset - 36)}px` }}
+                  style={{ paddingBottom: `${Math.max(16, chatInputOffset + COMPOSER_MESSAGE_GAP)}px` }}
                 >
                   <ChatMessagesPane {...messagesPaneProps} />
                 </div>
