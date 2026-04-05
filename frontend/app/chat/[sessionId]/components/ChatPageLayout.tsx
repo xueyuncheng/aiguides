@@ -1,4 +1,4 @@
-import { type RefObject } from 'react';
+import { type Ref, type RefObject } from 'react';
 import { Menu } from 'lucide-react';
 import SessionSidebar from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
@@ -42,7 +42,7 @@ interface ChatPageLayoutProps {
   scrollContainerRef: RefObject<HTMLDivElement | null>;
   messagesEndRef: RefObject<HTMLDivElement | null>;
   latestUserMessageRef: RefObject<HTMLDivElement | null>;
-  chatInputContainerRef: RefObject<HTMLDivElement | null>;
+  chatInputContainerRef: Ref<HTMLDivElement>;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   chatInputOffset: number;
 
