@@ -1,5 +1,43 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { Message } from '../types';
+import type { Message, ToolCallItem } from '../types';
+import { mergeToolCalls } from './messages';
+
+const serializeToolCall = (toolCall: { toolCallId?: string; toolName: string; label: string; args?: Record<string, unknown> }) => (
+  JSON.stringify({
+    toolCallId: toolCall.toolCallId || null,
+    toolName: toolCall.toolName,
+    label: toolCall.label,
+    args: toolCall.args || null,
+  })
+);
+
+const updateMatchingToolCall = (
+  messages: Message[],
+  matcher: (toolCall: ToolCallItem) => boolean,
+  updater: (toolCall: ToolCallItem) => ToolCallItem
+) => {
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i].role !== 'assistant' || !messages[i].toolCalls || messages[i].toolCalls.length === 0) {
+      continue;
+    }
+
+    const toolCallIndex = messages[i].toolCalls!.findLastIndex(matcher);
+    if (toolCallIndex === -1) {
+      continue;
+    }
+
+    const nextToolCalls = [...messages[i].toolCalls!];
+    nextToolCalls[toolCallIndex] = updater(nextToolCalls[toolCallIndex]);
+    messages[i] = {
+      ...messages[i],
+      toolCalls: nextToolCalls,
+      isStreaming: true,
+    };
+    return true;
+  }
+
+  return false;
+};
 
 interface ConsumeAssistantStreamParams {
   reader: ReadableStreamDefaultReader<Uint8Array>;
@@ -82,19 +120,35 @@ export async function consumeAssistantStream({
 
         if (currentEventType === 'tool_call') {
           const toolCall = {
+            toolCallId: typeof data.tool_call_id === 'string' ? data.tool_call_id : undefined,
             toolName: typeof data.tool_name === 'string' ? data.tool_name : '',
             label: typeof data.tool_label === 'string' ? data.tool_label : '',
             args: (data.tool_args as Record<string, unknown> | undefined) || undefined,
+            status: 'running' as const,
           };
+          const toolCallKey = serializeToolCall(toolCall);
 
           setMessages((prev) => {
             const nextMessages = [...prev];
             const lastIndex = nextMessages.length - 1;
 
             if (lastIndex >= 0 && nextMessages[lastIndex].role === 'assistant') {
+              const existingToolCalls = nextMessages[lastIndex].toolCalls || [];
+              const hasDuplicateToolCall = existingToolCalls.some((existingToolCall) => (
+                (toolCall.toolCallId && existingToolCall.toolCallId === toolCall.toolCallId) ||
+                serializeToolCall(existingToolCall) === toolCallKey
+              ));
+              if (hasDuplicateToolCall) {
+                nextMessages[lastIndex] = {
+                  ...nextMessages[lastIndex],
+                  isStreaming: true,
+                };
+                return nextMessages;
+              }
+
               nextMessages[lastIndex] = {
                 ...nextMessages[lastIndex],
-                toolCalls: [...(nextMessages[lastIndex].toolCalls || []), toolCall],
+                toolCalls: mergeToolCalls([...existingToolCalls, toolCall]),
                 isStreaming: true,
               };
             } else {
@@ -110,6 +164,33 @@ export async function consumeAssistantStream({
             }
 
             return nextMessages;
+          });
+
+          resetEventType();
+          continue;
+        }
+
+        if (currentEventType === 'tool_result') {
+          const toolCallId = typeof data.tool_call_id === 'string' ? data.tool_call_id : undefined;
+          const toolName = typeof data.tool_name === 'string' ? data.tool_name : undefined;
+          const toolResult = (data.tool_result as Record<string, unknown> | undefined) || undefined;
+
+          setMessages((prev) => {
+            const nextMessages = [...prev];
+            const matched = updateMatchingToolCall(
+              nextMessages,
+              (toolCall) => (
+                (toolCallId && toolCall.toolCallId === toolCallId) ||
+                (!toolCallId && toolName ? toolCall.toolName === toolName && toolCall.status !== 'completed' : false)
+              ),
+              (toolCall) => ({
+                ...toolCall,
+                result: toolResult || toolCall.result,
+                status: 'completed',
+              })
+            );
+
+            return matched ? nextMessages : prev;
           });
 
           resetEventType();

@@ -1,11 +1,14 @@
 export interface ToolCallItem {
+  toolCallId?: string;
   toolName: string;
   label: string;
   args?: Record<string, unknown>;
   result?: Record<string, unknown>;
+  status?: 'running' | 'completed';
 }
 
 export interface ToolCallResponse {
+  tool_call_id?: string;
   tool_name: string;
   label: string;
   args?: Record<string, unknown>;

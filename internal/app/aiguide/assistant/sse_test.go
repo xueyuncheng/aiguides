@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"google.golang.org/genai"
 )
 
 func TestParseDataURIValid(t *testing.T) {
@@ -186,5 +188,29 @@ func TestExtractPDFFileNameFromText(t *testing.T) {
 	}
 	if fileName != "report.pdf" {
 		t.Fatalf("extractPDFFileNameFromText() = %q, want %q", fileName, "report.pdf")
+	}
+}
+
+func TestFunctionCallKeyPrefersID(t *testing.T) {
+	key := functionCallKey(&genai.FunctionCall{
+		ID:   "call-123",
+		Name: "web_fetch",
+		Args: map[string]any{"url": "https://example.com"},
+	})
+
+	if key != "call-123" {
+		t.Fatalf("functionCallKey() = %q, want %q", key, "call-123")
+	}
+}
+
+func TestFunctionResponseKeyPrefersID(t *testing.T) {
+	key := functionResponseKey(&genai.FunctionResponse{
+		ID:       "call-123",
+		Name:     "web_fetch",
+		Response: map[string]any{"title": "Example"},
+	})
+
+	if key != "call-123" {
+		t.Fatalf("functionResponseKey() = %q, want %q", key, "call-123")
 	}
 }

@@ -73,6 +73,7 @@ type MessageFile struct {
 }
 
 type ToolCall struct {
+	CallID   string         `json:"tool_call_id,omitempty"`
 	ToolName string         `json:"tool_name"`
 	Label    string         `json:"label"`
 	Args     map[string]any `json:"args,omitempty"`
@@ -455,6 +456,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 
 			if part.FunctionCall != nil {
 				toolCall := ToolCall{
+					CallID:   part.FunctionCall.ID,
 					ToolName: part.FunctionCall.Name,
 					Label:    toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args),
 					Args:     part.FunctionCall.Args,
@@ -463,6 +465,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 					toolCall.Result = response
 				}
 				toolCalls = append(toolCalls, ToolCall{
+					CallID:   toolCall.CallID,
 					ToolName: toolCall.ToolName,
 					Label:    toolCall.Label,
 					Args:     toolCall.Args,

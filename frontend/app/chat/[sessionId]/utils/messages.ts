@@ -1,13 +1,44 @@
-import type { HistoryMessageResponse, Message, ToolCallResponse } from '../types';
+import type { HistoryMessageResponse, Message, ToolCallItem, ToolCallResponse } from '../types';
 
 export const trimOuterNewlines = (value: string) => value.replace(/^[\n\r]+|[\n\r]+$/g, '');
 
 export const mapToolCall = (toolCall: ToolCallResponse) => ({
+  toolCallId: toolCall.tool_call_id || undefined,
   toolName: toolCall.tool_name,
   label: toolCall.label,
   args: toolCall.args || undefined,
   result: toolCall.result || undefined,
+  status: 'completed' as const,
 });
+
+const getToolCallKey = (toolCall: ToolCallItem) => JSON.stringify({
+  toolCallId: toolCall.toolCallId || null,
+  toolName: toolCall.toolName,
+  label: toolCall.label,
+  args: toolCall.args || null,
+});
+
+export const mergeToolCalls = (toolCalls: ToolCallItem[]) => {
+  const merged = new Map<string, ToolCallItem>();
+
+  toolCalls.forEach((toolCall) => {
+    const key = getToolCallKey(toolCall);
+    const existing = merged.get(key);
+    if (!existing) {
+      merged.set(key, toolCall);
+      return;
+    }
+
+    merged.set(key, {
+      ...existing,
+      ...toolCall,
+      result: toolCall.result || existing.result,
+      status: toolCall.status === 'completed' || existing.status === 'completed' ? 'completed' : 'running',
+    });
+  });
+
+  return [...merged.values()];
+};
 
 export const mapHistoryMessage = (message: HistoryMessageResponse): Message => ({
   id: message.id,
@@ -46,7 +77,7 @@ export const mergeAssistantMessages = (messages: Message[]) => {
           : lastMessage.thought,
         images: [...(lastMessage.images || []), ...(message.images || [])],
         fileNames: [...(lastMessage.fileNames || []), ...(message.fileNames || [])],
-        toolCalls: [...(lastMessage.toolCalls || []), ...(message.toolCalls || [])],
+        toolCalls: mergeToolCalls([...(lastMessage.toolCalls || []), ...(message.toolCalls || [])]),
         author: message.author || lastMessage.author,
         isStreaming: lastMessage.isStreaming || message.isStreaming,
       };

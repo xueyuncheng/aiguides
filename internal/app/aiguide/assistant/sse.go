@@ -355,10 +355,11 @@ func (a *Assistant) streamAgentEvents(
 						seenToolCalls[callKey] = struct{}{}
 						label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
 						data := gin.H{
-							"author":     event.Author,
-							"tool_name":  part.FunctionCall.Name,
-							"tool_label": label,
-							"tool_args":  part.FunctionCall.Args,
+							"author":       event.Author,
+							"tool_call_id": part.FunctionCall.ID,
+							"tool_name":    part.FunctionCall.Name,
+							"tool_label":   label,
+							"tool_args":    part.FunctionCall.Args,
 						}
 						ctx.SSEvent("tool_call", data)
 						ctx.Writer.Flush()
@@ -373,16 +374,26 @@ func (a *Assistant) streamAgentEvents(
 					seenFunctionResponses[responseKey] = struct{}{}
 
 					response := part.FunctionResponse.Response
+					author := currentAgentAuthor
+					if author == "" {
+						author = event.Author
+					}
+					if author == "" || author == "user" {
+						author = "model"
+					}
+
+					ctx.SSEvent("tool_result", gin.H{
+						"author":       author,
+						"tool_call_id": part.FunctionResponse.ID,
+						"tool_name":    part.FunctionResponse.Name,
+						"tool_result":  response,
+					})
+					ctx.Writer.Flush()
+
 					// 将 map[string]any 转换为 ImageGenOutput
 					var output tools.ImageGenOutput
 					if jsonData, err := json.Marshal(response); err == nil {
 						if err := json.Unmarshal(jsonData, &output); err == nil && output.Success && len(output.Images) > 0 {
-							// FunctionResponse 的 event.Author 是 "user"（GenAI 协议）
-							// 使用追踪的 currentAgentAuthor 作为图片数据的作者
-							author := currentAgentAuthor
-							if author == "" {
-								author = "model" // 降级方案
-							}
 							data := gin.H{
 								"author": author,
 								"images": output.Images,
@@ -429,6 +440,9 @@ func functionCallKey(call *genai.FunctionCall) string {
 	if call == nil {
 		return ""
 	}
+	if strings.TrimSpace(call.ID) != "" {
+		return call.ID
+	}
 
 	argsJSON, err := json.Marshal(call.Args)
 	if err != nil {
@@ -441,6 +455,9 @@ func functionCallKey(call *genai.FunctionCall) string {
 func functionResponseKey(response *genai.FunctionResponse) string {
 	if response == nil {
 		return ""
+	}
+	if strings.TrimSpace(response.ID) != "" {
+		return response.ID
 	}
 
 	responseJSON, err := json.Marshal(response.Response)

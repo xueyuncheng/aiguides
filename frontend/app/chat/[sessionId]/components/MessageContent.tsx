@@ -169,14 +169,14 @@ export const AIMessageContent = memo(({
               className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
             >
               <div className="flex items-center gap-2 px-3 py-1.5">
-                {isStreaming && i === toolCalls.length - 1 ? (
+                {isStreaming && tc.status === 'running' ? (
                   <div className="flex space-x-0.5 shrink-0">
                     <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
                     <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
                     <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
                   </div>
                 ) : (
-                  <div className="w-1 h-1 bg-muted-foreground/40 rounded-full shrink-0" />
+                  <Check className="h-3 w-3 shrink-0 text-emerald-600" />
                 )}
                 <span className="min-w-0 flex-1 break-all">{tc.label}</span>
                 {tc.args && Object.keys(tc.args).length > 0 && (
