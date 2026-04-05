@@ -11,6 +11,8 @@ import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import SvgBlock from './SvgBlock';
 
+type CodeElementProps = React.PropsWithChildren<{ className?: string }>;
+
 function getCodeLanguage(className?: string): string | undefined {
   return /language-([^\s]+)/.exec(className || '')?.[1]?.toLowerCase();
 }
@@ -24,15 +26,15 @@ function looksLikeSvgMarkup(code: string): boolean {
   return normalizedCode.startsWith('<svg') || normalizedCode.startsWith('<?xml');
 }
 
-function getCodeChild(children: React.ReactNode): React.ReactElement<{ className?: string }> | null {
+function getCodeChild(children: React.ReactNode): React.ReactElement<CodeElementProps> | null {
   if (!React.isValidElement(children)) {
     return null;
   }
 
-  return children as React.ReactElement<{ className?: string }>;
+  return children as React.ReactElement<CodeElementProps>;
 }
 
-function isSvgCodeElement(element: React.ReactElement<{ className?: string }> | null): boolean {
+function isSvgCodeElement(element: React.ReactElement<CodeElementProps> | null): boolean {
   const language = getCodeLanguage(element?.props.className);
   const codeString = React.Children.toArray(element?.props.children).join('').replace(/\n$/, '');
 

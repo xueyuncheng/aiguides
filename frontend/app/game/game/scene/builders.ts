@@ -4,6 +4,10 @@ import type { CheckpointInstance, EnemyInstance, MovingPlatformInstance } from '
 
 const PLAYER_SIZE = { width: 30, height: 44 };
 
+function makeTextureGraphics(scene: Phaser.Scene) {
+  return scene.make.graphics({ x: 0, y: 0 }, false);
+}
+
 export function drawBackdrop(scene: Phaser.Scene, level: LevelConfig, levelIndex: number) {
   scene.add.rectangle(level.worldWidth / 2, GAME_HEIGHT / 2, level.worldWidth, GAME_HEIGHT, level.theme.sky);
   scene.add.rectangle(level.worldWidth / 2, 110, level.worldWidth, 160, level.theme.mist, levelIndex === 0 ? 0.28 : 0.18);
@@ -155,7 +159,7 @@ export function createPlayer(
 ) {
   const textureKey = 'player-retro-runner';
   if (!scene.textures.exists(textureKey)) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0xc63228);
     graphics.fillRect(7, 2, 22, 8);
     graphics.fillRect(5, 8, 26, 4);
@@ -347,7 +351,7 @@ export function createEnemies(
 ) {
   const textureKey = 'patrol-critter';
   if (!scene.textures.exists(textureKey)) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0x6d3d1f);
     graphics.fillRect(4, 4, 26, 12);
     graphics.fillStyle(0x895029);
@@ -435,7 +439,7 @@ function ensurePlatformTextures(scene: Phaser.Scene) {
   });
 
   if (!scene.textures.exists('platform-cloud')) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0xb7ddff);
     graphics.fillRect(0, 20, 96, 12);
     graphics.fillStyle(0x8ec5ff);
@@ -475,7 +479,7 @@ function ensurePlatformTextures(scene: Phaser.Scene) {
   }
 
   if (!scene.textures.exists('ground-tile')) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0x7a4a20);
     graphics.fillRect(0, 0, 96, 64);
     graphics.fillStyle(0x8a5728);
@@ -503,7 +507,7 @@ function ensureBrickTexture(
     return;
   }
 
-  const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  const graphics = makeTextureGraphics(scene);
   graphics.fillStyle(colors.base);
   graphics.fillRect(0, 0, 64, 32);
   graphics.fillStyle(colors.cap);
@@ -534,7 +538,7 @@ function ensureCoinTexture(scene: Phaser.Scene) {
     return;
   }
 
-  const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+  const graphics = makeTextureGraphics(scene);
   graphics.fillStyle(0xa05b00);
   graphics.fillCircle(10, 10, 9);
   graphics.fillStyle(0xffd84f);
@@ -548,7 +552,7 @@ function ensureCoinTexture(scene: Phaser.Scene) {
 
 function ensureHazardTextures(scene: Phaser.Scene) {
   if (!scene.textures.exists('hazard-lava')) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0xa62b18);
     graphics.fillRect(0, 0, 64, 16);
     graphics.fillStyle(0xe95533);
@@ -563,7 +567,7 @@ function ensureHazardTextures(scene: Phaser.Scene) {
   }
 
   if (!scene.textures.exists('hazard-spikes')) {
-    const graphics = scene.make.graphics({ x: 0, y: 0, add: false });
+    const graphics = makeTextureGraphics(scene);
     graphics.fillStyle(0x6f0f15);
     graphics.fillRect(0, 10, 64, 6);
     graphics.fillStyle(0xff4d57);
