@@ -121,6 +121,7 @@ export default function ChatPageClient() {
   const scroll = useScrollManager({
     messages,
     isStreamingResponse,
+    isLoading,
     latestUserMessageId,
     isLoadingHistory,
     inputValue: actions.inputValue,

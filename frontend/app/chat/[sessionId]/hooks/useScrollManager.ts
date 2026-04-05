@@ -7,6 +7,7 @@ const DEFAULT_COMPOSER_OFFSET = 160;
 interface UseScrollManagerParams {
   messages: Message[];
   isStreamingResponse: boolean;
+  isLoading: boolean;
   latestUserMessageId: string | undefined;
   isLoadingHistory: boolean;
   inputValue: string;
@@ -20,7 +21,7 @@ interface UseScrollManagerParams {
 interface UseScrollManagerResult {
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
   latestUserMessageRef: React.RefObject<HTMLDivElement | null>;
-  chatInputContainerRef: React.RefObject<HTMLDivElement | null>;
+  chatInputContainerRef: React.RefCallback<HTMLDivElement>;
   chatInputOffset: number;
   isAtBottomRef: React.MutableRefObject<boolean>;
   handleScroll: () => void;
@@ -29,6 +30,7 @@ interface UseScrollManagerResult {
 export function useScrollManager({
   messages,
   isStreamingResponse,
+  isLoading,
   latestUserMessageId,
   isLoadingHistory,
   inputValue,
@@ -40,9 +42,29 @@ export function useScrollManager({
 }: UseScrollManagerParams): UseScrollManagerResult {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const latestUserMessageRef = useRef<HTMLDivElement>(null);
-  const chatInputContainerRef = useRef<HTMLDivElement>(null);
+  const chatInputContainerElementRef = useRef<HTMLDivElement | null>(null);
+  const [chatInputElement, setChatInputElement] = useState<HTMLDivElement | null>(null);
   const isAtBottomRef = useRef(true);
+  const autoScrollTargetRef = useRef<number | null>(null);
+  const lastObservedScrollTopRef = useRef(0);
   const [chatInputOffset, setChatInputOffset] = useState(DEFAULT_COMPOSER_OFFSET);
+
+  const chatInputContainerRef = useCallback((node: HTMLDivElement | null) => {
+    chatInputContainerElementRef.current = node;
+    setChatInputElement((prev) => {
+      if (prev === node) {
+        return prev;
+      }
+
+      return node;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!chatInputElement && chatInputContainerElementRef.current) {
+      setChatInputElement(chatInputContainerElementRef.current);
+    }
+  }, [chatInputElement]);
 
   const scrollElementAboveComposer = useCallback(
     (element: HTMLDivElement, behavior: ScrollBehavior) => {
@@ -56,10 +78,13 @@ export function useScrollManager({
       const containerRect = container.getBoundingClientRect();
       const offsetWithinContainer = elementRect.bottom - containerRect.top;
       const visibleHeight = container.clientHeight - chatInputOffset - COMPOSER_MESSAGE_GAP;
-      const targetScrollTop = container.scrollTop + offsetWithinContainer - visibleHeight;
+      const targetScrollTop = Math.max(0, container.scrollTop + offsetWithinContainer - visibleHeight);
+
+      autoScrollTargetRef.current = targetScrollTop;
+      lastObservedScrollTopRef.current = container.scrollTop;
 
       container.scrollTo({
-        top: Math.max(0, targetScrollTop),
+        top: targetScrollTop,
         behavior,
       });
     },
@@ -68,13 +93,20 @@ export function useScrollManager({
 
   // Auto-scroll when messages change
   useEffect(() => {
+    if (isLoadingHistory) return;
+
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage) return;
 
     const latestUserMessageElement = latestUserMessageRef.current;
     if (lastMessage.role === 'user') {
       isAtBottomRef.current = true;
-      if (latestUserMessageElement) {
+      if (isLoading && messagesEndRef.current) {
+        scrollElementAboveComposer(
+          messagesEndRef.current,
+          shouldScrollInstantly ? 'auto' : 'smooth'
+        );
+      } else if (latestUserMessageElement) {
         scrollElementAboveComposer(
           latestUserMessageElement,
           shouldScrollInstantly ? 'auto' : 'smooth'
@@ -102,7 +134,7 @@ export function useScrollManager({
         );
       }
     }
-  }, [chatInputOffset, isStreamingResponse, latestUserMessageId, messages, scrollContainerRef, scrollElementAboveComposer, shouldScrollInstantly]);
+  }, [chatInputOffset, isLoading, isLoadingHistory, isStreamingResponse, latestUserMessageId, messages, scrollContainerRef, scrollElementAboveComposer, shouldScrollInstantly]);
 
   // Focus textarea when chat is empty
   useEffect(() => {
@@ -121,7 +153,6 @@ export function useScrollManager({
 
   // Track chat input height via ResizeObserver
   useEffect(() => {
-    const chatInputElement = chatInputContainerRef.current;
     if (!chatInputElement) return;
 
     const updateChatInputOffset = () => {
@@ -144,13 +175,36 @@ export function useScrollManager({
       resizeObserver.disconnect();
       window.removeEventListener('resize', updateChatInputOffset);
     };
-  }, []);
+  }, [chatInputElement]);
 
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current;
     if (!container) return;
 
     const { scrollTop, scrollHeight, clientHeight } = container;
+    const autoScrollTarget = autoScrollTargetRef.current;
+
+    if (autoScrollTarget !== null) {
+      const previousScrollTop = lastObservedScrollTopRef.current;
+      const hasReachedTarget = Math.abs(scrollTop - autoScrollTarget) <= 2;
+      const isMovingTowardTarget = autoScrollTarget >= previousScrollTop
+        ? scrollTop >= previousScrollTop && scrollTop <= autoScrollTarget + 2
+        : scrollTop <= previousScrollTop && scrollTop >= autoScrollTarget - 2;
+
+      lastObservedScrollTopRef.current = scrollTop;
+
+      if (hasReachedTarget) {
+        autoScrollTargetRef.current = null;
+        return;
+      } else if (isMovingTowardTarget) {
+        return;
+      } else {
+        autoScrollTargetRef.current = null;
+      }
+    } else {
+      lastObservedScrollTopRef.current = scrollTop;
+    }
+
     const bottomThreshold = Math.max(10, chatInputOffset + 10);
     isAtBottomRef.current = scrollHeight - scrollTop - clientHeight < bottomThreshold;
 
