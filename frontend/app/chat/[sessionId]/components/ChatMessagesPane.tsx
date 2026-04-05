@@ -83,7 +83,7 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
   }
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fade-in">
+    <div className="animate-fade-in">
       {isLoadingOlderMessages && (
         <div className="flex justify-center py-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -104,12 +104,20 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
         </div>
       )}
 
-      {processedMessages.map((message) => (
-        <div
-          key={message.id}
-          ref={message.role === 'user' && message.id === latestUserMessageId ? latestUserMessageRef : undefined}
-          className={cn('flex w-full group/message', message.role === 'user' ? 'justify-end' : 'justify-start')}
-        >
+      {processedMessages.map((message, index) => {
+        const previousMessage = index > 0 ? processedMessages[index - 1] : null;
+        const isUserToAssistantPair = previousMessage?.role === 'user' && message.role === 'assistant';
+
+        return (
+          <div
+            key={message.id}
+            ref={message.role === 'user' && message.id === latestUserMessageId ? latestUserMessageRef : undefined}
+            className={cn(
+              'flex w-full group/message',
+              index > 0 && (isUserToAssistantPair ? 'mt-3 sm:mt-4' : 'mt-6 sm:mt-8'),
+              message.role === 'user' ? 'justify-end' : 'justify-start'
+            )}
+          >
           {message.role === 'assistant' ? (
             <div className="w-full">
               <div className="relative text-sm w-full leading-relaxed" data-ai-message="">
@@ -227,8 +235,9 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
               </div>
             </div>
           )}
-        </div>
-      ))}
+          </div>
+        );
+      })}
 
       {isLoading && (messages.length === 0 || messages[messages.length - 1].role !== 'assistant') && (
         <div className="flex w-full justify-start">
