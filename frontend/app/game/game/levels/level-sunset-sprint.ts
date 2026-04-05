@@ -2,8 +2,8 @@ import type { LevelConfig } from './types';
 
 export const sunsetSprintLevel: LevelConfig = {
   id: 'sunset-sprint',
-  name: '第一关: 暮光冲线',
-  tagline: '先把节奏建立起来，再学会读敌人和危险区。',
+  name: '第一关: 蘑菇大道',
+  tagline: '蓝天砖块区先热身，踩过巡逻小怪和浮空奖励台。',
   worldWidth: 2400,
   floorY: 500,
   playerStart: { x: 140, y: 420 },
@@ -45,15 +45,15 @@ export const sunsetSprintLevel: LevelConfig = {
     { x: 1815, y: 488, width: 86, height: 12, kind: 'spikes' },
   ],
   checkpoints: [
-    { x: 1130, y: 430, label: '中央平台' },
-    { x: 1885, y: 385, label: '终点前哨' },
+    { x: 1130, y: 430, label: '砖桥中段' },
+    { x: 1885, y: 385, label: '旗台前哨' },
   ],
   theme: {
-    sky: 0x5bbcff,
-    mist: 0xdbeafe,
-    hillNear: 0x34d399,
-    hillFar: 0x10b981,
-    accent: 0xf97316,
-    ground: 0x365314,
+    sky: 0x7dd3ff,
+    mist: 0xfff2c4,
+    hillNear: 0x67b84d,
+    hillFar: 0x4fa03f,
+    accent: 0xe55433,
+    ground: 0x7a4a20,
   },
 };

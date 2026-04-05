@@ -2,8 +2,8 @@ import type { LevelConfig } from './types';
 
 export const emberRunLevel: LevelConfig = {
   id: 'ember-run',
-  name: '第二关: 熔炉回廊',
-  tagline: '加入垂直移动平台和更长的危险段，要求读图与保命。',
+  name: '第二关: 城堡熔岩段',
+  tagline: '切进砖墙和熔岩区，移动浮台更考验读图和节奏。',
   worldWidth: 3040,
   floorY: 510,
   playerStart: { x: 120, y: 430 },
@@ -56,15 +56,15 @@ export const emberRunLevel: LevelConfig = {
     { x: 2450, y: 498, width: 130, height: 12, kind: 'lava' },
   ],
   checkpoints: [
-    { x: 1190, y: 350, label: '熔炉上层' },
-    { x: 2350, y: 310, label: '最后跳板' },
+    { x: 1190, y: 350, label: '城墙露台' },
+    { x: 2350, y: 310, label: '吊桥前哨' },
   ],
   theme: {
-    sky: 0x1e293b,
-    mist: 0xfb923c,
-    hillNear: 0x7c2d12,
-    hillFar: 0x9a3412,
-    accent: 0xfbbf24,
-    ground: 0x3f1d0d,
+    sky: 0x355a86,
+    mist: 0xffc56e,
+    hillNear: 0x73331f,
+    hillFar: 0x572215,
+    accent: 0xffd84f,
+    ground: 0x4a2417,
   },
 };

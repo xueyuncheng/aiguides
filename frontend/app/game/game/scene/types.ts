@@ -20,7 +20,7 @@ export type RespawnPoint = {
 };
 
 export type MovingPlatformInstance = {
-  block: Phaser.GameObjects.Rectangle;
+  block: Phaser.GameObjects.TileSprite;
   body: Phaser.Physics.Arcade.StaticBody;
   config: PlatformDefinition;
   originX: number;

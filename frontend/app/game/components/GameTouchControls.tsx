@@ -5,7 +5,7 @@ import { ArrowBigLeftDash, ArrowBigRightDash, ArrowUp, Swords } from 'lucide-rea
 import type { ControlInputState } from '../types';
 
 const CONTROL_BUTTON_CLASS =
-  'flex h-14 min-w-14 items-center justify-center rounded-2xl border border-white/20 bg-slate-950/60 text-white shadow-lg shadow-black/30 backdrop-blur transition active:scale-95 active:bg-orange-500/80';
+  'flex h-14 min-w-14 items-center justify-center rounded-2xl border border-amber-300/70 bg-[linear-gradient(180deg,#fff7d6_0%,#ffd56b_100%)] text-amber-950 shadow-lg shadow-orange-300/35 backdrop-blur transition active:scale-95 active:bg-[linear-gradient(180deg,#ffd56b_0%,#f59b3d_100%)]';
 
 interface GameTouchControlsProps {
   onInputChange: (nextState: ControlInputState) => void;
@@ -13,7 +13,7 @@ interface GameTouchControlsProps {
 
 export function GameTouchControls({ onInputChange }: GameTouchControlsProps) {
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-[28px] border border-white/10 bg-white/5 p-3 backdrop-blur sm:w-[320px]">
+    <div className="grid grid-cols-2 gap-3 rounded-[28px] border border-amber-200/80 bg-[#fff9e6]/85 p-3 shadow-lg shadow-orange-200/30 backdrop-blur sm:w-[320px]">
       <TouchButton
         label="向左"
         icon={<ArrowBigLeftDash className="h-5 w-5" />}
@@ -77,7 +77,7 @@ function TouchButton({
       onPointerLeave={handlePointerUp}
       onContextMenu={(event) => event.preventDefault()}
     >
-      <span className="flex flex-col items-center gap-1 text-xs font-medium tracking-[0.18em] text-slate-100 uppercase">
+      <span className="flex flex-col items-center gap-1 text-xs font-semibold tracking-[0.18em] text-amber-950 uppercase">
         {icon}
         <span>{label}</span>
       </span>
