@@ -58,6 +58,30 @@ type EmailServerConfig struct {
 	IsDefault  bool   `gorm:"default:false"` // 是否为默认邮箱
 }
 
+// SSHAuthMethod distinguishes password-based from key-based SSH authentication.
+type SSHAuthMethod string
+
+const (
+	SSHAuthMethodPassword SSHAuthMethod = "password"
+	SSHAuthMethodKey      SSHAuthMethod = "key"
+)
+
+// SSHServerConfig SSH server configuration for a user
+type SSHServerConfig struct {
+	Model
+
+	UserID     int           `gorm:"not null;index"`                // Associated user ID
+	Name       string        `gorm:"not null"`                      // Display name to identify the server
+	Host       string        `gorm:"not null"`                      // Hostname or IP, e.g. 192.168.1.10
+	Port       int           `gorm:"not null;default:22"`           // SSH port, default 22
+	Username   string        `gorm:"not null"`                      // SSH login username
+	AuthMethod SSHAuthMethod `gorm:"not null;default:'password'"`   // "password" or "key"
+	Password   string        `gorm:"not null;default:''"`           // Used when AuthMethod == "password" (plain text; encrypt in production)
+	PrivateKey string        `gorm:"not null;default:'';type:text"` // PEM-encoded private key; used when AuthMethod == "key"
+	Passphrase string        `gorm:"not null;default:''"`           // Optional passphrase for encrypted private keys
+	IsDefault  bool          `gorm:"default:false"`                 // Whether this is the user's default SSH server
+}
+
 // UserMemory 用户记忆，用于跨会话记住用户特征
 type UserMemory struct {
 	Model
@@ -188,6 +212,7 @@ func GetAllModels() []any {
 		&SessionMeta{},
 		&Project{},
 		&EmailServerConfig{},
+		&SSHServerConfig{},
 		&UserMemory{},
 		&Task{},
 		&SharedConversation{},

@@ -96,4 +96,13 @@ func registerSettingRoutes(db *gorm.DB, api *gin.RouterGroup) {
 		emailServerConfig.PUT("/:id", s.UpdateEmailServerConfig)
 		emailServerConfig.DELETE("/:id", s.DeleteEmailServerConfig)
 	}
+
+	sshServerConfig := api.Group("/ssh_server_configs")
+	{
+		sshServerConfig.POST("", s.CreateSSHServerConfig)
+		sshServerConfig.GET("", s.ListSSHServerConfigs)
+		sshServerConfig.GET("/:id", s.GetSSHServerConfig)
+		sshServerConfig.PUT("/:id", s.UpdateSSHServerConfig)
+		sshServerConfig.DELETE("/:id", s.DeleteSSHServerConfig)
+	}
 }
