@@ -27,7 +27,7 @@ jobs:
         run: go test -v ./...
 
   frontend-build:
-    name: Frontend Build (Next.js)
+    name: Frontend Verify (Next.js)
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -62,5 +62,5 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm run build
+      - name: Verify
+        run: pnpm run verify

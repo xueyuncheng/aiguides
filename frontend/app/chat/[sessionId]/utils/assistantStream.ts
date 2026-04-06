@@ -17,19 +17,20 @@ const updateMatchingToolCall = (
   updater: (toolCall: ToolCallItem) => ToolCallItem
 ) => {
   for (let i = messages.length - 1; i >= 0; i -= 1) {
-    if (messages[i].role !== 'assistant' || !messages[i].toolCalls || messages[i].toolCalls.length === 0) {
+    const message = messages[i];
+    if (!message || message.role !== 'assistant' || !message.toolCalls || message.toolCalls.length === 0) {
       continue;
     }
 
-    const toolCallIndex = messages[i].toolCalls!.findLastIndex(matcher);
+    const toolCallIndex = message.toolCalls.findLastIndex(matcher);
     if (toolCallIndex === -1) {
       continue;
     }
 
-    const nextToolCalls = [...messages[i].toolCalls!];
+    const nextToolCalls = [...message.toolCalls];
     nextToolCalls[toolCallIndex] = updater(nextToolCalls[toolCallIndex]);
     messages[i] = {
-      ...messages[i],
+      ...message,
       toolCalls: nextToolCalls,
       isStreaming: true,
     };
