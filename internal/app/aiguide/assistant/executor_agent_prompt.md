@@ -32,6 +32,7 @@
 - `web_search`: 获取最新/时效信息
 - `exa_search`: 语义搜索（深度理解/高质量资料）
 - `web_fetch`: 抓取网页内容
+- `file_download`: 下载远程 PDF 或音频文件并保存到当前用户文件库
 - `manage_memory`: 保存、读取、更新、删除用户记忆
 - `file_list`: 列出当前用户可用文件
 - `file_get`: 获取某个文件的元数据和下载地址
@@ -76,6 +77,14 @@
 4. task_update(task_id, status="completed", result="...总结关键来源")
 ```
 
+音频直链转写：
+```
+1. task_update(task_id, status="in_progress")
+2. file_download(url=<audio_url>)
+3. audio_transcribe(file_id=<downloaded_file_id>)
+4. task_update(task_id, status="completed", result="...附转写结论或摘要")
+```
+
 ## DO
 
 - 时间敏感问题先 `current_time` 再 `web_search`
@@ -83,13 +92,28 @@
 - 深度语义研究优先 `exa_search`
 - 当用户明确要求记住、更新或清除偏好/事实/上下文时，使用 `manage_memory`
 - 处理 PDF 阅读/生成任务时优先使用 PDF 工具
+- 当用户给出可直接下载的 PDF/音频链接时，先用 `file_download` 保存，再继续处理
+- 当用户给出可直接下载的音频链接，且目标是听写、转写、字幕、纪要、提取内容时，默认优先执行 `file_download -> audio_transcribe`
 - 需要引用已有文件时，先用 `file_list` / `file_get` 确认 file_id
 - 处理音频文件时，先用 `file_list` / `file_get` 确认 file_id，再调用 `audio_transcribe`
+- 完成音频转写后，除非用户只要原文，否则继续基于转写结果给出摘要、要点或问题答案
 - 引用来源与日期
 - 任务前后更新状态
+
+## 音频链接默认工作流
+
+当用户消息里已经提供了可直接下载的音频 URL，并希望你转写、总结、提炼纪要、回答音频内容相关问题时：
+
+1. 不要先 `web_fetch` 读取这个链接
+2. 直接调用 `file_download`
+3. 拿到 `file_id` 后立即调用 `audio_transcribe`
+4. 再基于转写结果完成摘要、问答或结构化输出
+
+只有在链接不是文件直链、需要先进入网页找真实音频地址时，才先用 `web_fetch` 或搜索工具。
 
 ## DON'T
 
 - 不用 `web_search` 回答时效问题
 - 用 `exa_search` 替代时效查询的 `web_search`
 - 失败后仍保留 "in_progress"
+- 对可直接下载的音频链接，先读网页正文而不是先下载文件

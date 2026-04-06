@@ -197,6 +197,36 @@ export async function consumeAssistantStream({
           continue;
         }
 
+        if (currentEventType === 'tool_progress') {
+          const toolCallId = typeof data.tool_call_id === 'string' ? data.tool_call_id : undefined;
+          const toolName = typeof data.tool_name === 'string' ? data.tool_name : undefined;
+          const toolResult = (data.tool_result as Record<string, unknown> | undefined) || undefined;
+
+          setMessages((prev) => {
+            const nextMessages = [...prev];
+            const matched = updateMatchingToolCall(
+              nextMessages,
+              (toolCall) => (
+                (toolCallId && toolCall.toolCallId === toolCallId)
+                || (!toolCallId && toolName ? toolCall.toolName === toolName && toolCall.status !== 'completed' : false)
+              ),
+              (toolCall) => ({
+                ...toolCall,
+                result: {
+                  ...(toolCall.result || {}),
+                  ...(toolResult || {}),
+                },
+                status: 'running',
+              })
+            );
+
+            return matched ? nextMessages : prev;
+          });
+
+          resetEventType();
+          continue;
+        }
+
         if (Array.isArray(data.images)) {
           assistantImages = [...assistantImages, ...data.images.filter((item): item is string => typeof item === 'string')];
 

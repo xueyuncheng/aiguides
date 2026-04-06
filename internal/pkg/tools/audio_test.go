@@ -59,3 +59,19 @@ func TestJoinChunkTranscriptsDeduplicatesOverlap(t *testing.T) {
 		t.Fatalf("joinChunkTranscripts() = %q", joined)
 	}
 }
+
+func TestReportAudioTranscriptionProgress(t *testing.T) {
+	called := false
+	ctx := context.WithValue(context.Background(), ContextKeyAudioTranscriptionProgressReporter, AudioTranscriptionProgressReporter(func(progress AudioTranscriptionProgress) {
+		called = true
+		if progress.JobID != 7 {
+			t.Fatalf("progress.JobID = %d, want 7", progress.JobID)
+		}
+	}))
+
+	reportAudioTranscriptionProgress(ctx, AudioTranscriptionProgress{JobID: 7})
+
+	if !called {
+		t.Fatal("expected progress reporter to be called")
+	}
+}

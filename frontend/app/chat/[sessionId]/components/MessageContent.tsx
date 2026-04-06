@@ -108,6 +108,27 @@ export const AIMessageContent = memo(({
     return JSON.stringify(args, null, 2);
   };
 
+  const getAudioTranscriptProgress = (result?: Record<string, unknown>) => {
+    if (!result) {
+      return null;
+    }
+
+    const transcript = typeof result.transcript === 'string' ? result.transcript : '';
+    if (!transcript) {
+      return null;
+    }
+
+    const completedChunks = typeof result.completed_chunks === 'number' ? result.completed_chunks : undefined;
+    const chunkCount = typeof result.chunk_count === 'number' ? result.chunk_count : undefined;
+
+    return {
+      transcript,
+      progressLabel: completedChunks && chunkCount
+        ? `已转写 ${completedChunks}/${chunkCount} 段`
+        : undefined,
+    };
+  };
+
   const resolvedContent = content.replaceAll(
     '(download_path)',
     (() => {
@@ -163,12 +184,15 @@ export const AIMessageContent = memo(({
       {/* Tool calls section */}
       {toolCalls && toolCalls.length > 0 && (
         <div className="mb-3 flex flex-col gap-1.5">
-          {toolCalls.map((tc, i) => (
-            <div
-              key={i}
-              className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
-            >
-              <div className="flex items-center gap-2 px-3 py-1.5">
+          {toolCalls.map((tc, i) => {
+            const audioProgress = tc.toolName === 'audio_transcribe' ? getAudioTranscriptProgress(tc.result) : null;
+
+            return (
+              <div
+                key={i}
+                className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
+              >
+                <div className="flex items-center gap-2 px-3 py-1.5">
                 {isStreaming && tc.status === 'running' ? (
                   <div className="flex space-x-0.5 shrink-0">
                     <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
@@ -194,14 +218,25 @@ export const AIMessageContent = memo(({
                     <span>参数</span>
                   </button>
                 )}
+                </div>
+                {audioProgress && (
+                  <div className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2">
+                    {audioProgress.progressLabel && (
+                      <div className="mb-1 text-[11px] text-muted-foreground/80">{audioProgress.progressLabel}</div>
+                    )}
+                    <pre className="max-h-48 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-foreground/90">
+                      {audioProgress.transcript}
+                    </pre>
+                  </div>
+                )}
+                {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
+                  <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
+                    {formatToolArgs(tc.args)}
+                  </pre>
+                )}
               </div>
-              {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
-                <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
-                  {formatToolArgs(tc.args)}
-                </pre>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

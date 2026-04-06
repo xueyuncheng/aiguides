@@ -295,6 +295,25 @@ func (a *Assistant) streamAgentEvents(
 	// 追踪当前的 agent author，用于 FunctionResponse
 	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
 	var currentAgentAuthor string
+	ctx.Set(tools.ContextKeyAudioTranscriptionProgressReporter, tools.AudioTranscriptionProgressReporter(func(progress tools.AudioTranscriptionProgress) {
+		author := currentAgentAuthor
+		if author == "" || author == "user" {
+			author = "model"
+		}
+
+		select {
+		case <-ctx.Request.Context().Done():
+			return
+		default:
+		}
+
+		ctx.SSEvent("tool_progress", gin.H{
+			"author":      author,
+			"tool_name":   "audio_transcribe",
+			"tool_result": progress,
+		})
+		ctx.Writer.Flush()
+	}))
 
 	// 启动心跳，防止长时间无响应导致连接超时
 	cancelHeartbeat := startHeartbeat(ctx, 30*time.Second)
@@ -569,6 +588,11 @@ func toolCallLabel(name string, args map[string]any) string {
 			return fmt.Sprintf("正在获取网页：%s", url)
 		}
 		return "正在获取网页"
+	case "file_download":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("正在下载文件：%s", url)
+		}
+		return "正在下载文件"
 	case "file_list":
 		return "正在查看文件列表"
 	case "file_get":
@@ -583,6 +607,8 @@ func toolCallLabel(name string, args map[string]any) string {
 		return "正在查询邮件"
 	case "current_time":
 		return "正在获取当前时间"
+	case "audio_transcribe":
+		return "正在转写音频"
 	case "manage_memory":
 		return "正在管理记忆"
 	default:

@@ -148,6 +148,12 @@ func TestExecutorAgentInstructionMentionsAudioTranscribeTool(t *testing.T) {
 	}
 }
 
+func TestExecutorAgentInstructionMentionsFileDownloadTool(t *testing.T) {
+	if !strings.Contains(executorAgentInstruction, "`file_download`") {
+		t.Fatal("executorAgentInstruction missing executor tool `file_download`")
+	}
+}
+
 func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{

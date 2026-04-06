@@ -106,6 +106,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create file_get tool: %w", err)
 	}
 
+	fileDownloadTool, err := tools.NewFileDownloadTool(config.DB, config.FileStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_download tool: %w", err)
+	}
+
 	// 任务查询和更新工具
 	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
@@ -141,6 +146,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			webSearchTool,
 			exaSearchTool,
 			webFetchTool,
+			fileDownloadTool,
 			fileListTool,
 			fileGetTool,
 			pdfExtractTextTool,
