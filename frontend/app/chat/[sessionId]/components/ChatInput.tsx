@@ -1,7 +1,7 @@
 import { forwardRef, memo, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
-import { ArrowUp, X, Paperclip, MessageSquare, FileText } from 'lucide-react';
+import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import type { SelectedImage } from '../types';
 
@@ -78,16 +78,16 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
             <div className="flex flex-wrap gap-2 px-3 pt-3">
               {selectedImages.map((image, index) => (
                 <div key={image.id} className="relative group">
-                  {image.isPdf ? (
+                  {image.isPdf || image.isAudio ? (
                     <div className="h-16 w-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
-                      <FileText className="h-4 w-4" />
-                      <span>PDF</span>
+                      {image.isPdf ? <FileText className="h-4 w-4" /> : <AudioLines className="h-4 w-4" />}
+                      <span>{image.isPdf ? 'PDF' : 'AUDIO'}</span>
                     </div>
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image.dataUrl}
-                      alt={image.name || `已选图片 ${index + 1}`}
+                      alt={image.name || `已选文件 ${index + 1}`}
                       className="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
                     />
                   )}
@@ -95,7 +95,7 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
                     type="button"
                     onClick={() => onRemoveImage(image.id)}
                     className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-900/80 text-white flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label={image.isPdf ? '移除文件' : '移除图片'}
+                      aria-label={image.isPdf || image.isAudio ? '移除文件' : '移除图片'}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -112,7 +112,7 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
             <input
               ref={imageInputRef}
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*,.pdf,.mp3,.m4a,.mp4,.wav,.aac,.webm,.ogg,audio/*"
               multiple
               className="hidden"
               onChange={onImageSelect}
@@ -124,8 +124,8 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
               onClick={() => imageInputRef.current?.click()}
               disabled={isLoading || isLoadingHistory}
               className="h-8 w-8 sm:h-7 sm:w-7 rounded-full text-muted-foreground hover:text-foreground"
-                title="添加文件（图片或 PDF）"
-                aria-label="添加文件（图片或 PDF）"
+                title="添加文件（图片、PDF 或音频）"
+                aria-label="添加文件（图片、PDF 或音频）"
               >
                 <Paperclip className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </Button>

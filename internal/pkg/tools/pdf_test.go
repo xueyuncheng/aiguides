@@ -146,7 +146,7 @@ func setupPDFTestDB(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Fatalf("gorm.Open() error = %v", err)
 	}
-	if err := db.AutoMigrate(&table.FileAsset{}, &table.PDFTextPage{}, &table.PDFJob{}); err != nil {
+	if err := db.AutoMigrate(&table.FileAsset{}, &table.PDFTextPage{}, &table.PDFJob{}, &table.AudioJob{}, &table.AudioTranscriptChunk{}); err != nil {
 		t.Fatalf("db.AutoMigrate() error = %v", err)
 	}
 	return db

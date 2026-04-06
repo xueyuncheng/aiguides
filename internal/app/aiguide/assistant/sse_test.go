@@ -76,6 +76,22 @@ func TestParseDataURIPDFInvalid(t *testing.T) {
 	}
 }
 
+func TestParseDataURIAudioValid(t *testing.T) {
+	data := []byte("fake-audio")
+	dataURI := fmt.Sprintf("data:audio/mpeg;base64,%s", base64.StdEncoding.EncodeToString(data))
+
+	decoded, mimeType, err := parseDataURI(dataURI)
+	if err != nil {
+		t.Fatalf("parseDataURI() error = %v", err)
+	}
+	if mimeType != "audio/mpeg" {
+		t.Fatalf("expected mimeType audio/mpeg, got %s", mimeType)
+	}
+	if !bytes.Equal(decoded, data) {
+		t.Fatal("decoded data mismatch")
+	}
+}
+
 func TestMessageTextTrimming(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -188,6 +204,19 @@ func TestExtractPDFFileNameFromText(t *testing.T) {
 	}
 	if fileName != "report.pdf" {
 		t.Fatalf("extractPDFFileNameFromText() = %q, want %q", fileName, "report.pdf")
+	}
+}
+
+func TestBuildAudioUploadedPart(t *testing.T) {
+	part := buildAudioUploadedPart("meeting.m4a", 42)
+	if part == nil {
+		t.Fatal("buildAudioUploadedPart() returned nil")
+	}
+	if !strings.Contains(part.Text, "file_id: 42") {
+		t.Fatalf("part.Text = %q, want file_id", part.Text)
+	}
+	if !strings.Contains(part.Text, "audio_transcribe") {
+		t.Fatalf("part.Text = %q, want audio_transcribe hint", part.Text)
 	}
 }
 

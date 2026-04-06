@@ -37,6 +37,7 @@
 - `file_get`: 获取某个文件的元数据和下载地址
 - `pdf_extract_text`: 提取用户 PDF 文件的文本
 - `pdf_generate_document`: 根据标题和段落生成 PDF 文档
+- `audio_transcribe`: 转写用户音频文件，长音频会自动分片处理
 
 ### SVG 图形（无需工具，直接输出）
 
@@ -83,6 +84,7 @@
 - 当用户明确要求记住、更新或清除偏好/事实/上下文时，使用 `manage_memory`
 - 处理 PDF 阅读/生成任务时优先使用 PDF 工具
 - 需要引用已有文件时，先用 `file_list` / `file_get` 确认 file_id
+- 处理音频文件时，先用 `file_list` / `file_get` 确认 file_id，再调用 `audio_transcribe`
 - 引用来源与日期
 - 任务前后更新状态
 

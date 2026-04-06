@@ -15,14 +15,17 @@ export const agentInfoMap: Record<string, AgentInfo> = {
 export const MAX_IMAGE_COUNT = 4;
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_AUDIO_SIZE_BYTES = 50 * 1024 * 1024;
 export const MAX_IMAGE_SIZE_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
 export const MAX_PDF_SIZE_MB = Math.round(MAX_PDF_SIZE_BYTES / (1024 * 1024));
+export const MAX_AUDIO_SIZE_MB = Math.round(MAX_AUDIO_SIZE_BYTES / (1024 * 1024));
 
 // 错误消息
 export const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 个文件`;
 export const IMAGE_SIZE_ERROR = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
 export const PDF_SIZE_ERROR = `PDF 大小不能超过 ${MAX_PDF_SIZE_MB}MB`;
-export const IMAGE_TYPE_ERROR = '仅支持图片或 PDF 文件';
+export const AUDIO_SIZE_ERROR = `音频大小不能超过 ${MAX_AUDIO_SIZE_MB}MB`;
+export const IMAGE_TYPE_ERROR = '仅支持图片、PDF 或音频文件';
 export const IMAGE_READ_ERROR = '读取文件失败';
 
 // UI 常量

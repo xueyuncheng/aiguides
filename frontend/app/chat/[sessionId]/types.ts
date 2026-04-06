@@ -40,7 +40,9 @@ export interface SelectedImage {
   id: string;
   dataUrl: string;
   name: string;
+  mimeType?: string;
   isPdf?: boolean;
+  isAudio?: boolean;
 }
 
 export interface AgentInfo {

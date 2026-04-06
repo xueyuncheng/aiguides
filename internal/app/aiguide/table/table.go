@@ -143,6 +143,44 @@ type PDFJob struct {
 	CompletedAt   time.Time             `gorm:"not null"`
 }
 
+// AudioJob tracks an audio transcription task.
+type AudioJob struct {
+	Model
+
+	UserID          int                     `gorm:"not null;index"`
+	SessionID       string                  `gorm:"not null;index"`
+	FileID          int                     `gorm:"not null;index"`
+	Status          constant.AudioJobStatus `gorm:"type:varchar(20);not null;default:pending;index"`
+	ModelName       string                  `gorm:"not null;default:''"`
+	MimeType        string                  `gorm:"not null;default:''"`
+	Prompt          string                  `gorm:"type:text;not null;default:''"`
+	DurationMs      int64                   `gorm:"not null;default:0"`
+	ChunkCount      int                     `gorm:"not null;default:0"`
+	Language        string                  `gorm:"not null;default:''"`
+	TranscriptText  string                  `gorm:"type:text;not null;default:''"`
+	TranscriptChars int                     `gorm:"not null;default:0"`
+	ErrorMessage    string                  `gorm:"type:text;not null;default:''"`
+	StartedAt       time.Time               `gorm:"not null"`
+	CompletedAt     time.Time               `gorm:"not null"`
+}
+
+// AudioTranscriptChunk stores the transcript result for a chunk of an audio file.
+type AudioTranscriptChunk struct {
+	Model
+
+	JobID           int                                 `gorm:"not null;index"`
+	ChunkIndex      int                                 `gorm:"not null;index"`
+	StartMs         int64                               `gorm:"not null;default:0"`
+	EndMs           int64                               `gorm:"not null;default:0"`
+	OverlapStartMs  int64                               `gorm:"not null;default:0"`
+	OverlapEndMs    int64                               `gorm:"not null;default:0"`
+	Status          constant.AudioTranscriptChunkStatus `gorm:"type:varchar(20);not null;default:pending;index"`
+	Language        string                              `gorm:"not null;default:''"`
+	TranscriptText  string                              `gorm:"type:text;not null;default:''"`
+	TranscriptChars int                                 `gorm:"not null;default:0"`
+	ErrorMessage    string                              `gorm:"type:text;not null;default:''"`
+}
+
 // GetAllModels 获取所有已注册的数据库模型
 func GetAllModels() []any {
 	return []any{
@@ -156,5 +194,7 @@ func GetAllModels() []any {
 		&FileAsset{},
 		&PDFTextPage{},
 		&PDFJob{},
+		&AudioJob{},
+		&AudioTranscriptChunk{},
 	}
 }

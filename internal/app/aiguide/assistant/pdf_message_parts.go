@@ -18,9 +18,15 @@ import (
 
 const maxInlinePDFExtractChars = 12000
 const pdfFileMetadataPrefix = "<!-- PDF_FILE:"
+const audioFileMetadataPrefix = "<!-- AUDIO_FILE:"
 
 type pdfFileMetadata struct {
 	Name string `json:"name,omitempty"`
+}
+
+type audioFileMetadata struct {
+	Name   string `json:"name,omitempty"`
+	FileID int    `json:"file_id,omitempty"`
 }
 
 func appendTextPart(parts []*genai.Part, message string, fileNames []string, uploadCount int) []*genai.Part {
@@ -62,13 +68,17 @@ func appendUserUploadPart(
 	mimeType string,
 	persistUploadedPDFs bool,
 ) ([]*genai.Part, error) {
-	if !(persistUploadedPDFs && mimeType == pdfMimeType && db != nil && fileStore != nil) {
+	if db == nil || fileStore == nil {
 		return appendImagePart(parts, imageBytes, mimeType), nil
 	}
 
 	resolvedFileName := strings.TrimSpace(fileName)
 	if resolvedFileName == "" {
-		resolvedFileName = "uploaded.pdf"
+		if mimeType == pdfMimeType {
+			resolvedFileName = "uploaded.pdf"
+		} else if tools.IsSupportedAudioMimeType(mimeType) {
+			resolvedFileName = "uploaded-audio"
+		}
 	}
 
 	parsedUserID, err := strconv.Atoi(userID)
@@ -77,12 +87,26 @@ func appendUserUploadPart(
 		return nil, fmt.Errorf("invalid user_id: %w", err)
 	}
 
-	result, err := tools.SaveChatPDFAsset(ctx, db, fileStore, parsedUserID, sessionID, resolvedFileName, imageBytes, mimeType)
-	if err != nil {
-		return nil, err
+	if persistUploadedPDFs && mimeType == pdfMimeType {
+		result, err := tools.SaveChatPDFAsset(ctx, db, fileStore, parsedUserID, sessionID, resolvedFileName, imageBytes, mimeType)
+		if err != nil {
+			return nil, err
+		}
+		if extracted := buildPDFExtractedTextPart(resolvedFileName, result); extracted != nil {
+			return append(parts, extracted), nil
+		}
+
+		return appendImagePart(parts, imageBytes, mimeType), nil
 	}
-	if extracted := buildPDFExtractedTextPart(resolvedFileName, result); extracted != nil {
-		return append(parts, extracted), nil
+
+	if tools.IsSupportedAudioMimeType(mimeType) {
+		asset, err := tools.SaveChatAudioAsset(ctx, db, fileStore, parsedUserID, sessionID, resolvedFileName, imageBytes, mimeType)
+		if err != nil {
+			return nil, err
+		}
+		if metadataPart := buildAudioUploadedPart(resolvedFileName, asset.ID); metadataPart != nil {
+			return append(parts, metadataPart), nil
+		}
 	}
 
 	return appendImagePart(parts, imageBytes, mimeType), nil
@@ -161,4 +185,32 @@ func extractPDFFileNameFromText(text string) (string, bool) {
 	}
 
 	return strings.TrimSpace(metadata.Name), true
+}
+
+func buildAudioUploadedPart(fileName string, fileID int) *genai.Part {
+	if fileID <= 0 {
+		return nil
+	}
+	label := strings.TrimSpace(fileName)
+	if label == "" {
+		label = "uploaded-audio"
+	}
+
+	var builder strings.Builder
+	if metadataJSON, err := json.Marshal(audioFileMetadata{Name: label, FileID: fileID}); err == nil {
+		builder.WriteString(audioFileMetadataPrefix)
+		builder.WriteString(" ")
+		builder.Write(metadataJSON)
+		builder.WriteString(" -->\n")
+	}
+	builder.WriteString("[Audio uploaded]\n")
+	builder.WriteString("File: ")
+	builder.WriteString(label)
+	builder.WriteString("\n")
+	builder.WriteString("file_id: ")
+	builder.WriteString(strconv.Itoa(fileID))
+	builder.WriteString("\n")
+	builder.WriteString("If the user asks to read or transcribe this audio, use file_list/file_get to confirm the file_id and then call audio_transcribe.")
+
+	return genai.NewPartFromText(builder.String())
 }

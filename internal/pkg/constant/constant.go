@@ -178,3 +178,31 @@ const (
 func (s PDFJobStatus) String() string {
 	return string(s)
 }
+
+// AudioJobStatus audio transcription job status.
+type AudioJobStatus string
+
+const (
+	AudioJobStatusPending   AudioJobStatus = "pending"
+	AudioJobStatusRunning   AudioJobStatus = "running"
+	AudioJobStatusCompleted AudioJobStatus = "completed"
+	AudioJobStatusFailed    AudioJobStatus = "failed"
+)
+
+func (s AudioJobStatus) String() string {
+	return string(s)
+}
+
+// AudioTranscriptChunkStatus audio chunk transcription status.
+type AudioTranscriptChunkStatus string
+
+const (
+	AudioTranscriptChunkStatusPending   AudioTranscriptChunkStatus = "pending"
+	AudioTranscriptChunkStatusRunning   AudioTranscriptChunkStatus = "running"
+	AudioTranscriptChunkStatusCompleted AudioTranscriptChunkStatus = "completed"
+	AudioTranscriptChunkStatusFailed    AudioTranscriptChunkStatus = "failed"
+)
+
+func (s AudioTranscriptChunkStatus) String() string {
+	return string(s)
+}

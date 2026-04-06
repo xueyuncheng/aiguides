@@ -38,6 +38,7 @@ const (
 	// Limits align with frontend validation to prevent oversized uploads.
 	maxUserImageSizeBytes = 5 * 1024 * 1024
 	maxUserPDFSizeBytes   = 20 * 1024 * 1024
+	maxUserAudioSizeBytes = 50 * 1024 * 1024
 	maxUserFileCount      = 4
 	pdfMimeType           = "application/pdf"
 )
@@ -48,6 +49,17 @@ var allowedUserUploadMimeTypes = map[string]bool{
 	"image/gif":       true,
 	"image/webp":      true,
 	"application/pdf": true,
+	"audio/mpeg":      true,
+	"audio/mp3":       true,
+	"audio/wav":       true,
+	"audio/x-wav":     true,
+	"audio/wave":      true,
+	"audio/x-pn-wav":  true,
+	"audio/mp4":       true,
+	"audio/x-m4a":     true,
+	"audio/aac":       true,
+	"audio/webm":      true,
+	"audio/ogg":       true,
 }
 
 var imageMimeAliases = map[string]string{
@@ -208,6 +220,8 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 			return nil, "", errors.New("invalid PDF data")
 		}
 		maxSize = maxUserPDFSizeBytes
+	} else if tools.IsSupportedAudioMimeType(mimeType) {
+		maxSize = maxUserAudioSizeBytes
 	}
 	if len(decoded) > maxSize {
 		slog.Error("file size exceeds limit", "size", len(decoded), "max", maxSize)

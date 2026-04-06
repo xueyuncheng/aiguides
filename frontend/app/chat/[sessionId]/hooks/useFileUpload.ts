@@ -4,12 +4,62 @@ import {
   MAX_IMAGE_COUNT,
   MAX_IMAGE_SIZE_BYTES,
   MAX_PDF_SIZE_BYTES,
+  MAX_AUDIO_SIZE_BYTES,
   IMAGE_COUNT_ERROR,
   IMAGE_SIZE_ERROR,
   PDF_SIZE_ERROR,
+  AUDIO_SIZE_ERROR,
   IMAGE_TYPE_ERROR,
   IMAGE_READ_ERROR,
 } from '../constants';
+
+const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/x-m4a',
+  '.mp4': 'audio/mp4',
+  '.wav': 'audio/wav',
+  '.aac': 'audio/aac',
+  '.webm': 'audio/webm',
+  '.ogg': 'audio/ogg',
+};
+
+const getFileExtension = (fileName: string) => {
+  const lastDot = fileName.lastIndexOf('.');
+  if (lastDot < 0) {
+    return '';
+  }
+
+  return fileName.slice(lastDot).toLowerCase();
+};
+
+const inferMimeType = (file: File) => {
+  if (file.type) {
+    return file.type;
+  }
+
+  const extension = getFileExtension(file.name);
+  if (extension === '.pdf') {
+    return 'application/pdf';
+  }
+
+  return AUDIO_MIME_BY_EXTENSION[extension] || '';
+};
+
+const normalizeDataUrlMimeType = (dataUrl: string, mimeType: string) => {
+  if (!dataUrl.startsWith('data:') || !mimeType) {
+    return dataUrl;
+  }
+
+  const commaIndex = dataUrl.indexOf(',');
+  if (commaIndex < 0) {
+    return dataUrl;
+  }
+
+  const header = dataUrl.slice(0, commaIndex);
+  const payload = dataUrl.slice(commaIndex + 1);
+  const encodedSuffix = header.includes(';base64') ? ';base64' : '';
+  return `data:${mimeType}${encodedSuffix},${payload}`;
+};
 
 const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
   const reader = new FileReader();
@@ -54,9 +104,11 @@ export function useFileUpload() {
     const limitedFiles = files.slice(0, remainingSlots);
 
     for (const [index, file] of limitedFiles.entries()) {
-      const isPdf = file.type === 'application/pdf';
-      const isImage = file.type.startsWith('image/');
-      if (!isImage && !isPdf) {
+      const mimeType = inferMimeType(file);
+      const isPdf = mimeType === 'application/pdf';
+      const isImage = mimeType.startsWith('image/');
+      const isAudio = mimeType.startsWith('audio/');
+      if (!isImage && !isPdf && !isAudio) {
         if (!errorMessage) {
           errorMessage = IMAGE_TYPE_ERROR;
         }
@@ -74,16 +126,29 @@ export function useFileUpload() {
         }
         continue;
       }
+      if (isAudio && file.size > MAX_AUDIO_SIZE_BYTES) {
+        if (!errorMessage) {
+          errorMessage = AUDIO_SIZE_ERROR;
+        }
+        continue;
+      }
 
       try {
-        const dataUrl = await readFileAsDataUrl(file);
+        const rawDataUrl = await readFileAsDataUrl(file);
+        const dataUrl = normalizeDataUrlMimeType(rawDataUrl, mimeType);
         const imageId = createImageId();
-        const fallbackName = isPdf ? `file-${index + 1}.pdf` : `clipboard-image-${index + 1}`;
+        const fallbackName = isPdf
+          ? `file-${index + 1}.pdf`
+          : isAudio
+            ? `audio-${index + 1}`
+            : `clipboard-image-${index + 1}`;
         nextImages.push({
           id: imageId,
           dataUrl,
           name: file.name || fallbackName,
+          mimeType,
           isPdf,
+          isAudio,
         });
       } catch (error) {
         console.error('Error reading file:', error);
