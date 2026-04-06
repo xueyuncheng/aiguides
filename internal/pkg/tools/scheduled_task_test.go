@@ -73,7 +73,7 @@ func TestCalculateNextRunAt_Daily(t *testing.T) {
 		Timezone:     "UTC",
 	}
 
-	nextRunAt, err := calculateNextRunAt(now, input)
+	nextRunAt, err := CalculateNextRunAt(now, input)
 	if err != nil {
 		t.Fatalf("calculateNextRunAt() error: %v", err)
 	}

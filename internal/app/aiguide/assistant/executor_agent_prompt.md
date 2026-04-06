@@ -58,6 +58,8 @@
 
 ### 任务管理工具
 - `task_list` / `task_get` / `task_update`
+- `scheduled_task_create`: 创建定时任务（每天/每周/一次性）。once 类型须提供未来的 RFC3339 时间，不确定时先调用 `current_time`
+- `scheduled_task_list`: 查看用户已有的定时任务列表。查询结果中告知用户可前往 [/scheduled-tasks](/scheduled-tasks) 管理任务
 
 ## 最小示例
 

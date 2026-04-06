@@ -57,6 +57,13 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		memoryGroup.DELETE("/:memoryId", a.assistant.DeleteMemory)
 	}
 
+	scheduledTaskGroup := api.Group("/assistant/scheduled-tasks")
+	{
+		scheduledTaskGroup.GET("", a.assistant.ListScheduledTasks)
+		scheduledTaskGroup.PATCH("/:taskId", a.assistant.UpdateScheduledTask)
+		scheduledTaskGroup.DELETE("/:taskId", a.assistant.DeleteScheduledTask)
+	}
+
 	fileGroup := api.Group("/assistant/files")
 	{
 		fileGroup.GET("/:fileId/download", a.assistant.DownloadFile)

@@ -23,15 +23,16 @@ type ScheduledTaskCreateInput struct {
 }
 
 type ScheduledTaskCreateOutput struct {
-	TaskID    int    `json:"task_id"`
-	NextRunAt string `json:"next_run_at"`
+	TaskID    int    `json:"task_id,omitempty"`
+	NextRunAt string `json:"next_run_at,omitempty"`
 	Message   string `json:"message"`
+	Error     string `json:"error,omitempty"`
 }
 
 func NewScheduledTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 	config := functiontool.Config{
 		Name:        "scheduled_task_create",
-		Description: "创建定时任务。支持每天/每周/一次性执行。适用于“每天早上8点发送市场快讯到邮箱”这类需求。",
+		Description: "创建定时任务。支持每天/每周/一次性执行。适用于'每天早上8点发送市场快讯到邮箱'这类需求。重要：once 类型的 run_at 必须是未来的 RFC3339 时间；如不确定当前时间，请先调用 current_time 工具。",
 	}
 
 	handler := func(ctx tool.Context, input ScheduledTaskCreateInput) (*ScheduledTaskCreateOutput, error) {
@@ -41,18 +42,38 @@ func NewScheduledTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 			return nil, fmt.Errorf("user_id not found in context")
 		}
 
+		// Default target_email to the username of the user's default email
+		// server config so the scheduler knows where to deliver results.
+		if input.TargetEmail == "" {
+			if tx, ok := middleware.GetTx(ctx); ok {
+				var cfg table.EmailServerConfig
+				if err := tx.Where("user_id = ?", userID).
+					Order("is_default DESC, created_at DESC").
+					First(&cfg).Error; err == nil && cfg.Username != "" {
+					input.TargetEmail = cfg.Username
+				}
+			}
+		}
+
 		sessionID, _ := ctx.Value("session_id").(string)
 
 		normalizedInput, err := normalizeScheduledTaskInput(input)
 		if err != nil {
-			slog.Error("normalizeScheduledTaskInput() error", "err", err)
-			return nil, err
+			slog.Warn("normalizeScheduledTaskInput() error", "err", err)
+			return &ScheduledTaskCreateOutput{
+				Error:   err.Error(),
+				Message: fmt.Sprintf("参数错误：%s。当前时间（UTC+8）：%s", err.Error(), time.Now().In(mustLoadLocation("Asia/Shanghai")).Format("2006-01-02T15:04:05-07:00")),
+			}, nil
 		}
 
-		nextRunAt, err := calculateNextRunAt(time.Now(), normalizedInput)
+		nextRunAt, err := CalculateNextRunAt(time.Now(), normalizedInput)
 		if err != nil {
-			slog.Error("calculateNextRunAt() error", "err", err)
-			return nil, err
+			now := time.Now().In(mustLoadLocation("Asia/Shanghai"))
+			slog.Warn("calculateNextRunAt() error", "err", err, "run_at", input.RunAt)
+			return &ScheduledTaskCreateOutput{
+				Error:   err.Error(),
+				Message: fmt.Sprintf("时间错误：%s。当前时间（UTC+8）：%s，请使用未来的 RFC3339 时间，例如 %s", err.Error(), now.Format("2006-01-02T15:04:05-07:00"), now.Add(time.Hour).Format(time.RFC3339)),
+			}, nil
 		}
 
 		scheduledTask := &table.ScheduledTask{
@@ -168,7 +189,10 @@ func normalizeScheduledTaskInput(input ScheduledTaskCreateInput) (ScheduledTaskC
 	return input, nil
 }
 
-func calculateNextRunAt(now time.Time, input ScheduledTaskCreateInput) (time.Time, error) {
+// CalculateNextRunAt computes the next execution time for a scheduled task
+// given the current time and the task's schedule parameters.
+// It is exported so the scheduler can re-compute next_run_at after each dispatch.
+func CalculateNextRunAt(now time.Time, input ScheduledTaskCreateInput) (time.Time, error) {
 	location, err := time.LoadLocation(input.Timezone)
 	if err != nil {
 		return time.Time{}, fmt.Errorf("time.LoadLocation() error, err = %w", err)
@@ -200,4 +224,13 @@ func calculateNextRunAt(now time.Time, input ScheduledTaskCreateInput) (time.Tim
 	default:
 		return time.Time{}, fmt.Errorf("unsupported schedule_type: %s", input.ScheduleType)
 	}
+}
+
+// mustLoadLocation loads a time.Location, falling back to UTC on error.
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
 }

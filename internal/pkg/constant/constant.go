@@ -17,6 +17,7 @@ func (a AppName) String() string {
 
 const (
 	AppNameAssistant AppName = "assistant"
+	AppNameScheduler AppName = "scheduler"
 )
 
 // TaskStatus 任务状态类型

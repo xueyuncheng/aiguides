@@ -94,7 +94,15 @@ export default function MemoryPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [backPath, setBackPath] = useState('/chat');
   const toastIdRef = useRef(0);
+
+  useEffect(() => {
+    const last = localStorage.getItem('aiguide:lastChatPath');
+    if (last) {
+      setBackPath(last);
+    }
+  }, []);
 
   const notify = (message: string, type: ToastType = 'info') => {
     const id = toastIdRef.current++;
@@ -239,7 +247,7 @@ export default function MemoryPage() {
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <Link href="/chat" className="mb-3 inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-zinc-100">
+            <Link href={backPath} className="mb-3 inline-flex items-center gap-2 text-sm text-zinc-400 transition hover:text-zinc-100">
               <ChevronLeft className="h-4 w-4" />
               返回聊天
             </Link>
