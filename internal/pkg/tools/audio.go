@@ -50,6 +50,22 @@ var supportedAudioMimeTypes = map[string]bool{
 	"audio/ogg":      true,
 }
 
+const ContextKeyAudioTranscriptionProgressReporter = "audio_transcription_progress_reporter"
+
+type AudioTranscriptionProgress struct {
+	FileID          int    `json:"file_id"`
+	JobID           int    `json:"job_id"`
+	ChunkIndex      int    `json:"chunk_index"`
+	CompletedChunks int    `json:"completed_chunks"`
+	ChunkCount      int    `json:"chunk_count"`
+	StartMs         int64  `json:"start_ms"`
+	EndMs           int64  `json:"end_ms"`
+	Transcript      string `json:"transcript"`
+	Characters      int    `json:"characters"`
+}
+
+type AudioTranscriptionProgressReporter func(AudioTranscriptionProgress)
+
 type AudioTranscribeInput struct {
 	FileID int    `json:"file_id" jsonschema:"ID of the uploaded audio file to transcribe"`
 	Prompt string `json:"prompt,omitempty" jsonschema:"Optional hint for names, jargon, or expected language"`
@@ -255,6 +271,7 @@ func (s *AudioToolService) transcribe(ctx context.Context, input AudioTranscribe
 	}
 
 	transcripts := make([]string, 0, len(windows))
+	mergedTranscript := ""
 	for _, window := range windows {
 		chunkPath := normalizedPath
 		if len(windows) > 1 {
@@ -277,9 +294,21 @@ func (s *AudioToolService) transcribe(ctx context.Context, input AudioTranscribe
 			return nil, err
 		}
 		transcripts = append(transcripts, chunkText)
+		mergedTranscript = joinChunkTranscripts(transcripts)
+		reportAudioTranscriptionProgress(ctx, AudioTranscriptionProgress{
+			FileID:          asset.ID,
+			JobID:           job.ID,
+			ChunkIndex:      window.index,
+			CompletedChunks: len(transcripts),
+			ChunkCount:      len(windows),
+			StartMs:         window.startMs,
+			EndMs:           window.endMs,
+			Transcript:      mergedTranscript,
+			Characters:      len(mergedTranscript),
+		})
 	}
 
-	fullTranscript := joinChunkTranscripts(transcripts)
+	fullTranscript := mergedTranscript
 	truncatedTranscript := fullTranscript
 	truncated := false
 	if len(truncatedTranscript) > maxAudioTranscriptChars {
@@ -695,4 +724,15 @@ func extractAudioChunk(inputPath, outputPath string, startMs, durationMs int64) 
 func formatFFmpegSeconds(ms int64) string {
 	seconds := float64(ms) / 1000
 	return strconv.FormatFloat(seconds, 'f', 3, 64)
+}
+
+func reportAudioTranscriptionProgress(ctx context.Context, progress AudioTranscriptionProgress) {
+	if ctx == nil {
+		return
+	}
+	reporter, ok := ctx.Value(ContextKeyAudioTranscriptionProgressReporter).(AudioTranscriptionProgressReporter)
+	if !ok || reporter == nil {
+		return
+	}
+	reporter(progress)
 }

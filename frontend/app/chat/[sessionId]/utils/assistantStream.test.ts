@@ -135,6 +135,44 @@ describe('consumeAssistantStream', () => {
     });
   });
 
+  it('updates a running audio transcription tool call from tool_progress events', async () => {
+    const reader = createReader([
+      'event: tool_call\n',
+      'data: {"tool_call_id":"call-audio","tool_name":"audio_transcribe","tool_label":"Transcribe audio","tool_args":{"file_id":42},"author":"assistant"}\n',
+      'event: tool_progress\n',
+      'data: {"tool_name":"audio_transcribe","tool_result":{"job_id":9,"chunk_count":3,"completed_chunks":1,"transcript":"Hello"},"author":"assistant"}\n',
+      'event: tool_progress\n',
+      'data: {"tool_name":"audio_transcribe","tool_result":{"job_id":9,"chunk_count":3,"completed_chunks":2,"transcript":"Hello world"},"author":"assistant"}\n',
+    ]);
+    const { getMessages, setMessages } = createMessageState();
+    const setIsLoading = vi.fn();
+
+    await consumeAssistantStream({
+      reader,
+      setIsLoading,
+      setMessages,
+    });
+
+    expect(setIsLoading).not.toHaveBeenCalled();
+    expect(getMessages()).toHaveLength(1);
+    expect(getMessages()[0]).toMatchObject({
+      toolCalls: [
+        {
+          toolCallId: 'call-audio',
+          toolName: 'audio_transcribe',
+          status: 'running',
+          result: {
+            job_id: 9,
+            chunk_count: 3,
+            completed_chunks: 2,
+            transcript: 'Hello world',
+          },
+        },
+      ],
+      isStreaming: false,
+    });
+  });
+
   it('deduplicates repeated batches of tool calls within the same assistant message', async () => {
     const reader = createReader([
       'event: tool_call\n',
