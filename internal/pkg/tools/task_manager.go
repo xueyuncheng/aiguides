@@ -233,7 +233,7 @@ type FinishPlanningOutput struct {
 func NewFinishPlanningTool() (tool.Tool, error) {
 	config := functiontool.Config{
 		Name:        "finish_planning",
-		Description: "Signal that planning is complete and return control to the root agent. Use this after you've created all necessary tasks.",
+		Description: "Signal that planning is complete. Use this after you've created all necessary tasks.",
 	}
 
 	handler := func(ctx tool.Context, input FinishPlanningInput) (*FinishPlanningOutput, error) {

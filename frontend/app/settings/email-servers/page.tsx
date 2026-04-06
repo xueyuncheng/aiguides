@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Button } from '@/app/components/ui/button';
@@ -8,6 +8,7 @@ import { Input } from '@/app/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import {
+  AlertTriangle,
   Plus,
   Trash2,
   Edit2,
@@ -22,6 +23,7 @@ import {
 interface EmailServerConfig {
   id: number;
   server: string;
+  smtp_server?: string;
   username: string;
   password?: string;
   mailbox: string;
@@ -33,6 +35,7 @@ interface EmailServerConfig {
 
 interface FormData {
   server: string;
+  smtp_server: string;
   username: string;
   password: string;
   mailbox: string;
@@ -54,9 +57,12 @@ export default function EmailServersPage() {
   const [configs, setConfigs] = useState<EmailServerConfig[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<EmailServerConfig | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<FormData>({
     server: '',
+    smtp_server: '',
     username: '',
     password: '',
     mailbox: 'INBOX',
@@ -67,13 +73,13 @@ export default function EmailServersPage() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const toastId = useRef(0);
 
-  const notify = (message: string, type: ToastType = 'info') => {
+  const notify = useCallback((message: string, type: ToastType = 'info') => {
     const id = toastId.current++;
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3200);
-  };
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -82,12 +88,21 @@ export default function EmailServersPage() {
   }, [user, loading, router]);
 
   useEffect(() => {
-    if (user) {
-      loadConfigs();
+    if (!deleteTarget) {
+      return;
     }
-  }, [user]);
 
-  const loadConfigs = async () => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && deletingId === null) {
+        setDeleteTarget(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [deleteTarget, deletingId]);
+
+  const loadConfigs = useCallback(async () => {
     try {
       const response = await fetch('/api/email_server_configs', {
         credentials: 'include',
@@ -103,7 +118,13 @@ export default function EmailServersPage() {
       const msg = '加载邮件服务器配置失败: ' + (err as Error).message;
       notify(msg, 'error');
     }
-  };
+  }, [notify]);
+
+  useEffect(() => {
+    if (user) {
+      loadConfigs();
+    }
+  }, [loadConfigs, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,6 +185,7 @@ export default function EmailServersPage() {
 
       setFormData({
         server: detail.server,
+        smtp_server: detail.smtp_server || '',
         username: detail.username,
         password: detail.password || '',
         mailbox: detail.mailbox || 'INBOX',
@@ -181,13 +203,18 @@ export default function EmailServersPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('确定要删除这个邮件服务器配置吗？')) {
+  const handleDelete = (config: EmailServerConfig) => {
+    setDeleteTarget(config);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) {
       return;
     }
 
+    setDeletingId(deleteTarget.id);
     try {
-      const response = await fetch(`/api/email_server_configs/${id}`, {
+      const response = await fetch(`/api/email_server_configs/${deleteTarget.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
@@ -195,6 +222,7 @@ export default function EmailServersPage() {
       if (response.ok) {
         const msg = '删除成功';
         notify(msg, 'success');
+        setDeleteTarget(null);
         await loadConfigs();
       } else {
         const data = await response.json();
@@ -204,12 +232,15 @@ export default function EmailServersPage() {
     } catch (err) {
       const msg = '删除失败: ' + (err as Error).message;
       notify(msg, 'error');
+    } finally {
+      setDeletingId(null);
     }
   };
 
   const resetForm = () => {
     setFormData({
       server: '',
+      smtp_server: '',
       username: '',
       password: '',
       mailbox: 'INBOX',
@@ -239,6 +270,57 @@ export default function EmailServersPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-100 bg-white shadow-2xl">
+            <div className="bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_65%)] px-6 py-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-sm">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    删除邮件服务器配置？
+                  </h2>
+                  <p className="text-sm leading-6 text-slate-600">
+                    这会移除 <span className="font-medium text-slate-900">{deleteTarget.name}</span>{' '}
+                    的邮箱连接设置，AI 将无法继续使用这个账号查询或发送邮件。
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <div className="font-medium text-slate-900">{deleteTarget.username}</div>
+                <div className="mt-1">IMAP: {deleteTarget.server}</div>
+                <div className="mt-1">SMTP: {deleteTarget.smtp_server || '未配置'}</div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deletingId !== null}
+                >
+                  取消
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  disabled={deletingId !== null}
+                  className="min-w-28"
+                >
+                  {deletingId === deleteTarget.id ? '删除中...' : '确认删除'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -297,7 +379,7 @@ export default function EmailServersPage() {
             <CardHeader>
               <CardTitle>{editingId ? '编辑' : '添加'}邮件服务器</CardTitle>
               <CardDescription>
-                输入 IMAP 服务器信息以连接您的邮箱
+                输入 IMAP/SMTP 服务器信息以查询和发送邮件
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -332,6 +414,23 @@ export default function EmailServersPage() {
                   />
                   <p className="text-xs text-muted-foreground mt-1">
                     IMAP 服务器地址和端口，通常是 993
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    SMTP 服务器地址
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.smtp_server}
+                    onChange={(e) =>
+                      setFormData({ ...formData, smtp_server: e.target.value })
+                    }
+                    placeholder="例如: smtp.gmail.com:587"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    可选；配置后 AI 助手可使用该账号发送邮件，通常使用 587 或 465 端口
                   </p>
                 </div>
 
@@ -452,7 +551,7 @@ export default function EmailServersPage() {
                   还没有配置邮件服务器
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  添加邮件服务器配置后，AI 助手将能够帮您查询邮件
+                  添加邮件服务器配置后，AI 助手将能够帮您查询邮件；补充 SMTP 地址后也可发送邮件
                 </p>
                 {!showForm && (
                   <Button onClick={() => setShowForm(true)}>
@@ -493,7 +592,7 @@ export default function EmailServersPage() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleDelete(config.id)}
+                        onClick={() => handleDelete(config)}
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
@@ -505,6 +604,10 @@ export default function EmailServersPage() {
                     <div>
                       <span className="text-muted-foreground">服务器：</span>
                       <span className="ml-2">{config.server}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">SMTP：</span>
+                      <span className="ml-2">{config.smtp_server || '未配置'}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">邮箱文件夹：</span>

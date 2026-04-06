@@ -33,6 +33,10 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// 需要认证的用户信息接口
 	api.GET("/auth/user", a.GetUser)
 
+	if a.rateLimitConfig != nil {
+		api.Use(middleware.RateLimiter(a.redisClient, a.rateLimitConfig))
+	}
+
 	// Agent 聊天路由
 	api.POST("/assistant/chats/:id", a.assistant.Chat)
 
@@ -44,12 +48,35 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		shareGroup.DELETE("/:shareId", a.assistant.DeleteShare)
 	}
 
+	memoryGroup := api.Group("/assistant/memories")
+	{
+		memoryGroup.GET("", a.assistant.ListMemories)
+		memoryGroup.POST("", a.assistant.CreateMemory)
+		memoryGroup.GET("/summary", a.assistant.GetMemorySummary)
+		memoryGroup.PATCH("/:memoryId", a.assistant.UpdateMemory)
+		memoryGroup.DELETE("/:memoryId", a.assistant.DeleteMemory)
+	}
+
+	fileGroup := api.Group("/assistant/files")
+	{
+		fileGroup.GET("/:fileId/download", a.assistant.DownloadFile)
+	}
+
+	projectGroup := api.Group("/assistant/projects")
+	{
+		projectGroup.GET("", a.assistant.ListProjects)
+		projectGroup.POST("", a.assistant.CreateProject)
+		projectGroup.PATCH("/:projectId", a.assistant.UpdateProject)
+		projectGroup.DELETE("/:projectId", a.assistant.DeleteProject)
+	}
+
 	// 会话管理路由
 	agentGroup := api.Group("/:agentId/sessions")
 	{
 		agentGroup.GET("", a.assistant.ListSessions)
 		agentGroup.POST("", a.assistant.CreateSession)
 		agentGroup.POST("/:sessionId/edit", a.assistant.EditSession)
+		agentGroup.PATCH("/:sessionId/project", a.assistant.UpdateSessionProject)
 		agentGroup.GET("/:sessionId/history", a.assistant.GetSessionHistory)
 		agentGroup.DELETE("/:sessionId", a.assistant.DeleteSession)
 	}
@@ -68,5 +95,14 @@ func registerSettingRoutes(db *gorm.DB, api *gin.RouterGroup) {
 		emailServerConfig.GET("/:id", s.GetEmailServerConfig)
 		emailServerConfig.PUT("/:id", s.UpdateEmailServerConfig)
 		emailServerConfig.DELETE("/:id", s.DeleteEmailServerConfig)
+	}
+
+	sshServerConfig := api.Group("/ssh_server_configs")
+	{
+		sshServerConfig.POST("", s.CreateSSHServerConfig)
+		sshServerConfig.GET("", s.ListSSHServerConfigs)
+		sshServerConfig.GET("/:id", s.GetSSHServerConfig)
+		sshServerConfig.PUT("/:id", s.UpdateSSHServerConfig)
+		sshServerConfig.DELETE("/:id", s.DeleteSSHServerConfig)
 	}
 }

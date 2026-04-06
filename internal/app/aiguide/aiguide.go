@@ -4,12 +4,16 @@ import (
 	"aiguide/internal/app/aiguide/assistant"
 	"aiguide/internal/app/aiguide/migration"
 	"aiguide/internal/pkg/auth"
+	"aiguide/internal/pkg/middleware"
+	"aiguide/internal/pkg/redis"
+	"aiguide/internal/pkg/storage"
 	"aiguide/internal/pkg/tools"
 	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
@@ -21,23 +25,27 @@ import (
 )
 
 type Config struct {
-	DBFile              string    `yaml:"db_file"`
-	APIKey              string    `yaml:"api_key"`
-	ModelName           string    `yaml:"model_name"`
-	BaseURL             string    `yaml:"base_url"`
-	Proxy               string    `yaml:"proxy"`
-	UseGin              bool      `yaml:"use_gin"`
-	GinPort             string    `yaml:"gin_port"`
-	GoogleClientID      string    `yaml:"google_client_id"`
-	GoogleClientSecret  string    `yaml:"google_client_secret"`
-	GoogleRedirectURL   string    `yaml:"google_redirect_url"`
-	JWTSecret           string    `yaml:"jwt_secret"`
-	FrontendURL         string    `yaml:"frontend_url"`
-	AllowedEmails       []string  `yaml:"allowed_emails"`
-	SecureCookie        *bool     `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
-	MockImageGeneration bool      `yaml:"mock_image_generation"`
-	WebSearch           WebSearch `yaml:"web_search"` // Web 搜索配置
-	ExaSearch           ExaSearch `yaml:"exa_search"` // Exa 搜索配置
+	DBFile              string       `yaml:"db_file"`
+	APIKey              string       `yaml:"api_key"`
+	ModelName           string       `yaml:"model_name"`
+	BaseURL             string       `yaml:"base_url"`
+	Proxy               string       `yaml:"proxy"`
+	UseGin              bool         `yaml:"use_gin"`
+	GinPort             string       `yaml:"gin_port"`
+	GoogleClientID      string       `yaml:"google_client_id"`
+	GoogleClientSecret  string       `yaml:"google_client_secret"`
+	GoogleRedirectURL   string       `yaml:"google_redirect_url"`
+	JWTSecret           string       `yaml:"jwt_secret"`
+	FrontendURL         string       `yaml:"frontend_url"`
+	AllowedEmails       []string     `yaml:"allowed_emails"`
+	SecureCookie        *bool        `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
+	MockImageGeneration bool         `yaml:"mock_image_generation"`
+	WebSearch           WebSearch    `yaml:"web_search"` // Web 搜索配置
+	ExaSearch           ExaSearch    `yaml:"exa_search"` // Exa 搜索配置
+	Redis               redis.Config `yaml:"redis"`      // Redis 配置
+	RateLimit           RateLimit    `yaml:"rate_limit"` // 限流配置
+	FileStorageDir      string       `yaml:"file_storage_dir"`
+	PDFWorkDir          string       `yaml:"pdf_work_dir"`
 }
 
 // WebSearch Web 搜索 YAML 配置（用于解析配置文件）
@@ -51,13 +59,23 @@ type ExaSearch struct {
 	APIKey string `yaml:"api_key"`
 }
 
+// RateLimit 基于 Redis 令牌桶的限流 YAML 配置
+type RateLimit struct {
+	// Rate 令牌桶容量：每个 period 内允许的最大请求数
+	Rate int `yaml:"rate"`
+	// Period 令牌补充周期（秒）
+	PeriodSeconds int `yaml:"period_seconds"`
+}
+
 type AIGuide struct {
 	config *Config
 
-	migrator    *migration.Migrator
-	db          *gorm.DB
-	assistant   *assistant.Assistant
-	authService *auth.AuthService
+	migrator        *migration.Migrator
+	db              *gorm.DB
+	assistant       *assistant.Assistant
+	authService     *auth.AuthService
+	redisClient     *redis.Client                 // nil 表示未配置 Redis
+	rateLimitConfig *middleware.RateLimiterConfig // nil 表示禁用限流
 }
 
 // secureCookie 返回 cookie 的 secure 标志值，默认为 true（生产环境）
@@ -131,6 +149,22 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
 	}
 
+	fileStorageDir := config.FileStorageDir
+	if fileStorageDir == "" {
+		fileStorageDir = "data/files"
+	}
+	fileStore, err := storage.NewLocalFileStore(fileStorageDir)
+	if err != nil {
+		return nil, fmt.Errorf("storage.NewLocalFileStore() error, err = %w", err)
+	}
+	assistantConfig.FileStore = fileStore
+
+	pdfWorkDir := config.PDFWorkDir
+	if pdfWorkDir == "" {
+		pdfWorkDir = "data/tmp/pdf"
+	}
+	assistantConfig.PDFWorkDir = pdfWorkDir
+
 	assistant, err := assistant.New(assistantConfig)
 	if err != nil {
 		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
@@ -151,6 +185,18 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		assistant:   assistant,
 		authService: authService,
 	}
+
+	rdb, err := redis.New(ctx, config.Redis)
+	if err != nil {
+		return nil, fmt.Errorf("redis.New() error, err = %w", err)
+	}
+
+	guide.redisClient = rdb
+	guide.rateLimitConfig = &middleware.RateLimiterConfig{
+		Rate:   config.RateLimit.Rate,
+		Period: time.Duration(config.RateLimit.PeriodSeconds) * time.Second,
+	}
+	slog.Info("rate limiting enabled", "addr", rdb.Addr(), "rate", config.RateLimit.Rate, "period_seconds", config.RateLimit.PeriodSeconds)
 
 	return guide, nil
 }

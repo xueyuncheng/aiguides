@@ -2,7 +2,8 @@ package assistant
 
 import (
 	"aiguide/internal/app/aiguide/table"
-	"encoding/json"
+	"aiguide/internal/pkg/storage"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -60,7 +61,7 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 		return
 	}
 
-	_, err := buildUserMessageParts(trimmedContent, req.Images, req.FileNames)
+	_, err := buildUserMessageParts(ctx, a.db, a.fileStore, strconv.Itoa(req.UserID), sessionID, trimmedContent, req.Images, req.FileNames, false)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_edit_payload"})
 		return
@@ -126,30 +127,28 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 	})
 }
 
-func buildUserMessageParts(message string, images, fileNames []string) ([]*genai.Part, error) {
+func buildUserMessageParts(ctx context.Context, db *gorm.DB, fileStore storage.FileStore, userID, sessionID, message string, images, fileNames []string, persistUploadedPDFs bool) ([]*genai.Part, error) {
 	parts := make([]*genai.Part, 0, 1+len(images))
+	parts = appendTextPart(parts, message, fileNames, len(images))
 
-	actualMessage := message
-	if len(fileNames) > 0 && len(fileNames) == len(images) {
-		fileNamesJSON, _ := json.Marshal(fileNames)
-		actualMessage = fmt.Sprintf("<!-- FILE_NAMES: %s -->\n%s", fileNamesJSON, message)
-	}
-	if actualMessage != "" {
-		parts = append(parts, genai.NewPartFromText(actualMessage))
-	}
-
-	for _, image := range images {
+	for idx, image := range images {
 		imageBytes, mimeType, err := parseDataURI(image)
 		if err != nil {
 			slog.Error("parseDataURI error", "err", err)
 			return nil, err
 		}
-		parts = append(parts, genai.NewPartFromBytes(imageBytes, mimeType))
+		fileName := ""
+		if idx < len(fileNames) {
+			fileName = fileNames[idx]
+		}
+		parts, err = appendUserUploadPart(ctx, parts, db, fileStore, userID, sessionID, fileName, imageBytes, mimeType, persistUploadedPDFs)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if len(parts) == 0 {
-		slog.Error("message or images required")
-		return nil, errors.New("message or images required")
+	if err := ensureUserMessageParts(parts); err != nil {
+		return nil, err
 	}
 
 	return parts, nil
@@ -257,6 +256,7 @@ func (a *Assistant) createEditedSessionMeta(parentSessionID, newSessionID, messa
 		SessionID:           newSessionID,
 		Title:               parentMeta.Title,
 		ThreadID:            threadID,
+		ProjectID:           parentMeta.ProjectID,
 		Version:             newVersion,
 		ParentSessionID:     parentSessionID,
 		EditedFromMessageID: messageID,

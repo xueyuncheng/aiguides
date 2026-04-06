@@ -3,6 +3,8 @@ package tools
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/middleware"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -19,7 +21,6 @@ type MemoryInput struct {
 	Content    string                `json:"content,omitempty" jsonschema:"记忆内容"`
 	MemoryID   int                   `json:"memory_id,omitempty" jsonschema:"记忆ID"`
 	Importance int                   `json:"importance,omitempty" jsonschema:"重要性（1-10），默认为5"`
-	UserID     int                   `json:"user_id" jsonschema:"用户ID"`
 }
 
 // MemoryOutput 定义记忆工具的输出结果
@@ -61,33 +62,34 @@ func NewMemoryTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	handlerFunc := func(ctx tool.Context, input *MemoryInput) (*MemoryOutput, error) {
-		return handler.handleMemory(input)
+		return handler.handleMemory(ctx, input)
 	}
 
 	return functiontool.New(config, handlerFunc)
 }
 
 // handleMemory 处理记忆操作请求
-func (h *memoryHandler) handleMemory(input *MemoryInput) (*MemoryOutput, error) {
-	slog.Info("Memory tool called", "action", input.Action, "user_id", input.UserID)
-
-	if input.UserID == 0 {
-		slog.Error("user_id is emptry")
+func (h *memoryHandler) handleMemory(ctx context.Context, input *MemoryInput) (*MemoryOutput, error) {
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok {
+		slog.Error("user_id not found in context")
 		return &MemoryOutput{
 			Success: false,
-			Error:   "user_id is required",
+			Error:   "user_id not found in context",
 		}, nil
 	}
 
+	slog.Info("Memory tool called", "action", input.Action, "user_id", userID)
+
 	switch input.Action {
 	case constant.MemoryActionSave:
-		return h.saveMemory(input)
+		return h.saveMemory(input, userID)
 	case constant.MemoryActionRetrieve:
-		return h.retrieveMemories(input)
+		return h.retrieveMemories(input, userID)
 	case constant.MemoryActionUpdate:
-		return h.updateMemory(input)
+		return h.updateMemory(input, userID)
 	case constant.MemoryActionDelete:
-		return h.deleteMemory(input)
+		return h.deleteMemory(input, userID)
 	default:
 		slog.Error("unsupported action", "action", input.Action)
 		return &MemoryOutput{
@@ -98,7 +100,7 @@ func (h *memoryHandler) handleMemory(input *MemoryInput) (*MemoryOutput, error) 
 }
 
 // saveMemory 保存新的记忆
-func (h *memoryHandler) saveMemory(input *MemoryInput) (*MemoryOutput, error) {
+func (h *memoryHandler) saveMemory(input *MemoryInput, userID int) (*MemoryOutput, error) {
 	if input.Content == "" {
 		slog.Error("content is empty")
 		return &MemoryOutput{
@@ -129,7 +131,7 @@ func (h *memoryHandler) saveMemory(input *MemoryInput) (*MemoryOutput, error) {
 	}
 
 	memory := table.UserMemory{
-		UserID:     input.UserID,
+		UserID:     userID,
 		MemoryType: input.MemoryType,
 		Content:    input.Content,
 		Importance: importance,
@@ -160,8 +162,8 @@ func (h *memoryHandler) saveMemory(input *MemoryInput) (*MemoryOutput, error) {
 }
 
 // retrieveMemories 检索用户的记忆
-func (h *memoryHandler) retrieveMemories(input *MemoryInput) (*MemoryOutput, error) {
-	query := h.db.Where("user_id = ?", input.UserID)
+func (h *memoryHandler) retrieveMemories(input *MemoryInput, userID int) (*MemoryOutput, error) {
+	query := h.db.Where("user_id = ?", userID)
 
 	// 可选：按类型过滤
 	if input.MemoryType != "" {
@@ -203,7 +205,7 @@ func (h *memoryHandler) retrieveMemories(input *MemoryInput) (*MemoryOutput, err
 }
 
 // updateMemory 更新现有记忆
-func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) {
+func (h *memoryHandler) updateMemory(input *MemoryInput, userID int) (*MemoryOutput, error) {
 	if input.MemoryID == 0 {
 		slog.Error("memory_id is empty")
 		return &MemoryOutput{
@@ -221,7 +223,7 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 	}
 
 	var memory table.UserMemory
-	if err := h.db.Where("id = ? AND user_id = ?", input.MemoryID, input.UserID).First(&memory).Error; err != nil {
+	if err := h.db.Where("id = ? AND user_id = ?", input.MemoryID, userID).First(&memory).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			slog.Error("memory is not found", "memory_id", input.MemoryID)
 			return &MemoryOutput{
@@ -271,7 +273,7 @@ func (h *memoryHandler) updateMemory(input *MemoryInput) (*MemoryOutput, error) 
 }
 
 // deleteMemory 删除记忆
-func (h *memoryHandler) deleteMemory(input *MemoryInput) (*MemoryOutput, error) {
+func (h *memoryHandler) deleteMemory(input *MemoryInput, userID int) (*MemoryOutput, error) {
 	if input.MemoryID == 0 {
 		slog.Error("memory_id is required")
 		return &MemoryOutput{
@@ -280,7 +282,7 @@ func (h *memoryHandler) deleteMemory(input *MemoryInput) (*MemoryOutput, error) 
 		}, nil
 	}
 
-	result := h.db.Where("id = ? AND user_id = ?", input.MemoryID, input.UserID).Delete(&table.UserMemory{})
+	result := h.db.Where("id = ? AND user_id = ?", input.MemoryID, userID).Delete(&table.UserMemory{})
 	if result.Error != nil {
 		slog.Error("Failed to delete memory", "err", result.Error)
 		return &MemoryOutput{

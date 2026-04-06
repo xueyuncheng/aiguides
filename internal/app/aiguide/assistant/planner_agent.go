@@ -12,6 +12,7 @@ import (
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
+	"google.golang.org/genai"
 	"gorm.io/gorm"
 
 	"aiguide/internal/pkg/tools"
@@ -62,6 +63,11 @@ func NewPlannerAgent(config *PlannerAgentConfig) (agent.Agent, error) {
 		Name:        "planner",
 		Description: "Specialized agent for breaking down complex tasks into structured plans with subtasks, dependencies, and priorities",
 		Model:       config.Model,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				IncludeThoughts: true,
+			},
+		},
 		Tools: []tool.Tool{
 			taskCreateTool,
 			taskUpdateTool,

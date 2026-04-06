@@ -13,25 +13,27 @@ import (
 
 // EmailServerConfigRequest 邮件服务器配置请求
 type EmailServerConfigRequest struct {
-	Server    string `json:"server" binding:"required"`
-	Username  string `json:"username" binding:"required"`
-	Password  string `json:"password" binding:"required"`
-	Mailbox   string `json:"mailbox"`
-	Name      string `json:"name" binding:"required"`
-	IsDefault bool   `json:"is_default"`
+	Server     string `json:"server" binding:"required"`
+	SMTPServer string `json:"smtp_server"`
+	Username   string `json:"username" binding:"required"`
+	Password   string `json:"password" binding:"required"`
+	Mailbox    string `json:"mailbox"`
+	Name       string `json:"name" binding:"required"`
+	IsDefault  bool   `json:"is_default"`
 }
 
 // EmailServerConfigResponse 邮件服务器配置响应
 type EmailServerConfigResponse struct {
-	ID        int       `json:"id"`
-	Server    string    `json:"server"`
-	Username  string    `json:"username"`
-	Password  string    `json:"password"`
-	Mailbox   string    `json:"mailbox"`
-	Name      string    `json:"name"`
-	IsDefault bool      `json:"is_default"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         int       `json:"id"`
+	Server     string    `json:"server"`
+	SMTPServer string    `json:"smtp_server"`
+	Username   string    `json:"username"`
+	Password   string    `json:"password"`
+	Mailbox    string    `json:"mailbox"`
+	Name       string    `json:"name"`
+	IsDefault  bool      `json:"is_default"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // CreateEmailServerConfig 创建邮件服务器配置
@@ -64,13 +66,14 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 	}
 
 	config := table.EmailServerConfig{
-		UserID:    user.ID,
-		Server:    req.Server,
-		Username:  req.Username,
-		Password:  req.Password, // SECURITY WARNING: Stored in plain text. Should be encrypted in production.
-		Mailbox:   req.Mailbox,
-		Name:      req.Name,
-		IsDefault: req.IsDefault,
+		UserID:     user.ID,
+		Server:     req.Server,
+		SMTPServer: req.SMTPServer,
+		Username:   req.Username,
+		Password:   req.Password, // SECURITY WARNING: Stored in plain text. Should be encrypted in production.
+		Mailbox:    req.Mailbox,
+		Name:       req.Name,
+		IsDefault:  req.IsDefault,
 	}
 
 	if err := s.db.Create(&config).Error; err != nil {
@@ -80,15 +83,16 @@ func (s *Setting) CreateEmailServerConfig(c *gin.Context) {
 	}
 
 	resp := EmailServerConfigResponse{
-		ID:        config.ID,
-		Server:    config.Server,
-		Username:  config.Username,
-		Password:  config.Password,
-		Mailbox:   config.Mailbox,
-		Name:      config.Name,
-		IsDefault: config.IsDefault,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:         config.ID,
+		Server:     config.Server,
+		SMTPServer: config.SMTPServer,
+		Username:   config.Username,
+		Password:   config.Password,
+		Mailbox:    config.Mailbox,
+		Name:       config.Name,
+		IsDefault:  config.IsDefault,
+		CreatedAt:  config.CreatedAt,
+		UpdatedAt:  config.UpdatedAt,
 	}
 
 	c.JSON(http.StatusCreated, resp)
@@ -122,15 +126,16 @@ func (s *Setting) ListEmailServerConfigs(c *gin.Context) {
 	for i := range configs {
 		cfg := configs[i]
 		item := EmailServerConfigResponse{
-			ID:        cfg.ID,
-			Server:    cfg.Server,
-			Username:  cfg.Username,
-			Password:  cfg.Password,
-			Mailbox:   cfg.Mailbox,
-			Name:      cfg.Name,
-			IsDefault: cfg.IsDefault,
-			CreatedAt: cfg.CreatedAt,
-			UpdatedAt: cfg.UpdatedAt,
+			ID:         cfg.ID,
+			Server:     cfg.Server,
+			SMTPServer: cfg.SMTPServer,
+			Username:   cfg.Username,
+			Password:   cfg.Password,
+			Mailbox:    cfg.Mailbox,
+			Name:       cfg.Name,
+			IsDefault:  cfg.IsDefault,
+			CreatedAt:  cfg.CreatedAt,
+			UpdatedAt:  cfg.UpdatedAt,
 		}
 		response = append(response, item)
 	}
@@ -170,15 +175,16 @@ func (s *Setting) GetEmailServerConfig(c *gin.Context) {
 	}
 
 	resp := EmailServerConfigResponse{
-		ID:        config.ID,
-		Server:    config.Server,
-		Username:  config.Username,
-		Password:  config.Password,
-		Mailbox:   config.Mailbox,
-		Name:      config.Name,
-		IsDefault: config.IsDefault,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:         config.ID,
+		Server:     config.Server,
+		SMTPServer: config.SMTPServer,
+		Username:   config.Username,
+		Password:   config.Password,
+		Mailbox:    config.Mailbox,
+		Name:       config.Name,
+		IsDefault:  config.IsDefault,
+		CreatedAt:  config.CreatedAt,
+		UpdatedAt:  config.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, resp)
@@ -240,6 +246,7 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 
 	// 更新配置
 	config.Server = req.Server
+	config.SMTPServer = req.SMTPServer
 	config.Username = req.Username
 	if req.Password != "" {
 		// Only update password if provided (SECURITY WARNING: Stored in plain text)
@@ -256,15 +263,16 @@ func (s *Setting) UpdateEmailServerConfig(c *gin.Context) {
 	}
 
 	resp := EmailServerConfigResponse{
-		ID:        config.ID,
-		Server:    config.Server,
-		Username:  config.Username,
-		Password:  config.Password,
-		Mailbox:   config.Mailbox,
-		Name:      config.Name,
-		IsDefault: config.IsDefault,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:         config.ID,
+		Server:     config.Server,
+		SMTPServer: config.SMTPServer,
+		Username:   config.Username,
+		Password:   config.Password,
+		Mailbox:    config.Mailbox,
+		Name:       config.Name,
+		IsDefault:  config.IsDefault,
+		CreatedAt:  config.CreatedAt,
+		UpdatedAt:  config.UpdatedAt,
 	}
 
 	c.JSON(http.StatusOK, resp)

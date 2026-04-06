@@ -5,6 +5,7 @@ import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw } from
 import { cn } from '@/app/lib/utils';
 import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
 import { FEEDBACK_TIMEOUT_MS } from '../constants';
+import type { ToolCallItem } from '../types';
 
 interface AIMessageContentProps {
   content: string;
@@ -14,6 +15,7 @@ interface AIMessageContentProps {
   isError?: boolean;
   onRetry?: () => void;
   thoughtStorageKey?: string;
+  toolCalls?: ToolCallItem[];
 }
 
 export const AIMessageContent = memo(({
@@ -23,9 +25,11 @@ export const AIMessageContent = memo(({
   images,
   isError,
   onRetry,
-  thoughtStorageKey
+  thoughtStorageKey,
+  toolCalls,
 }: AIMessageContentProps) => {
   const [showRaw, setShowRaw] = useState(false);
+  const [expandedToolCallIndexes, setExpandedToolCallIndexes] = useState<number[]>([]);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(() => {
     if (!thought || !thoughtStorageKey || typeof window === 'undefined') return false;
 
@@ -90,6 +94,54 @@ export const AIMessageContent = memo(({
     }
   };
 
+  const toggleToolArgs = (index: number) => {
+    setExpandedToolCallIndexes((prev) => (
+      prev.includes(index) ? prev.filter((item) => item !== index) : [...prev, index]
+    ));
+  };
+
+  const formatToolArgs = (args?: Record<string, unknown>) => {
+    if (!args || Object.keys(args).length === 0) {
+      return '';
+    }
+
+    return JSON.stringify(args, null, 2);
+  };
+
+  const getAudioTranscriptProgress = (result?: Record<string, unknown>) => {
+    if (!result) {
+      return null;
+    }
+
+    const transcript = typeof result.transcript === 'string' ? result.transcript : '';
+    if (!transcript) {
+      return null;
+    }
+
+    const completedChunks = typeof result.completed_chunks === 'number' ? result.completed_chunks : undefined;
+    const chunkCount = typeof result.chunk_count === 'number' ? result.chunk_count : undefined;
+
+    return {
+      transcript,
+      progressLabel: completedChunks && chunkCount
+        ? `已转写 ${completedChunks}/${chunkCount} 段`
+        : undefined,
+    };
+  };
+
+  const resolvedContent = content.replaceAll(
+    '(download_path)',
+    (() => {
+      const fileGetCall = [...(toolCalls || [])].reverse().find((tc) => (
+        tc.toolName === 'file_get' && typeof tc.result?.download_path === 'string'
+      ));
+      const downloadPath = fileGetCall?.result?.download_path;
+      return typeof downloadPath === 'string' && downloadPath.trim() !== ''
+        ? `(${downloadPath})`
+        : '(download_path)';
+    })()
+  );
+
   return (
     <div className="group">
       {/* Thought Process section */}
@@ -129,12 +181,72 @@ export const AIMessageContent = memo(({
         </div>
       )}
 
+      {/* Tool calls section */}
+      {toolCalls && toolCalls.length > 0 && (
+        <div className="mb-3 flex flex-col gap-1.5">
+          {toolCalls.map((tc, i) => {
+            const audioProgress = tc.toolName === 'audio_transcribe' ? getAudioTranscriptProgress(tc.result) : null;
+
+            return (
+              <div
+                key={i}
+                className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
+              >
+                <div className="flex items-center gap-2 px-3 py-1.5">
+                {isStreaming && tc.status === 'running' ? (
+                  <div className="flex space-x-0.5 shrink-0">
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
+                  </div>
+                ) : (
+                  <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                )}
+                <span className="min-w-0 flex-1 break-all">{tc.label}</span>
+                {tc.args && Object.keys(tc.args).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => toggleToolArgs(i)}
+                    className="inline-flex items-center gap-1 rounded border border-muted-foreground/15 px-2 py-0.5 text-[11px] hover:bg-muted/60 transition-colors shrink-0"
+                    aria-expanded={expandedToolCallIndexes.includes(i)}
+                  >
+                    {expandedToolCallIndexes.includes(i) ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                    <span>参数</span>
+                  </button>
+                )}
+                </div>
+                {audioProgress && (
+                  <div className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2">
+                    {audioProgress.progressLabel && (
+                      <div className="mb-1 text-[11px] text-muted-foreground/80">{audioProgress.progressLabel}</div>
+                    )}
+                    <pre className="max-h-48 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-foreground/90">
+                      {audioProgress.transcript}
+                    </pre>
+                  </div>
+                )}
+                {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
+                  <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
+                    {formatToolArgs(tc.args)}
+                  </pre>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Content display */}
       <div className="relative">
         {/* Display images if present */}
         {images && images.length > 0 && (
           <div className="mb-4 space-y-3">
             {images.map((imageData, index) => (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 key={index}
                 src={imageData}
@@ -160,13 +272,13 @@ export const AIMessageContent = memo(({
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold prose-table:border-collapse prose-table:w-full prose-th:border prose-td:border prose-th:border-border prose-td:border-border prose-th:bg-muted/60 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2">
+          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold prose-table:border-collapse prose-table:w-full prose-th:border prose-td:border prose-th:border-border prose-td:border-border prose-th:bg-muted/60 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 break-words [overflow-wrap:anywhere]">
             <ReactMarkdown
               remarkPlugins={markdownRemarkPlugins}
               rehypePlugins={markdownRehypePlugins}
               components={markdownComponents}
             >
-              {preprocessMarkdown(content)}
+              {preprocessMarkdown(resolvedContent)}
             </ReactMarkdown>
           </div>
         )}

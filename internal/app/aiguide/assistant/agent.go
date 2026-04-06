@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"aiguide/internal/pkg/storage"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -18,7 +19,7 @@ import (
 //go:embed assistant_agent_prompt.md
 var assistantAgentInstruction string
 
-// AssistantAgentConfig contains configuration for the root agent and its subagents
+// AssistantAgentConfig contains configuration for the root agent and its subagents.
 type AssistantAgentConfig struct {
 	Model             model.LLM
 	GenaiClient       *genai.Client
@@ -27,25 +28,17 @@ type AssistantAgentConfig struct {
 	MockEmailIMAPConn bool
 	WebSearchConfig   tools.WebSearchConfig
 	ExaConfig         tools.ExaConfig
+	FileStore         storage.FileStore
+	PDFWorkDir        string
 }
 
-// NewAssistantAgent creates the root agent with Planner and Executor as subagents
+// NewAssistantAgent creates the root agent with the executor as its subagent.
 func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 	if config == nil {
 		slog.Error("config parameter is nil")
 		return nil, fmt.Errorf("config cannot be nil")
 	}
-	// 创建 Planner Agent（任务规划）
-	plannerConfig := &PlannerAgentConfig{
-		Model: config.Model,
-		DB:    config.DB,
-	}
-	plannerAgent, err := NewPlannerAgent(plannerConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create planner agent: %w", err)
-	}
-
-	// 创建 Executor Agent（任务执行）
+	// 创建 Executor Agent（所有需要工具的执行都交给它）
 	executorConfig := &ExecutorAgentConfig{
 		Model:           config.Model,
 		GenaiClient:     config.GenaiClient,
@@ -53,6 +46,8 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		MockImageGen:    config.MockImageGen,
 		WebSearchConfig: config.WebSearchConfig,
 		ExaConfig:       config.ExaConfig,
+		FileStore:       config.FileStore,
+		PDFWorkDir:      config.PDFWorkDir,
 	}
 	executorAgent, err := NewExecutorAgent(executorConfig)
 	if err != nil {
@@ -90,7 +85,7 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 	rootAgentConfig := llmagent.Config{
 		Name:        "root_agent",
 		Model:       config.Model,
-		Description: "Main conversational agent that coordinates between planning and execution",
+		Description: "Main conversational agent that answers directly when no tools are needed and delegates tool-based work to the executor",
 		Instruction: assistantAgentInstruction,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
@@ -105,9 +100,8 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 			scheduledTaskListTool,
 			memoryTool,
 		},
-		// 关键：注册 SubAgents
+		// Root 仅保留一个执行子代理，避免规划/执行边界混乱。
 		SubAgents: []agent.Agent{
-			plannerAgent,
 			executorAgent,
 		},
 	}
@@ -118,6 +112,6 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create root agent: %w", err)
 	}
 
-	slog.Info("root agent created successfully with planner and executor subagents")
+	slog.Info("root agent created successfully with executor subagent")
 	return rootAgent, nil
 }

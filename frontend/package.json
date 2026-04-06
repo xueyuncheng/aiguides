@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "verify": "pnpm lint && pnpm test && pnpm build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
@@ -16,11 +19,13 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dompurify": "^3.3.3",
     "katex": "^0.16.27",
     "lucide-react": "^0.562.0",
-    "next": "16.1.1",
-    "react": "19.2.3",
-    "react-dom": "19.2.3",
+    "next": "16.2.0",
+    "phaser": "^3.90.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.0",
     "rehype-katex": "^7.0.1",
@@ -31,15 +36,19 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.1",
+    "eslint-config-next": "16.2.0",
+    "jsdom": "^29.0.0",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "unified": "^11.0.5"
+    "unified": "^11.0.5",
+    "vitest": "^4.1.0"
   }
 }

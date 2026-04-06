@@ -4,11 +4,16 @@ go 1.25.5
 
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.0
+	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/emersion/go-imap/v2 v2.0.0-beta.7
 	github.com/gin-gonic/gin v1.11.0
+	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
+	github.com/phpdave11/gofpdf v1.4.3
+	github.com/redis/go-redis/v9 v9.18.0
 	golang.org/x/oauth2 v0.34.0
-	google.golang.org/adk v0.5.0
+	google.golang.org/adk v1.0.0
 	google.golang.org/genai v1.40.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/sqlite v1.6.0
@@ -19,6 +24,7 @@ require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/emersion/go-message v0.18.1 // indirect
 	github.com/emersion/go-sasl v0.0.0-20231106173351-e73c9f7bad43 // indirect
@@ -29,6 +35,8 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.22 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	go.opentelemetry.io/otel/log v0.16.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
@@ -55,7 +63,7 @@ require (
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.19.1 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
-	github.com/google/jsonschema-go v0.3.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/safehtml v0.1.0 // indirect
 	github.com/google/uuid v1.6.0
@@ -80,12 +88,12 @@ require (
 	go.opentelemetry.io/otel/trace v1.40.0 // indirect
 	go.uber.org/mock v0.6.0 // indirect
 	golang.org/x/arch v0.23.0 // indirect
-	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/net v0.48.0 // indirect
-	golang.org/x/sys v0.40.0 // indirect
-	golang.org/x/text v0.32.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.77.0 // indirect
+	golang.org/x/crypto v0.47.0 // indirect
+	golang.org/x/net v0.49.0 // indirect
+	golang.org/x/sys v0.41.0 // indirect
+	golang.org/x/text v0.33.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
+	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	rsc.io/omap v1.2.0 // indirect
 	rsc.io/ordered v1.1.1 // indirect

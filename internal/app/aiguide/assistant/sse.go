@@ -31,12 +31,14 @@ type ChatRequest struct {
 	Message   string   `json:"message"`
 	Images    []string `json:"images,omitempty"`
 	FileNames []string `json:"file_names,omitempty"` // 文件名列表，与 Images 数组对应
+	ProjectID int      `json:"project_id"`
 }
 
 const (
 	// Limits align with frontend validation to prevent oversized uploads.
 	maxUserImageSizeBytes = 5 * 1024 * 1024
 	maxUserPDFSizeBytes   = 20 * 1024 * 1024
+	maxUserAudioSizeBytes = 50 * 1024 * 1024
 	maxUserFileCount      = 4
 	pdfMimeType           = "application/pdf"
 )
@@ -47,6 +49,17 @@ var allowedUserUploadMimeTypes = map[string]bool{
 	"image/gif":       true,
 	"image/webp":      true,
 	"application/pdf": true,
+	"audio/mpeg":      true,
+	"audio/mp3":       true,
+	"audio/wav":       true,
+	"audio/x-wav":     true,
+	"audio/wave":      true,
+	"audio/x-pn-wav":  true,
+	"audio/mp4":       true,
+	"audio/x-m4a":     true,
+	"audio/aac":       true,
+	"audio/webm":      true,
+	"audio/ogg":       true,
 }
 
 var imageMimeAliases = map[string]string{
@@ -75,32 +88,10 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	parts := make([]*genai.Part, 0, 1+len(req.Images))
-
-	// 如果有文件名，添加到消息文本前面作为元数据
-	actualMessageText := messageText
-	if len(req.FileNames) > 0 && len(req.FileNames) == len(req.Images) {
-		fileNamesJSON, _ := json.Marshal(req.FileNames)
-		actualMessageText = fmt.Sprintf("<!-- FILE_NAMES: %s -->\n%s", fileNamesJSON, messageText)
-	}
-
-	if actualMessageText != "" {
-		parts = append(parts, genai.NewPartFromText(actualMessageText))
-	}
-
-	for _, image := range req.Images {
-		imageBytes, mimeType, err := parseDataURI(image)
-		if err != nil {
-			slog.Error("parseDataURI error", "err", err)
-			ctx.JSON(400, gin.H{"error": err.Error()})
-			return
-		}
-		parts = append(parts, genai.NewPartFromBytes(imageBytes, mimeType))
-	}
-
-	if len(parts) == 0 {
-		slog.Error("message or images required")
-		ctx.JSON(400, gin.H{"error": "message or images required", "code": "retry_payload_missing"})
+	parts, err := buildUserMessageParts(ctx, a.db, a.fileStore, userID, sessionID, messageText, req.Images, req.FileNames, true)
+	if err != nil {
+		slog.Error("buildUserMessageParts() error", "err", err)
+		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -111,9 +102,35 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 	}
 
 	// 检查或创建 session
-	if err := a.ensureSession(ctx, userID, sessionID); err != nil {
+	isNewSession, err := a.ensureSession(ctx, userID, sessionID)
+	if err != nil {
 		ctx.JSON(500, gin.H{"error": err.Error()})
 		return
+	}
+
+	// 新会话时自动注入用户记忆上下文
+	if isNewSession {
+		if memoryContext, err := a.fetchUserMemories(req.UserID); err != nil {
+			slog.Warn("fetchUserMemories failed, skipping memory injection", "err", err, "userID", req.UserID)
+		} else if memoryContext != "" {
+			parts = prependMemoryContext(parts, memoryContext)
+			message = genai.NewContentFromParts(parts, genai.RoleUser)
+		}
+	}
+
+	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
+		if errors.Is(err, errProjectNotFound) {
+			ctx.JSON(400, gin.H{"error": "invalid project_id"})
+			return
+		}
+		ctx.JSON(500, gin.H{"error": "failed to validate project"})
+		return
+	}
+	if req.ProjectID != 0 {
+		if err := a.upsertSessionProjectMeta(sessionID, req.ProjectID); err != nil {
+			ctx.JSON(500, gin.H{"error": "failed to save session project"})
+			return
+		}
 	}
 
 	// 异步生成标题
@@ -203,6 +220,8 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 			return nil, "", errors.New("invalid PDF data")
 		}
 		maxSize = maxUserPDFSizeBytes
+	} else if tools.IsSupportedAudioMimeType(mimeType) {
+		maxSize = maxUserAudioSizeBytes
 	}
 	if len(decoded) > maxSize {
 		slog.Error("file size exceeds limit", "size", len(decoded), "max", maxSize)
@@ -213,7 +232,8 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 }
 
 // ensureSession 确保 session 存在，不存在则创建
-func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) error {
+// 返回 isNew=true 表示新创建的 session
+func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) (isNew bool, err error) {
 	sessionGetReq := &session.GetRequest{
 		AppName:   constant.AppNameAssistant.String(),
 		UserID:    userID,
@@ -223,7 +243,7 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 	if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			slog.Error("session.Get() error", "err", err)
-			return fmt.Errorf("session.Get() error, err = %w", err)
+			return false, fmt.Errorf("session.Get() error, err = %w", err)
 		}
 
 		// Session 不存在，创建新的 session
@@ -236,18 +256,20 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) er
 
 		if _, err := a.session.Create(ctx, sessionCreateReq); err != nil {
 			slog.Error("session.Create() error", "err", err)
-			return fmt.Errorf("session.Create() error, err = %w", err)
+			return false, fmt.Errorf("session.Create() error, err = %w", err)
 		}
 
 		// 创建后验证 session 是否成功保存
 		// 这有助于捕捉数据库同步或创建失败的情况
 		if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameAssistant.String(), "userID", userID, "sessionID", sessionID)
-			return fmt.Errorf("session.Get() after create error, err = %w", err)
+			return false, fmt.Errorf("session.Get() after create error, err = %w", err)
 		}
+
+		return true, nil
 	}
 
-	return nil
+	return false, nil
 }
 
 // setupSSEResponse 设置 SSE 响应头
@@ -273,6 +295,25 @@ func (a *Assistant) streamAgentEvents(
 	// 追踪当前的 agent author，用于 FunctionResponse
 	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
 	var currentAgentAuthor string
+	ctx.Set(tools.ContextKeyAudioTranscriptionProgressReporter, tools.AudioTranscriptionProgressReporter(func(progress tools.AudioTranscriptionProgress) {
+		author := currentAgentAuthor
+		if author == "" || author == "user" {
+			author = "model"
+		}
+
+		select {
+		case <-ctx.Request.Context().Done():
+			return
+		default:
+		}
+
+		ctx.SSEvent("tool_progress", gin.H{
+			"author":      author,
+			"tool_name":   "audio_transcribe",
+			"tool_result": progress,
+		})
+		ctx.Writer.Flush()
+	}))
 
 	// 启动心跳，防止长时间无响应导致连接超时
 	cancelHeartbeat := startHeartbeat(ctx, 30*time.Second)
@@ -315,10 +356,9 @@ func (a *Assistant) streamAgentEvents(
 			currentAgentAuthor = event.Author
 		}
 
-		// 提取事件中的文本内容和图片数据
-		if event.LLMResponse.Content != nil && len(event.LLMResponse.Content.Parts) > 0 {
+		// 文本增量主要来自 LLMResponse；工具调用在部分场景下只出现在 event.Content 中。
+		if event.LLMResponse.Content != nil {
 			for _, part := range event.LLMResponse.Content.Parts {
-				// 处理文本内容
 				if part.Text != "" && event.Partial {
 					// 这里只返回 partial 的文本内容。
 					// LLM 通常会先返回 partial 的文本内容，然后再返回这些 partial 组合而成的完整内容。
@@ -331,20 +371,62 @@ func (a *Assistant) streamAgentEvents(
 					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
 				}
+			}
+		}
 
-				// 处理 FunctionResponse 中的图片数据
+		seenToolCalls := make(map[string]struct{})
+		seenFunctionResponses := make(map[string]struct{})
+		for _, content := range []*genai.Content{event.Content, event.LLMResponse.Content} {
+			if content == nil {
+				continue
+			}
+
+			for _, part := range content.Parts {
+				if part.FunctionCall != nil {
+					callKey := functionCallKey(part.FunctionCall)
+					if _, seen := seenToolCalls[callKey]; !seen {
+						seenToolCalls[callKey] = struct{}{}
+						label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
+						data := gin.H{
+							"author":       event.Author,
+							"tool_call_id": part.FunctionCall.ID,
+							"tool_name":    part.FunctionCall.Name,
+							"tool_label":   label,
+							"tool_args":    part.FunctionCall.Args,
+						}
+						ctx.SSEvent("tool_call", data)
+						ctx.Writer.Flush()
+					}
+				}
+
 				if part.FunctionResponse != nil {
+					responseKey := functionResponseKey(part.FunctionResponse)
+					if _, seen := seenFunctionResponses[responseKey]; seen {
+						continue
+					}
+					seenFunctionResponses[responseKey] = struct{}{}
+
 					response := part.FunctionResponse.Response
+					author := currentAgentAuthor
+					if author == "" {
+						author = event.Author
+					}
+					if author == "" || author == "user" {
+						author = "model"
+					}
+
+					ctx.SSEvent("tool_result", gin.H{
+						"author":       author,
+						"tool_call_id": part.FunctionResponse.ID,
+						"tool_name":    part.FunctionResponse.Name,
+						"tool_result":  response,
+					})
+					ctx.Writer.Flush()
+
 					// 将 map[string]any 转换为 ImageGenOutput
 					var output tools.ImageGenOutput
 					if jsonData, err := json.Marshal(response); err == nil {
 						if err := json.Unmarshal(jsonData, &output); err == nil && output.Success && len(output.Images) > 0 {
-							// FunctionResponse 的 event.Author 是 "user"（GenAI 协议）
-							// 使用追踪的 currentAgentAuthor 作为图片数据的作者
-							author := currentAgentAuthor
-							if author == "" {
-								author = "model" // 降级方案
-							}
 							data := gin.H{
 								"author": author,
 								"images": output.Images,
@@ -387,12 +469,152 @@ func startHeartbeat(ctx *gin.Context, interval time.Duration) context.CancelFunc
 	return cancel
 }
 
-const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s". 
-Rules: 
-1. Use the same language as the user's message. 
-2. Do NOT use any Markdown formatting (no bold, no italics). 
-3. Do NOT use quotes in the title. 
+func functionCallKey(call *genai.FunctionCall) string {
+	if call == nil {
+		return ""
+	}
+	if strings.TrimSpace(call.ID) != "" {
+		return call.ID
+	}
+
+	argsJSON, err := json.Marshal(call.Args)
+	if err != nil {
+		return call.Name
+	}
+
+	return call.Name + ":" + string(argsJSON)
+}
+
+func functionResponseKey(response *genai.FunctionResponse) string {
+	if response == nil {
+		return ""
+	}
+	if strings.TrimSpace(response.ID) != "" {
+		return response.ID
+	}
+
+	responseJSON, err := json.Marshal(response.Response)
+	if err != nil {
+		return response.Name
+	}
+
+	return response.Name + ":" + string(responseJSON)
+}
+
+const titlePromptTemplate = `Generate a concise title for this conversation based on the user's message: "%s".
+Rules:
+1. Use the same language as the user's message.
+2. Do NOT use any Markdown formatting (no bold, no italics).
+3. Do NOT use quotes in the title.
 4. Output only the title text.`
+
+// memoryTypeLabel 将记忆类型映射为中文标签
+var memoryTypeLabel = map[constant.MemoryType]string{
+	constant.MemoryTypePreference: "偏好",
+	constant.MemoryTypeFact:       "事实",
+	constant.MemoryTypeContext:    "上下文",
+}
+
+// fetchUserMemories 查询用户的所有记忆并格式化为上下文文本
+func (a *Assistant) fetchUserMemories(userID int) (string, error) {
+	var memories []table.UserMemory
+	if err := a.db.Where("user_id = ?", userID).Order("importance DESC, updated_at DESC").Find(&memories).Error; err != nil {
+		slog.Error("db.Find() error querying user memories", "err", err, "userID", userID)
+		return "", fmt.Errorf("db.Find() error: %w", err)
+	}
+
+	if len(memories) == 0 {
+		return "", nil
+	}
+
+	var sb strings.Builder
+	sb.WriteString("<user_context>\n")
+	sb.WriteString("以下是该用户的已知信息（来自历史记忆），请在回答时参考：\n")
+	for _, mem := range memories {
+		label := memoryTypeLabel[mem.MemoryType]
+		if label == "" {
+			label = string(mem.MemoryType)
+		}
+		sb.WriteString(fmt.Sprintf("- [%s] %s\n", label, mem.Content))
+	}
+	sb.WriteString("</user_context>\n")
+
+	return sb.String(), nil
+}
+
+// prependMemoryContext 将记忆上下文 prepend 到用户消息的第一个文本 part 前面
+func prependMemoryContext(parts []*genai.Part, memoryContext string) []*genai.Part {
+	for i, part := range parts {
+		if part.Text != "" {
+			parts[i] = genai.NewPartFromText(memoryContext + "\n" + part.Text)
+			return parts
+		}
+	}
+	// 没有文本 part 时，在最前面插入一个文本 part
+	return append([]*genai.Part{genai.NewPartFromText(memoryContext)}, parts...)
+}
+
+// toolCallLabel 将工具调用转换为用户可读的进度描述
+func toolCallLabel(name string, args map[string]any) string {
+	switch name {
+	case "task_create":
+		if title, ok := args["title"].(string); ok {
+			return fmt.Sprintf("正在创建任务：%s", title)
+		}
+		return "正在创建任务"
+	case "task_update":
+		if id, ok := args["task_id"]; ok {
+			return fmt.Sprintf("正在更新任务 #%v", id)
+		}
+		return "正在更新任务"
+	case "task_list":
+		return "正在检查任务列表"
+	case "task_get":
+		return "正在获取任务详情"
+	case "finish_planning":
+		return "规划完成，准备执行"
+	case "web_search":
+		if query, ok := args["query"].(string); ok {
+			return fmt.Sprintf("正在搜索：%s", query)
+		}
+		return "正在搜索"
+	case "exa_search":
+		if query, ok := args["query"].(string); ok {
+			return fmt.Sprintf("正在语义搜索：%s", query)
+		}
+		return "正在语义搜索"
+	case "web_fetch":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("正在获取网页：%s", url)
+		}
+		return "正在获取网页"
+	case "file_download":
+		if url, ok := args["url"].(string); ok {
+			return fmt.Sprintf("正在下载文件：%s", url)
+		}
+		return "正在下载文件"
+	case "file_list":
+		return "正在查看文件列表"
+	case "file_get":
+		return "正在获取文件信息"
+	case "pdf_extract_text":
+		return "正在提取 PDF 文本"
+	case "pdf_generate_document":
+		return "正在生成 PDF 文档"
+	case "image_gen":
+		return "正在生成图片"
+	case "email_query":
+		return "正在查询邮件"
+	case "current_time":
+		return "正在获取当前时间"
+	case "audio_transcribe":
+		return "正在转写音频"
+	case "manage_memory":
+		return "正在管理记忆"
+	default:
+		return fmt.Sprintf("调用 %s", name)
+	}
+}
 
 // generateTitle 生成会话标题
 func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage string) error {

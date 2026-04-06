@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"aiguide/internal/pkg/storage"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -29,6 +30,8 @@ type ExecutorAgentConfig struct {
 	MockImageGen    bool
 	WebSearchConfig tools.WebSearchConfig
 	ExaConfig       tools.ExaConfig
+	FileStore       storage.FileStore
+	PDFWorkDir      string
 }
 
 // NewExecutorAgent creates a specialized execution agent with all functional tools
@@ -46,6 +49,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 	emailQueryTool, err := tools.NewEmailQueryTool()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create email query tool: %w", err)
+	}
+
+	sendEmailTool, err := tools.NewSendEmailTool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create send email tool: %w", err)
 	}
 
 	webSearchTool, err := tools.NewWebSearchTool(config.WebSearchConfig)
@@ -68,6 +76,41 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create current time tool: %w", err)
 	}
 
+	memoryTool, err := tools.NewMemoryTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manage_memory tool: %w", err)
+	}
+
+	pdfExtractTextTool, err := tools.NewPDFExtractTextTool(config.DB, config.FileStore, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pdf_extract_text tool: %w", err)
+	}
+
+	pdfGenerateDocumentTool, err := tools.NewPDFGenerateDocumentTool(config.DB, config.FileStore, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pdf_generate_document tool: %w", err)
+	}
+
+	audioTranscribeTool, err := tools.NewAudioTranscribeTool(config.DB, config.FileStore, config.GenaiClient, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create audio_transcribe tool: %w", err)
+	}
+
+	fileListTool, err := tools.NewFileListTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_list tool: %w", err)
+	}
+
+	fileGetTool, err := tools.NewFileGetTool(config.DB)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_get tool: %w", err)
+	}
+
+	fileDownloadTool, err := tools.NewFileDownloadTool(config.DB, config.FileStore)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create file_download tool: %w", err)
+	}
+
 	// 任务查询和更新工具
 	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
@@ -84,22 +127,42 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create task_update tool: %w", err)
 	}
 
+	sshExecuteTool, err := tools.NewSSHExecuteTool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ssh_execute tool: %w", err)
+	}
+
 	agentConfig := llmagent.Config{
 		Name:        "executor",
-		Description: "Specialized agent for executing tasks using tools like image generation, email queries, web search, and web fetching",
+		Description: "Specialized agent for executing tasks using tools like image generation, email queries, email sending, web search, and web fetching",
 		Model:       config.Model,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				IncludeThoughts: true,
+			},
+		},
 		Tools: []tool.Tool{
 			// 功能工具
 			currentTimeTool, // Get current date/time - use before web_search for time-sensitive queries
+			memoryTool,
 			imageGenTool,
 			emailQueryTool,
+			sendEmailTool,
 			webSearchTool,
 			exaSearchTool,
 			webFetchTool,
+			fileDownloadTool,
+			fileListTool,
+			fileGetTool,
+			pdfExtractTextTool,
+			pdfGenerateDocumentTool,
+			audioTranscribeTool,
 			// 任务管理工具（用于更新执行状态）
 			taskListTool,
 			taskGetTool,
 			taskUpdateTool,
+			// SSH 远程执行工具
+			sshExecuteTool,
 		},
 		Instruction: executorAgentInstruction,
 	}

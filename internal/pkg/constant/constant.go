@@ -112,3 +112,97 @@ func (a MemoryAction) Valid() bool {
 func (a MemoryAction) String() string {
 	return string(a)
 }
+
+// FileAssetKind 文件资产类型
+type FileAssetKind string
+
+const (
+	FileAssetKindUploaded  FileAssetKind = "uploaded"
+	FileAssetKindGenerated FileAssetKind = "generated"
+	FileAssetKindDerived   FileAssetKind = "derived"
+)
+
+func (k FileAssetKind) String() string {
+	return string(k)
+}
+
+// FileAssetStatus 文件资产状态
+type FileAssetStatus string
+
+const (
+	FileAssetStatusReady   FileAssetStatus = "ready"
+	FileAssetStatusDeleted FileAssetStatus = "deleted"
+	FileAssetStatusFailed  FileAssetStatus = "failed"
+)
+
+func (s FileAssetStatus) String() string {
+	return string(s)
+}
+
+// PDFTextExtractStatus tracks extracted text availability for PDF assets.
+type PDFTextExtractStatus string
+
+const (
+	PDFTextExtractStatusPending   PDFTextExtractStatus = "pending"
+	PDFTextExtractStatusCompleted PDFTextExtractStatus = "completed"
+	PDFTextExtractStatusEmpty     PDFTextExtractStatus = "empty"
+	PDFTextExtractStatusFailed    PDFTextExtractStatus = "failed"
+)
+
+func (s PDFTextExtractStatus) String() string {
+	return string(s)
+}
+
+// PDFJobType PDF 任务类型
+type PDFJobType string
+
+const (
+	PDFJobTypeExtractText      PDFJobType = "extract_text"
+	PDFJobTypeGenerateDocument PDFJobType = "generate_document"
+)
+
+func (t PDFJobType) String() string {
+	return string(t)
+}
+
+// PDFJobStatus PDF 任务状态
+type PDFJobStatus string
+
+const (
+	PDFJobStatusPending   PDFJobStatus = "pending"
+	PDFJobStatusRunning   PDFJobStatus = "running"
+	PDFJobStatusCompleted PDFJobStatus = "completed"
+	PDFJobStatusFailed    PDFJobStatus = "failed"
+)
+
+func (s PDFJobStatus) String() string {
+	return string(s)
+}
+
+// AudioJobStatus audio transcription job status.
+type AudioJobStatus string
+
+const (
+	AudioJobStatusPending   AudioJobStatus = "pending"
+	AudioJobStatusRunning   AudioJobStatus = "running"
+	AudioJobStatusCompleted AudioJobStatus = "completed"
+	AudioJobStatusFailed    AudioJobStatus = "failed"
+)
+
+func (s AudioJobStatus) String() string {
+	return string(s)
+}
+
+// AudioTranscriptChunkStatus audio chunk transcription status.
+type AudioTranscriptChunkStatus string
+
+const (
+	AudioTranscriptChunkStatusPending   AudioTranscriptChunkStatus = "pending"
+	AudioTranscriptChunkStatusRunning   AudioTranscriptChunkStatus = "running"
+	AudioTranscriptChunkStatusCompleted AudioTranscriptChunkStatus = "completed"
+	AudioTranscriptChunkStatusFailed    AudioTranscriptChunkStatus = "failed"
+)
+
+func (s AudioTranscriptChunkStatus) String() string {
+	return string(s)
+}

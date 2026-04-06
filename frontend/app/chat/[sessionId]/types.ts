@@ -1,3 +1,20 @@
+export interface ToolCallItem {
+  toolCallId?: string;
+  toolName: string;
+  label: string;
+  args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+  status?: 'running' | 'completed';
+}
+
+export interface ToolCallResponse {
+  tool_call_id?: string;
+  tool_name: string;
+  label: string;
+  args?: Record<string, unknown>;
+  result?: Record<string, unknown>;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -8,14 +25,24 @@ export interface Message {
   isStreaming?: boolean;
   images?: string[];
   fileNames?: string[]; // 文件名列表，与 images 对应
+  files?: MessageFile[];
   isError?: boolean;
+  toolCalls?: ToolCallItem[];
+}
+
+export interface MessageFile {
+  mime_type: string;
+  name?: string;
+  label?: string;
 }
 
 export interface SelectedImage {
   id: string;
   dataUrl: string;
   name: string;
+  mimeType?: string;
   isPdf?: boolean;
+  isAudio?: boolean;
 }
 
 export interface AgentInfo {
@@ -24,7 +51,6 @@ export interface AgentInfo {
   description: string;
   icon: string;
   color: string;
-  examples: string[];
 }
 
 export interface ChatRequest {
@@ -33,4 +59,22 @@ export interface ChatRequest {
   message: string;
   images: string[];
   file_names: string[];
+}
+
+export interface HistoryMessageResponse {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  thought?: string;
+  timestamp: string;
+  images?: string[];
+  file_names?: string[];
+  files?: MessageFile[];
+  tool_calls?: ToolCallResponse[];
+}
+
+export interface SessionHistoryResponse {
+  messages: HistoryMessageResponse[];
+  total?: number;
+  has_more?: boolean;
 }

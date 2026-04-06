@@ -8,11 +8,6 @@ export const agentInfoMap: Record<string, AgentInfo> = {
     description: '信息检索和事实核查',
     icon: '🔍',
     color: 'bg-blue-500',
-    examples: [
-      '什么是量子计算？',
-      '请帮我查找关于人工智能的最新研究',
-      '核查一下这个新闻是否准确...',
-    ],
   },
 };
 
@@ -20,14 +15,17 @@ export const agentInfoMap: Record<string, AgentInfo> = {
 export const MAX_IMAGE_COUNT = 4;
 export const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_PDF_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_AUDIO_SIZE_BYTES = 50 * 1024 * 1024;
 export const MAX_IMAGE_SIZE_MB = Math.round(MAX_IMAGE_SIZE_BYTES / (1024 * 1024));
 export const MAX_PDF_SIZE_MB = Math.round(MAX_PDF_SIZE_BYTES / (1024 * 1024));
+export const MAX_AUDIO_SIZE_MB = Math.round(MAX_AUDIO_SIZE_BYTES / (1024 * 1024));
 
 // 错误消息
 export const IMAGE_COUNT_ERROR = `最多只能上传 ${MAX_IMAGE_COUNT} 个文件`;
 export const IMAGE_SIZE_ERROR = `图片大小不能超过 ${MAX_IMAGE_SIZE_MB}MB`;
 export const PDF_SIZE_ERROR = `PDF 大小不能超过 ${MAX_PDF_SIZE_MB}MB`;
-export const IMAGE_TYPE_ERROR = '仅支持图片或 PDF 文件';
+export const AUDIO_SIZE_ERROR = `音频大小不能超过 ${MAX_AUDIO_SIZE_MB}MB`;
+export const IMAGE_TYPE_ERROR = '仅支持图片、PDF 或音频文件';
 export const IMAGE_READ_ERROR = '读取文件失败';
 
 // UI 常量
@@ -39,3 +37,4 @@ export const MIN_SCROLL_THRESHOLD = 5; // 像素
 export const MIN_SCROLL_DISTANCE = 100; // 像素
 export const SCROLL_DEBOUNCE_DELAY = 50; // 毫秒
 export const FEEDBACK_TIMEOUT_MS = 2000; // 毫秒
+export const COMPOSER_MESSAGE_GAP = 32; // 像素

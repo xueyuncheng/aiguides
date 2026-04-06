@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/adk/session"
@@ -30,6 +32,8 @@ type SessionInfo struct {
 	AppName        string    `json:"app_name"`
 	UserID         int       `json:"user_id"`
 	ThreadID       string    `json:"thread_id,omitempty"`
+	ProjectID      int       `json:"project_id"`
+	ProjectName    string    `json:"project_name,omitempty"`
 	Version        int       `json:"version,omitempty"`
 	LastUpdateTime time.Time `json:"last_update_time"`
 	MessageCount   int       `json:"message_count"`
@@ -51,18 +55,40 @@ type SessionHistoryResponse struct {
 
 // MessageEvent 定义消息事件结构
 type MessageEvent struct {
-	ID        string    `json:"id"`
-	Timestamp time.Time `json:"timestamp"`
-	Role      string    `json:"role"` // "user" or "assistant"
-	Content   string    `json:"content"`
-	Thought   string    `json:"thought,omitempty"`
-	Images    []string  `json:"images,omitempty"`     // Base64编码的图片或PDF数据列表
-	FileNames []string  `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
+	ID        string        `json:"id"`
+	Timestamp time.Time     `json:"timestamp"`
+	Role      string        `json:"role"` // "user" or "assistant"
+	Content   string        `json:"content"`
+	Thought   string        `json:"thought,omitempty"`
+	Images    []string      `json:"images,omitempty"`     // Base64编码的图片列表
+	FileNames []string      `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
+	Files     []MessageFile `json:"files,omitempty"`
+	ToolCalls []ToolCall    `json:"tool_calls,omitempty"`
+}
+
+type MessageFile struct {
+	MimeType string `json:"mime_type"`
+	Name     string `json:"name,omitempty"`
+	Label    string `json:"label,omitempty"`
+}
+
+type ToolCall struct {
+	CallID   string         `json:"tool_call_id,omitempty"`
+	ToolName string         `json:"tool_name"`
+	Label    string         `json:"label"`
+	Args     map[string]any `json:"args,omitempty"`
+	Result   map[string]any `json:"result,omitempty"`
+}
+
+type toolCallLocation struct {
+	messageIndex  int
+	toolCallIndex int
 }
 
 // CreateSessionRequest 定义创建会话的请求结构
 type CreateSessionRequest struct {
-	UserID int `json:"user_id" binding:"required"`
+	UserID    int `json:"user_id" binding:"required"`
+	ProjectID int `json:"project_id"`
 }
 
 // CreateSessionResponse 定义创建会话的响应结构
@@ -109,19 +135,48 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 	}
 
 	type sessionMetaInfo struct {
-		Title    string
-		ThreadID string
-		Version  int
+		Title       string
+		ThreadID    string
+		ProjectID   int
+		ProjectName string
+		Version     int
 	}
 	metadataMap := make(map[string]sessionMetaInfo) // sessionID -> metadata
 	if len(sessionIDs) > 0 {
 		var metadataList []table.SessionMeta
 		if err := a.db.Where("session_id IN ?", sessionIDs).Find(&metadataList).Error; err == nil {
+			projectNameMap := make(map[int]string)
+			projectIDs := make([]int, 0)
+			projectIDSet := make(map[int]struct{})
 			for _, meta := range metadataList {
+				if meta.ProjectID == 0 {
+					continue
+				}
+				if _, ok := projectIDSet[meta.ProjectID]; ok {
+					continue
+				}
+				projectIDSet[meta.ProjectID] = struct{}{}
+				projectIDs = append(projectIDs, meta.ProjectID)
+			}
+			if len(projectIDs) > 0 {
+				var projects []table.Project
+				if err := a.db.Where("id IN ? AND user_id = ?", projectIDs, userIDInt).Find(&projects).Error; err == nil {
+					for _, project := range projects {
+						projectNameMap[project.ID] = project.Name
+					}
+				}
+			}
+			for _, meta := range metadataList {
+				projectName := ""
+				if meta.ProjectID != 0 {
+					projectName = projectNameMap[meta.ProjectID]
+				}
 				candidate := sessionMetaInfo{
-					Title:    meta.Title,
-					ThreadID: meta.ThreadID,
-					Version:  meta.Version,
+					Title:       meta.Title,
+					ThreadID:    meta.ThreadID,
+					ProjectID:   meta.ProjectID,
+					ProjectName: projectName,
+					Version:     meta.Version,
 				}
 				existing, ok := metadataMap[meta.SessionID]
 				if !ok || shouldReplaceSessionMeta(existing, candidate) {
@@ -172,6 +227,8 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 			AppName:        sess.AppName(),
 			UserID:         userIDInt,
 			ThreadID:       threadID,
+			ProjectID:      meta.ProjectID,
+			ProjectName:    meta.ProjectName,
 			Version:        version,
 			LastUpdateTime: sess.LastUpdateTime(),
 			MessageCount:   messageCount,
@@ -184,17 +241,25 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 }
 
 func shouldReplaceSessionMeta(existing, candidate struct {
-	Title    string
-	ThreadID string
-	Version  int
+	Title       string
+	ThreadID    string
+	ProjectID   int
+	ProjectName string
+	Version     int
 }) bool {
 	if existing.ThreadID == "" && candidate.ThreadID != "" {
+		return true
+	}
+	if existing.ProjectID == 0 && candidate.ProjectID != 0 {
 		return true
 	}
 	if candidate.Version > existing.Version {
 		return true
 	}
 	if existing.Title == "" && candidate.Title != "" {
+		return true
+	}
+	if existing.ProjectName == "" && candidate.ProjectName != "" {
 		return true
 	}
 	return false
@@ -298,6 +363,7 @@ func parsePagination(ctx *gin.Context) (int, int) {
 
 func buildMessageEvents(events session.Events) []MessageEvent {
 	allMessages := make([]MessageEvent, 0)
+	toolCallLocations := make(map[string]toolCallLocation)
 	for event := range events.All() {
 		if event.Content == nil {
 			continue
@@ -312,25 +378,35 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 		thought := ""
 		var images []string
 		var fileNames []string
+		var files []MessageFile
+		var toolCalls []ToolCall
+		localToolCallIDs := make([]string, 0)
+		localFunctionResponses := make(map[string]map[string]any)
 		hasFunctionResponse := false
 
 		for _, part := range event.Content.Parts {
 			if part.Thought {
 				thought += part.Text
 			} else if part.Text != "" {
-				// 解析文件名元数据
-				text := part.Text
-				if strings.HasPrefix(text, "<!-- FILE_NAMES:") {
-					// 提取文件名 JSON
-					endIdx := strings.Index(text, "-->")
-					if endIdx > 0 {
-						metaStr := text[len("<!-- FILE_NAMES:"):endIdx]
-						metaStr = strings.TrimSpace(metaStr)
-						if err := json.Unmarshal([]byte(metaStr), &fileNames); err == nil {
-							// 移除元数据，只保留实际消息内容
-							text = strings.TrimPrefix(text[endIdx+3:], "\n")
-						}
+				if fileName, ok := extractPDFFileNameFromText(part.Text); ok {
+					label := fileName
+					if label == "" {
+						label = fmt.Sprintf("PDF 文件 %d", len(files)+1)
 					}
+					files = append(files, MessageFile{
+						MimeType: pdfMimeType,
+						Name:     fileName,
+						Label:    label,
+					})
+					continue
+				}
+				text := part.Text
+				// 移除自动注入的用户记忆上下文，不暴露给前端
+				text = stripUserContext(text)
+				// 解析文件名元数据
+				if parsedText, parsedFileNames, ok := extractFileNamesMetadata(text); ok {
+					text = parsedText
+					fileNames = parsedFileNames
 				}
 				content += text
 			}
@@ -340,16 +416,35 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				if mimeType == "" {
 					mimeType = defaultImageMimeType
 				}
-				if strings.HasPrefix(mimeType, "image/") || mimeType == pdfMimeType {
+				if strings.HasPrefix(mimeType, "image/") {
 					base64Image := base64.StdEncoding.EncodeToString(part.InlineData.Data)
 					imageDataURI := fmt.Sprintf("data:%s;base64,%s", mimeType, base64Image)
 					images = append(images, imageDataURI)
+				} else if mimeType == pdfMimeType {
+					fileName := ""
+					if len(fileNames) > len(files) {
+						fileName = fileNames[len(files)]
+					}
+					label := fileName
+					if strings.TrimSpace(label) == "" {
+						label = fmt.Sprintf("PDF 文件 %d", len(files)+1)
+					}
+					files = append(files, MessageFile{
+						MimeType: mimeType,
+						Name:     fileName,
+						Label:    label,
+					})
 				}
 			}
 
 			if part.FunctionResponse != nil {
 				hasFunctionResponse = true
 				response := part.FunctionResponse.Response
+				if location, ok := toolCallLocations[part.FunctionResponse.ID]; ok {
+					allMessages[location.messageIndex].ToolCalls[location.toolCallIndex].Result = response
+				} else {
+					localFunctionResponses[part.FunctionResponse.ID] = response
+				}
 				if imageList, ok := response["images"].([]any); ok {
 					for _, img := range imageList {
 						if imgStr, ok := img.(string); ok {
@@ -358,13 +453,33 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 					}
 				}
 			}
+
+			if part.FunctionCall != nil {
+				toolCall := ToolCall{
+					CallID:   part.FunctionCall.ID,
+					ToolName: part.FunctionCall.Name,
+					Label:    toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args),
+					Args:     part.FunctionCall.Args,
+				}
+				if response, ok := localFunctionResponses[part.FunctionCall.ID]; ok {
+					toolCall.Result = response
+				}
+				toolCalls = append(toolCalls, ToolCall{
+					CallID:   toolCall.CallID,
+					ToolName: toolCall.ToolName,
+					Label:    toolCall.Label,
+					Args:     toolCall.Args,
+					Result:   toolCall.Result,
+				})
+				localToolCallIDs = append(localToolCallIDs, part.FunctionCall.ID)
+			}
 		}
 
 		if hasFunctionResponse {
 			role = "assistant"
 		}
 
-		if content != "" || thought != "" || len(images) > 0 {
+		if content != "" || thought != "" || len(images) > 0 || len(files) > 0 || len(toolCalls) > 0 {
 			message := MessageEvent{
 				ID:        event.ID,
 				Timestamp: event.Timestamp,
@@ -373,15 +488,60 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				Thought:   thought,
 				Images:    images,
 				FileNames: fileNames,
+				Files:     files,
+				ToolCalls: toolCalls,
 			}
 			if isDuplicateRetryUserMessage(allMessages, message) {
 				continue
 			}
+
+			messageIndex := len(allMessages)
+			if shouldMergeAssistantMessage(allMessages, message) {
+				messageIndex = len(allMessages) - 1
+				allMessages[messageIndex].Content += message.Content
+				allMessages[messageIndex].Thought += message.Thought
+				allMessages[messageIndex].Images = append(allMessages[messageIndex].Images, message.Images...)
+				allMessages[messageIndex].FileNames = append(allMessages[messageIndex].FileNames, message.FileNames...)
+				allMessages[messageIndex].Files = append(allMessages[messageIndex].Files, message.Files...)
+				toolCallOffset := len(allMessages[messageIndex].ToolCalls)
+				allMessages[messageIndex].ToolCalls = append(allMessages[messageIndex].ToolCalls, message.ToolCalls...)
+				for idx, callID := range localToolCallIDs {
+					if strings.TrimSpace(callID) == "" {
+						continue
+					}
+					toolCallLocations[callID] = toolCallLocation{messageIndex: messageIndex, toolCallIndex: toolCallOffset + idx}
+				}
+				continue
+			}
+
 			allMessages = append(allMessages, message)
+			for idx, callID := range localToolCallIDs {
+				if strings.TrimSpace(callID) == "" {
+					continue
+				}
+				toolCallLocations[callID] = toolCallLocation{messageIndex: messageIndex, toolCallIndex: idx}
+			}
 		}
 	}
 
 	return allMessages
+}
+
+func shouldMergeAssistantMessage(allMessages []MessageEvent, current MessageEvent) bool {
+	if current.Role != "assistant" || len(allMessages) == 0 {
+		return false
+	}
+
+	previous := allMessages[len(allMessages)-1]
+	if previous.Role != "assistant" {
+		return false
+	}
+
+	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.FileNames) > 0 || len(previous.Files) > 0 || len(previous.ToolCalls) == 0 {
+		return false
+	}
+
+	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.FileNames) > 0 || len(current.Files) > 0
 }
 
 func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEvent) bool {
@@ -397,7 +557,48 @@ func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEven
 	return last.Content == current.Content &&
 		last.Thought == current.Thought &&
 		slices.Equal(last.Images, current.Images) &&
-		slices.Equal(last.FileNames, current.FileNames)
+		slices.Equal(last.FileNames, current.FileNames) &&
+		slices.Equal(last.Files, current.Files)
+}
+
+// stripUserContext 移除消息文本中自动注入的 <user_context> 块
+func stripUserContext(text string) string {
+	const openTag = "<user_context>\n"
+	const closeTag = "</user_context>\n"
+	for {
+		start := strings.Index(text, openTag)
+		if start == -1 {
+			break
+		}
+		end := strings.Index(text[start:], closeTag)
+		if end == -1 {
+			// 没有闭合标签，截断到 openTag 之前
+			text = text[:start]
+			break
+		}
+		text = text[:start] + text[start+end+len(closeTag):]
+	}
+	return text
+}
+
+func extractFileNamesMetadata(text string) (string, []string, bool) {
+	trimmed := strings.TrimLeftFunc(text, unicode.IsSpace)
+	if !strings.HasPrefix(trimmed, "<!-- FILE_NAMES:") {
+		return text, nil, false
+	}
+
+	endIdx := strings.Index(trimmed, "-->")
+	if endIdx <= 0 {
+		return text, nil, false
+	}
+
+	metaStr := strings.TrimSpace(trimmed[len("<!-- FILE_NAMES:"):endIdx])
+	var fileNames []string
+	if err := json.Unmarshal([]byte(metaStr), &fileNames); err != nil {
+		return text, nil, false
+	}
+
+	return strings.TrimPrefix(trimmed[endIdx+3:], "\n"), fileNames, true
 }
 
 func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageEvent, bool) {
@@ -424,6 +625,15 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		return
 	}
 
+	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
+		if errors.Is(err, errProjectNotFound) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to validate project"})
+		return
+	}
+
 	// 生成新的会话 ID
 	sessionID := generateSessionID()
 
@@ -438,6 +648,13 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		slog.Error("session.Create() error", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+
+	if req.ProjectID != 0 {
+		if err := a.upsertSessionProjectMeta(sessionID, req.ProjectID); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save session project"})
+			return
+		}
 	}
 
 	response := CreateSessionResponse{

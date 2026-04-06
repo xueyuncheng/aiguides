@@ -1,11 +1,13 @@
-import { forwardRef, useRef } from 'react';
+import { forwardRef, memo, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
-import { ArrowUp, X, ImagePlus } from 'lucide-react';
+import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import type { SelectedImage } from '../types';
 
 interface ChatInputProps {
+  containerRef?: React.Ref<HTMLDivElement>;
+  centered?: boolean;
   inputValue: string;
   onInputChange: (value: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
@@ -21,9 +23,13 @@ interface ChatInputProps {
   isLoadingHistory: boolean;
   canSend: boolean;
   agentName: string;
+  quotedText?: string;
+  onClearQuote?: () => void;
 }
 
-export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
+const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ 
+  containerRef,
+  centered = false,
   inputValue,
   onInputChange,
   onKeyDown,
@@ -39,25 +45,49 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   isLoadingHistory,
   canSend,
   agentName,
+  quotedText,
+  onClearQuote,
 }, textareaRef) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   return (
-      <div className="absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background/95 to-transparent pt-3 sm:pt-4 pb-2 sm:pb-3">
+      <div ref={containerRef} className={cn(
+        centered
+          ? "w-full md:pl-[260px] bg-transparent px-3 sm:px-4 md:px-6"
+          : "absolute bottom-0 left-0 w-full md:pl-[260px] bg-gradient-to-t from-background via-background/95 to-transparent pt-2 sm:pt-3 pb-1 sm:pb-2"
+      )}>
       <div className="max-w-5xl mx-auto px-3 sm:px-4 md:px-6">
         <div className="relative flex flex-col w-full bg-white/95 dark:bg-zinc-950/70 backdrop-blur-xl rounded-2xl border border-zinc-200/80 dark:border-zinc-800/80 shadow-[0_4px_20px_rgba(15,23,42,0.06)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.35)] transition-all duration-300 overflow-hidden">
+          {quotedText && (
+            <div className="flex items-start gap-2 px-3 pt-3 pb-1">
+              <div className="flex-1 flex items-start gap-2 text-xs text-muted-foreground bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2.5 py-1.5 min-w-0">
+                <MessageSquare className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-primary" />
+                <span className="line-clamp-2 break-words">{quotedText}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onClearQuote}
+                className="flex-shrink-0 mt-1 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="清除引用"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           {selectedImages.length > 0 && (
             <div className="flex flex-wrap gap-2 px-3 pt-3">
               {selectedImages.map((image, index) => (
                 <div key={image.id} className="relative group">
-                  {image.isPdf ? (
-                    <div className="h-16 w-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
-                      PDF
+                  {image.isPdf || image.isAudio ? (
+                    <div className="h-16 w-16 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 flex flex-col items-center justify-center gap-1 text-[10px] font-medium text-zinc-600 dark:text-zinc-300">
+                      {image.isPdf ? <FileText className="h-4 w-4" /> : <AudioLines className="h-4 w-4" />}
+                      <span>{image.isPdf ? 'PDF' : 'AUDIO'}</span>
                     </div>
                   ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={image.dataUrl}
-                      alt={image.name || `已选图片 ${index + 1}`}
+                      alt={image.name || `已选文件 ${index + 1}`}
                       className="h-16 w-16 object-cover rounded-lg border border-zinc-200 dark:border-zinc-700"
                     />
                   )}
@@ -65,7 +95,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
                     type="button"
                     onClick={() => onRemoveImage(image.id)}
                     className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-zinc-900/80 text-white flex items-center justify-center shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                    aria-label="移除图片"
+                      aria-label={image.isPdf || image.isAudio ? '移除文件' : '移除图片'}
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -82,7 +112,7 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
             <input
               ref={imageInputRef}
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*,.pdf,.mp3,.m4a,.mp4,.wav,.aac,.webm,.ogg,audio/*"
               multiple
               className="hidden"
               onChange={onImageSelect}
@@ -94,11 +124,11 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
               onClick={() => imageInputRef.current?.click()}
               disabled={isLoading || isLoadingHistory}
               className="h-8 w-8 sm:h-7 sm:w-7 rounded-full text-muted-foreground hover:text-foreground"
-              title="添加图片"
-              aria-label="添加图片"
-            >
-              <ImagePlus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
-            </Button>
+                title="添加文件（图片、PDF 或音频）"
+                aria-label="添加文件（图片、PDF 或音频）"
+              >
+                <Paperclip className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </Button>
             <Textarea
               ref={textareaRef}
               value={inputValue}
@@ -143,5 +173,9 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
     </div>
   );
 });
+
+ChatInputComponent.displayName = 'ChatInputComponent';
+
+export const ChatInput = memo(ChatInputComponent);
 
 ChatInput.displayName = 'ChatInput';
