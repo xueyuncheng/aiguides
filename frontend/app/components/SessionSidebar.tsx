@@ -3,7 +3,7 @@
 import { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Gamepad2, Terminal } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Terminal } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -152,15 +152,15 @@ const SessionSidebar = memo(({
     }
   }, [isMobileOpen, onMobileToggle, onNewSession]);
 
-  const handleGameCenterClick = useCallback(() => {
-    router.push('/game');
+  const handleMemoryCenterClick = useCallback(() => {
+    router.push('/memory');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
   }, [isMobileOpen, onMobileToggle, router]);
 
-  const handleMemoryCenterClick = useCallback(() => {
-    router.push('/memory');
+  const handleSSHServersClick = useCallback(() => {
+    router.push('/settings/ssh-servers');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
@@ -501,13 +501,6 @@ const SessionSidebar = memo(({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" side="top" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-100">
-                <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={handleGameCenterClick}
-                >
-                  <Gamepad2 className="mr-2 h-4 w-4" />
-                  <span>游戏中心</span>
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   className="cursor-pointer"
                   onClick={handleMemoryCenterClick}
