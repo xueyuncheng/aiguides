@@ -166,6 +166,13 @@ const SessionSidebar = memo(({
     }
   }, [isMobileOpen, onMobileToggle, router]);
 
+  const handleSSHServersClick = useCallback(() => {
+    router.push('/settings/ssh-servers');
+    if (onMobileToggle && isMobileOpen) {
+      onMobileToggle();
+    }
+  }, [isMobileOpen, onMobileToggle, router]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
