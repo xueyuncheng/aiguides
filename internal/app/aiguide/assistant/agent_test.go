@@ -95,19 +95,12 @@ func TestNewSearchAgentWithModel(t *testing.T) {
 }
 
 func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
-	requiredTools := []string{
+	// Root agent is now a pure orchestrator with no tools of its own.
+	// Its prompt should not reference any specific tool names.
+	executorOnlyTools := []string{
 		"`task_list`",
 		"`task_get`",
 		"`manage_memory`",
-	}
-
-	for _, toolName := range requiredTools {
-		if !strings.Contains(assistantAgentInstruction, toolName) {
-			t.Errorf("assistantAgentInstruction missing root tool %s", toolName)
-		}
-	}
-
-	executorOnlyTools := []string{
 		"`current_time`",
 		"`image_gen`",
 		"`email_query`",
@@ -119,7 +112,7 @@ func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
 
 	for _, toolName := range executorOnlyTools {
 		if strings.Contains(assistantAgentInstruction, toolName) {
-			t.Errorf("assistantAgentInstruction should not advertise executor-only tool %s", toolName)
+			t.Errorf("assistantAgentInstruction should not reference tool %s (root agent has no tools)", toolName)
 		}
 	}
 

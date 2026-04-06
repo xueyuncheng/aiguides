@@ -115,7 +115,9 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
 	}
 
-	dialector := sqlite.Open(config.DBFile)
+	// Enable WAL journal mode and a generous busy timeout so concurrent
+	// goroutines (scheduler + chat sessions) do not collide on writes.
+	dialector := sqlite.Open(config.DBFile + "?_journal_mode=WAL&_busy_timeout=5000")
 	dbConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 		NamingStrategy: schema.NamingStrategy{

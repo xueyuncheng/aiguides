@@ -319,6 +319,13 @@ func (a *Assistant) streamAgentEvents(
 	cancelHeartbeat := startHeartbeat(ctx, 30*time.Second)
 	defer cancelHeartbeat()
 
+	// Deduplication maps persist across all events in the run.
+	// ADK emits the same function call/response across multiple partial streaming
+	// events before the final non-partial event; without cross-event dedup the
+	// frontend receives the same tool_call many times.
+	seenToolCalls := make(map[string]struct{})
+	seenFunctionResponses := make(map[string]struct{})
+
 	for event, err := range runner.Run(ctx, userID, sessionID, message, runConfig) {
 		// 检查客户端是否断开连接
 		select {
@@ -374,8 +381,6 @@ func (a *Assistant) streamAgentEvents(
 			}
 		}
 
-		seenToolCalls := make(map[string]struct{})
-		seenFunctionResponses := make(map[string]struct{})
 		for _, content := range []*genai.Content{event.Content, event.LLMResponse.Content} {
 			if content == nil {
 				continue

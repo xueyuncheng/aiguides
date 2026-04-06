@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useMemo, memo, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Terminal } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Terminal, Clock } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -77,7 +76,6 @@ const SessionSidebar = memo(({
   onMobileToggle,
 }: SessionSidebarProps) => {
   const { user, logout } = useAuth();
-  const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const filteredSessions = useMemo(() => {
@@ -153,18 +151,34 @@ const SessionSidebar = memo(({
   }, [isMobileOpen, onMobileToggle, onNewSession]);
 
   const handleMemoryCenterClick = useCallback(() => {
-    router.push('/memory');
+    if (currentSessionId) {
+      localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
+    }
+    window.open('/memory', '_blank');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
-  }, [isMobileOpen, onMobileToggle, router]);
+  }, [currentSessionId, isMobileOpen, onMobileToggle]);
 
   const handleSSHServersClick = useCallback(() => {
-    router.push('/settings/ssh-servers');
+    if (currentSessionId) {
+      localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
+    }
+    window.open('/settings/ssh-servers', '_blank');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
-  }, [isMobileOpen, onMobileToggle, router]);
+  }, [currentSessionId, isMobileOpen, onMobileToggle]);
+
+  const handleScheduledTasksClick = useCallback(() => {
+    if (currentSessionId) {
+      localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
+    }
+    window.open('/scheduled-tasks', '_blank');
+    if (onMobileToggle && isMobileOpen) {
+      onMobileToggle();
+    }
+  }, [currentSessionId, isMobileOpen, onMobileToggle]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -502,12 +516,19 @@ const SessionSidebar = memo(({
                   <span>记忆中心</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  className="cursor-pointer"
-                  onClick={handleSSHServersClick}
-                >
-                  <Terminal className="mr-2 h-4 w-4" />
-                  <span>SSH Servers</span>
-                </DropdownMenuItem>
+                   className="cursor-pointer"
+                   onClick={handleSSHServersClick}
+                 >
+                   <Terminal className="mr-2 h-4 w-4" />
+                   <span>SSH Servers</span>
+                 </DropdownMenuItem>
+                 <DropdownMenuItem
+                   className="cursor-pointer"
+                   onClick={handleScheduledTasksClick}
+                 >
+                   <Clock className="mr-2 h-4 w-4" />
+                   <span>定时任务</span>
+                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"

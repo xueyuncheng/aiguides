@@ -30,7 +30,10 @@ type Assistant struct {
 	fileStore           storage.FileStore
 	pdfWorkDir          string
 
-	runner      *runner.Runner
+	runner         *runner.Runner
+	executorRunner *runner.Runner
+	scheduler      *Scheduler
+
 	authService *auth.AuthService
 }
 
@@ -91,9 +94,17 @@ func New(config *Config) (*Assistant, error) {
 	}
 	assistant.runner = runner
 
+	executorRunner, err := assistant.createExecutorRunner()
+	if err != nil {
+		return nil, fmt.Errorf("assistant.createExecutorRunner() error, err = %w", err)
+	}
+	assistant.executorRunner = executorRunner
+	assistant.scheduler = newScheduler(config.DB, executorRunner, session)
+
 	return assistant, nil
 }
 
 func (a *Assistant) Run(ctx context.Context) error {
+	a.scheduler.Start(ctx)
 	return nil
 }
