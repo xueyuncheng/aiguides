@@ -3,7 +3,7 @@
 import { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Gamepad2 } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Gamepad2, Terminal } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -161,6 +161,13 @@ const SessionSidebar = memo(({
 
   const handleMemoryCenterClick = useCallback(() => {
     router.push('/memory');
+    if (onMobileToggle && isMobileOpen) {
+      onMobileToggle();
+    }
+  }, [isMobileOpen, onMobileToggle, router]);
+
+  const handleSSHServersClick = useCallback(() => {
+    router.push('/settings/ssh-servers');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
@@ -507,6 +514,13 @@ const SessionSidebar = memo(({
                 >
                   <Brain className="mr-2 h-4 w-4" />
                   <span>记忆中心</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={handleSSHServersClick}
+                >
+                  <Terminal className="mr-2 h-4 w-4" />
+                  <span>SSH Servers</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

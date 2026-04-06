@@ -127,6 +127,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create task_update tool: %w", err)
 	}
 
+	sshExecuteTool, err := tools.NewSSHExecuteTool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ssh_execute tool: %w", err)
+	}
+
 	agentConfig := llmagent.Config{
 		Name:        "executor",
 		Description: "Specialized agent for executing tasks using tools like image generation, email queries, email sending, web search, and web fetching",
@@ -156,6 +161,8 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			taskListTool,
 			taskGetTool,
 			taskUpdateTool,
+			// SSH 远程执行工具
+			sshExecuteTool,
 		},
 		Instruction: executorAgentInstruction,
 	}
