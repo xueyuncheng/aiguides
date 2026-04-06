@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check, Code, Image as ImageIcon } from 'lucide-react';
@@ -60,13 +60,8 @@ function normalizeSvgMarkup(svgMarkup: string): string {
 const SvgBlock = ({ children }: { children: React.ReactNode }) => {
   const [showCode, setShowCode] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [sanitizedSvg, setSanitizedSvg] = useState('');
   const svgString = String(children).replace(/\n$/, '');
-
-  useEffect(() => {
-    const sanitized = DOMPurify.sanitize(svgString, { USE_PROFILES: { svg: true, svgFilters: true } });
-    setSanitizedSvg(normalizeSvgMarkup(sanitized));
-  }, [svgString]);
+  const sanitizedSvg = normalizeSvgMarkup(DOMPurify.sanitize(svgString, { USE_PROFILES: { svg: true, svgFilters: true } }));
 
   const handleCodeCopy = async () => {
     try {
