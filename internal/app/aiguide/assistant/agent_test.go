@@ -142,6 +142,12 @@ func TestExecutorAgentInstructionMentionsMemoryTool(t *testing.T) {
 	}
 }
 
+func TestExecutorAgentInstructionMentionsAudioTranscribeTool(t *testing.T) {
+	if !strings.Contains(executorAgentInstruction, "`audio_transcribe`") {
+		t.Fatal("executorAgentInstruction missing executor tool `audio_transcribe`")
+	}
+}
+
 func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{

@@ -183,7 +183,9 @@ export function useMessageActions({
           id: `edited-${Date.now()}-${index}`,
           dataUrl,
           name: message.fileNames?.[index] || `文件 ${index + 1}`,
+          mimeType: dataUrl.slice(5, dataUrl.indexOf(';')),
           isPdf: dataUrl.startsWith('data:application/pdf'),
+          isAudio: dataUrl.startsWith('data:audio/'),
         }));
 
         setEditingMessageId(null);

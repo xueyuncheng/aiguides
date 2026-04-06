@@ -91,6 +91,11 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create pdf_generate_document tool: %w", err)
 	}
 
+	audioTranscribeTool, err := tools.NewAudioTranscribeTool(config.DB, config.FileStore, config.GenaiClient, config.PDFWorkDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create audio_transcribe tool: %w", err)
+	}
+
 	fileListTool, err := tools.NewFileListTool(config.DB)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create file_list tool: %w", err)
@@ -140,6 +145,7 @@ func NewExecutorAgent(config *ExecutorAgentConfig) (agent.Agent, error) {
 			fileGetTool,
 			pdfExtractTextTool,
 			pdfGenerateDocumentTool,
+			audioTranscribeTool,
 			// 任务管理工具（用于更新执行状态）
 			taskListTool,
 			taskGetTool,
