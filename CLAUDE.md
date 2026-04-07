@@ -20,16 +20,21 @@ go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml
 
 # Format code
 go fmt ./...
-make fmt
 
-# Run tests
+# Run all tests
 go test ./...
+
+# Run tests without cache
+go test -count=1 ./...
 
 # Run specific package tests
 go test -v ./internal/app/aiguide/assistant
 
 # Run specific test
 go test -v ./internal/app/aiguide/assistant -run TestAgentCreation
+
+# Run tools package tests
+go test -v ./internal/pkg/tools -run TestWebFetch
 ```
 
 ### Frontend
@@ -42,11 +47,20 @@ pnpm install
 # Development server
 pnpm dev
 
-# Production build
-pnpm build
+# Production build + start
+pnpm build && pnpm start
 
 # Lint
 pnpm lint
+
+# Run all frontend tests (Vitest)
+pnpm test
+
+# Run a specific test file
+pnpm exec vitest run app/chat/[sessionId]/hooks/useStreamingChat.test.tsx
+
+# Run tests matching a name pattern
+pnpm test -- -t "test name pattern"
 ```
 
 ### Full Stack
@@ -60,9 +74,13 @@ pnpm lint
 
 ### Docker
 ```bash
-make build          # Build both backend and frontend images
-make deploy         # Deploy with docker-compose (4 services: backend, frontend, SearXNG, Redis)
-make down           # Stop services
+make build-backend   # Build backend image only
+make build-frontend  # Build frontend image only
+make build           # Build both images
+make deploy          # Deploy with docker-compose (4 services: backend, frontend, SearXNG, Redis)
+make down            # Stop services
+make save-images     # Save images to .tar files (for server transfer)
+make load-images     # Load images from .tar files (on server)
 ```
 
 ## Architecture
@@ -106,6 +124,8 @@ The assistant uses a **multi-agent architecture**:
 **Infrastructure (`internal/pkg/`):**
 - `auth/` - Google OAuth + JWT cookie implementation
 - `middleware/` - Auth middleware, context utilities
+- `redis/` - Redis client wrapper (used for rate limiting)
+- `storage/` - Local file store for uploaded assets
 - `constant/` - Shared constants
 
 ### Frontend Structure
@@ -149,7 +169,8 @@ Chat responses stream via Server-Sent Events in `sse.go`:
 **Configuration:**
 - YAML config at `cmd/aiguide/aiguide.yaml`; see `cmd/aiguide/aiguide.yaml.example`
 - Required: `api_key`, `model_name`
-- Optional: OAuth credentials, JWT secret, allowed emails, `web_search.instance_url` (SearXNG), `exa_search.api_key`, `mock_image_generation`
+- Required for rate limiting: `redis.addr` (Redis instance)
+- Optional: OAuth credentials, JWT secret, allowed emails, `web_search.instance_url` (SearXNG), `exa_search.api_key`, `mock_image_generation`, `rate_limit.rate` / `rate_limit.period_seconds`
 
 ## Code Style Guidelines
 
@@ -212,10 +233,14 @@ if err != nil {
 
 ## Testing
 
-16 test files covering agent creation, SSE streaming, session management, sharing, OAuth, router configuration, and all tool implementations.
+Backend has tests across `internal/app/aiguide/assistant`, `internal/app/aiguide`, `internal/pkg/tools`, `internal/pkg/auth`, `internal/pkg/storage`, and `internal/pkg/middleware`.
+
+Frontend tests use Vitest with jsdom; test setup lives in `frontend/test/setup.ts`. Test files are co-located under `frontend/app/**/*.test.{ts,tsx}`.
 
 ```bash
-go test ./...                                          # All tests
+go test ./...                                          # All backend tests
 go test -v ./internal/app/aiguide/assistant           # Assistant package
 go test -v ./internal/pkg/tools                       # Tools package
+cd frontend && pnpm test                               # All frontend tests
+cd frontend && pnpm exec vitest run <path/to/file.test.tsx>  # Single file
 ```
