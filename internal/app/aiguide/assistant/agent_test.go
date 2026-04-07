@@ -94,60 +94,25 @@ func TestNewSearchAgentWithModel(t *testing.T) {
 	}
 }
 
-func TestAssistantAgentInstructionOnlyMentionsRootTools(t *testing.T) {
-	// Root agent is now a pure orchestrator with no tools of its own.
-	// Its prompt should not reference any specific tool names.
-	executorOnlyTools := []string{
-		"`task_list`",
-		"`task_get`",
-		"`manage_memory`",
-		"`current_time`",
-		"`image_gen`",
-		"`email_query`",
-		"`send_email`",
-		"`web_search`",
-		"`exa_search`",
-		"`web_fetch`",
-	}
-
-	for _, toolName := range executorOnlyTools {
-		if strings.Contains(assistantAgentInstruction, toolName) {
-			t.Errorf("assistantAgentInstruction should not reference tool %s (root agent has no tools)", toolName)
-		}
-	}
-
-	plannerOnlyPhrases := []string{
-		"规划子流程",
-		"先规划再执行",
-		"独立的规划子流程",
-	}
-
-	for _, phrase := range plannerOnlyPhrases {
-		if strings.Contains(assistantAgentInstruction, phrase) {
-			t.Errorf("assistantAgentInstruction should not reference planner-only flow %q", phrase)
-		}
+func TestAssistantAgentInstructionMentionsMemoryTool(t *testing.T) {
+	if !strings.Contains(assistantAgentInstruction, "`manage_memory`") {
+		t.Fatal("assistantAgentInstruction missing tool `manage_memory`")
 	}
 }
 
-func TestExecutorAgentInstructionMentionsMemoryTool(t *testing.T) {
-	if !strings.Contains(executorAgentInstruction, "`manage_memory`") {
-		t.Fatal("executorAgentInstruction missing executor tool `manage_memory`")
+func TestAssistantAgentInstructionMentionsAudioTranscribeTool(t *testing.T) {
+	if !strings.Contains(assistantAgentInstruction, "`audio_transcribe`") {
+		t.Fatal("assistantAgentInstruction missing tool `audio_transcribe`")
 	}
 }
 
-func TestExecutorAgentInstructionMentionsAudioTranscribeTool(t *testing.T) {
-	if !strings.Contains(executorAgentInstruction, "`audio_transcribe`") {
-		t.Fatal("executorAgentInstruction missing executor tool `audio_transcribe`")
+func TestAssistantAgentInstructionMentionsFileDownloadTool(t *testing.T) {
+	if !strings.Contains(assistantAgentInstruction, "`file_download`") {
+		t.Fatal("assistantAgentInstruction missing tool `file_download`")
 	}
 }
 
-func TestExecutorAgentInstructionMentionsFileDownloadTool(t *testing.T) {
-	if !strings.Contains(executorAgentInstruction, "`file_download`") {
-		t.Fatal("executorAgentInstruction missing executor tool `file_download`")
-	}
-}
-
-func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
+func TestNewAssistantAgentHasNoSubAgents(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{
 		SearXNG: tools.SearXNGConfig{
@@ -169,18 +134,8 @@ func TestNewAssistantAgentUsesOnlyExecutorSubAgent(t *testing.T) {
 		t.Fatalf("NewAssistantAgent() error = %v", err)
 	}
 
-	subAgents := assistantAgent.SubAgents()
-	if got, want := len(subAgents), 1; got != want {
-		t.Fatalf("len(SubAgents()) = %d, want %d", got, want)
-	}
-
-	subAgentNames := make([]string, 0, len(subAgents))
-	for _, subAgent := range subAgents {
-		subAgentNames = append(subAgentNames, subAgent.Name())
-	}
-
-	if len(subAgentNames) != 1 || subAgentNames[0] != "executor" {
-		t.Fatalf("SubAgents() names = %v, want [executor]", subAgentNames)
+	if got := len(assistantAgent.SubAgents()); got != 0 {
+		t.Fatalf("len(SubAgents()) = %d, want 0 (single agent, no sub-agents)", got)
 	}
 }
 
