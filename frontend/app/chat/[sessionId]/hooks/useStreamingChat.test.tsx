@@ -45,6 +45,7 @@ describe('useStreamingChat', () => {
       loadSessions,
       setMessages,
       setInputValue,
+      markSessionLoaded: vi.fn(),
     }));
 
     expect(pushStateSpy).not.toHaveBeenCalled();
