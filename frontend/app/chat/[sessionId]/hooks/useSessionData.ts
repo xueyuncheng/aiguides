@@ -87,5 +87,6 @@ export function useSessionData({
     handleRenameProject: projectState.handleRenameProject,
     handleAssignSessionProject: projectState.handleAssignSessionProject,
     shouldLoadOlderMessages: historyState.shouldLoadOlderMessages,
+    markSessionLoaded: historyState.markSessionLoaded,
   };
 }

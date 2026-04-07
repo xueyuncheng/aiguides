@@ -60,6 +60,7 @@ export default function ChatPageClient() {
     handleRenameProject,
     handleAssignSessionProject,
     shouldLoadOlderMessages,
+    markSessionLoaded,
   } = useSessionData({
     agentId,
     userId: user?.user_id,
@@ -83,6 +84,7 @@ export default function ChatPageClient() {
     loadSessions,
     setMessages,
     setInputValue: (v) => setInputValueRef.current(v),
+    markSessionLoaded,
   });
 
   const isStreamingResponse = useMemo(
