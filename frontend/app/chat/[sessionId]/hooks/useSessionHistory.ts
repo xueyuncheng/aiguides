@@ -185,6 +185,10 @@ export function useSessionHistory({
     return scrollTop < LOAD_MORE_THRESHOLD && hasMoreMessages && !isLoadingOlderMessages && !isLoadingHistory;
   }, [hasMoreMessages, isLoadingHistory, isLoadingOlderMessages]);
 
+  const markSessionLoaded = useCallback((id: string) => {
+    autoLoadedSessionIdRef.current = id;
+  }, []);
+
   return {
     messages,
     setMessages,
@@ -197,5 +201,6 @@ export function useSessionHistory({
     loadSessionHistory,
     loadOlderMessages,
     shouldLoadOlderMessages,
+    markSessionLoaded,
   };
 }

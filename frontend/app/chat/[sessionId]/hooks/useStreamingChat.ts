@@ -22,6 +22,7 @@ interface UseStreamingChatParams {
   loadSessions: (silent?: boolean) => Promise<Session[] | undefined>;
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   setInputValue: React.Dispatch<React.SetStateAction<string>>;
+  markSessionLoaded: (id: string) => void;
 }
 
 export function useStreamingChat({
@@ -37,6 +38,7 @@ export function useStreamingChat({
   loadSessions,
   setMessages,
   setInputValue,
+  markSessionLoaded,
 }: UseStreamingChatParams) {
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -72,6 +74,7 @@ export function useStreamingChat({
     const resolvedSessionId = resolveSessionId(targetSessionId, activeSessionIdRef.current);
     const isDraftSession = !activeSessionIdRef.current;
     if (resolvedSessionId !== activeSessionIdRef.current || isDraftSession) {
+      markSessionLoaded(resolvedSessionId);
       window.history.pushState(null, '', getChatPath(resolvedSessionId));
       activeSessionIdRef.current = resolvedSessionId;
       setSessionId(resolvedSessionId);
@@ -200,7 +203,7 @@ export function useStreamingChat({
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, messages, sessionId, sessions, setInputValue, setMessages, setSessionId, userId]);
+  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, markSessionLoaded, messages, sessionId, sessions, setInputValue, setMessages, setSessionId, userId]);
 
   useEffect(() => {
     return () => {
