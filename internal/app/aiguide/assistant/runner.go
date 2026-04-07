@@ -40,12 +40,10 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 	return runner, nil
 }
 
-// createExecutorRunner creates a runner that uses the executor agent directly as
-// its root. This is used by the scheduler so that scheduled tasks bypass the
-// orchestrator and go straight to the agent that has all the execution tools
-// (send_email, web_search, etc.).
+// createExecutorRunner creates a runner used by the scheduler. It uses the same
+// assistant agent so that scheduled tasks have access to all tools.
 func (a *Assistant) createExecutorRunner() (*runner.Runner, error) {
-	executorConfig := &ExecutorAgentConfig{
+	assistantConfig := &AssistantAgentConfig{
 		Model:           a.model,
 		GenaiClient:     a.genaiClient,
 		DB:              a.db,
@@ -55,14 +53,14 @@ func (a *Assistant) createExecutorRunner() (*runner.Runner, error) {
 		FileStore:       a.fileStore,
 		PDFWorkDir:      a.pdfWorkDir,
 	}
-	executorAgent, err := NewExecutorAgent(executorConfig)
+	assistantAgent, err := NewAssistantAgent(assistantConfig)
 	if err != nil {
-		return nil, fmt.Errorf("NewExecutorAgent() error, err = %w", err)
+		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
 	}
 
 	runnerConfig := runner.Config{
 		AppName:        constant.AppNameScheduler.String(),
-		Agent:          executorAgent,
+		Agent:          assistantAgent,
 		SessionService: a.session,
 	}
 	r, err := runner.New(runnerConfig)
