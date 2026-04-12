@@ -98,10 +98,24 @@ export default function SSHServersPage() {
     }
   }, [user, loading, router]);
 
+  // Close form modal on Escape
   useEffect(() => {
-    if (!deleteTarget) {
-      return;
-    }
+    if (!showForm) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isLoading) {
+        handleCancel();
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showForm, isLoading]);
+
+  // Close delete modal on Escape
+  useEffect(() => {
+    if (!deleteTarget) return;
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && deletingId === null) {
@@ -154,9 +168,7 @@ export default function SSHServersPage() {
 
       if (response.ok) {
         notify(editingId ? 'Updated successfully' : 'Added successfully', 'success');
-        setShowForm(false);
-        setEditingId(null);
-        resetForm();
+        closeForm();
         await loadConfigs();
       } else {
         const data = await response.json();
@@ -213,9 +225,7 @@ export default function SSHServersPage() {
   };
 
   const confirmDelete = async () => {
-    if (!deleteTarget) {
-      return;
-    }
+    if (!deleteTarget) return;
 
     setDeletingId(deleteTarget.id);
     try {
@@ -246,9 +256,13 @@ export default function SSHServersPage() {
     setShowPassphrase(false);
   };
 
-  const handleCancel = () => {
+  const closeForm = () => {
     setShowForm(false);
     resetForm();
+  };
+
+  const handleCancel = () => {
+    closeForm();
   };
 
   const handleAuthMethodChange = (method: AuthMethod) => {
@@ -271,123 +285,35 @@ export default function SSHServersPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Delete confirmation modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-100 bg-white shadow-2xl">
-            <div className="bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_65%)] px-6 py-5">
-              <div className="flex items-start gap-4">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-sm">
-                  <AlertTriangle className="h-5 w-5" />
-                </div>
-                <div className="space-y-1">
-                  <h2 className="text-lg font-semibold text-slate-900">
-                    Delete SSH server config?
-                  </h2>
-                  <p className="text-sm leading-6 text-slate-600">
-                    This removes the SSH connection for{' '}
-                    <span className="font-medium text-slate-900">{deleteTarget.name}</span>.
-                    The agent will no longer be able to run commands on this server.
-                  </p>
-                </div>
+      {/* Add / Edit modal */}
+      {showForm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isLoading) handleCancel();
+          }}
+        >
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border bg-background shadow-2xl">
+            <div className="flex items-center justify-between border-b px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold">
+                  {editingId ? 'Edit' : 'Add'} SSH server
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Enter the connection details. The agent will use these credentials to run shell commands.
+                </p>
               </div>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={isLoading}
+                className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <div className="space-y-4 px-6 py-5">
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                <div className="font-medium text-slate-900">{deleteTarget.username}@{deleteTarget.host}</div>
-                <div className="mt-1">Port: {deleteTarget.port}</div>
-              </div>
-
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setDeleteTarget(null)}
-                  disabled={deletingId !== null}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={confirmDelete}
-                  disabled={deletingId !== null}
-                  className="min-w-28"
-                >
-                  {deletingId === deleteTarget.id ? 'Deleting...' : 'Confirm delete'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        {/* Page header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.push('/chat')}
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">SSH Server Configs</h1>
-              <p className="text-muted-foreground mt-1">
-                Manage SSH connections the agent can use to run commands
-              </p>
-            </div>
-          </div>
-          {!showForm && (
-            <Button onClick={() => setShowForm(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add server
-            </Button>
-          )}
-        </div>
-
-        <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
-          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
-            <strong>Security notice:</strong> Credentials are stored in plain text. Use a
-            dedicated low-privilege account and avoid reusing important passwords or keys.
-          </AlertDescription>
-        </Alert>
-
-        {/* Toast notifications */}
-        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80">
-          {toasts.map((toast) => {
-            const isSuccess = toast.type === 'success';
-            const isError = toast.type === 'error';
-            const base = 'rounded-md px-4 py-3 shadow-lg text-sm flex items-start gap-2 border';
-            const theme = isSuccess
-              ? 'bg-green-50 text-green-800 border-green-200'
-              : isError
-                ? 'bg-red-50 text-red-800 border-red-200'
-                : 'bg-blue-50 text-blue-800 border-blue-200';
-            return (
-              <div key={toast.id} className={`${base} ${theme}`}>
-                <span className="font-semibold">
-                  {isSuccess ? 'Success' : isError ? 'Error' : 'Info'}
-                </span>
-                <span className="flex-1">{toast.message}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Add / Edit form */}
-        {showForm && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>{editingId ? 'Edit' : 'Add'} SSH server</CardTitle>
-              <CardDescription>
-                Enter the connection details. The agent will use these credentials to run shell commands.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+            <div className="px-6 py-5 max-h-[75vh] overflow-y-auto">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -399,6 +325,7 @@ export default function SSHServersPage() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g. My dev server"
                     required
+                    autoFocus
                   />
                 </div>
 
@@ -500,11 +427,7 @@ export default function SSHServersPage() {
                         className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground"
                         onClick={() => setShowPassword((v) => !v)}
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-4 w-4" />
-                        ) : (
-                          <Eye className="h-4 w-4" />
-                        )}
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
                   </div>
@@ -551,11 +474,7 @@ export default function SSHServersPage() {
                           className="absolute inset-y-0 right-0 px-3 flex items-center text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassphrase((v) => !v)}
                         >
-                          {showPassphrase ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
+                          {showPassphrase ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
                       </div>
                     </div>
@@ -575,7 +494,7 @@ export default function SSHServersPage() {
                   </label>
                 </div>
 
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-2 pt-2 border-t">
                   <Button type="submit" disabled={isLoading}>
                     {isLoading ? (
                       <>
@@ -595,14 +514,119 @@ export default function SSHServersPage() {
                     onClick={handleCancel}
                     disabled={isLoading}
                   >
-                    <X className="h-4 w-4 mr-2" />
                     Cancel
                   </Button>
                 </div>
               </form>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-red-100 bg-white shadow-2xl">
+            <div className="bg-[linear-gradient(135deg,#fff1f2_0%,#ffffff_65%)] px-6 py-5">
+              <div className="flex items-start gap-4">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 shadow-sm">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-lg font-semibold text-slate-900">
+                    Delete SSH server config?
+                  </h2>
+                  <p className="text-sm leading-6 text-slate-600">
+                    This removes the SSH connection for{' '}
+                    <span className="font-medium text-slate-900">{deleteTarget.name}</span>.
+                    The agent will no longer be able to run commands on this server.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4 px-6 py-5">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <div className="font-medium text-slate-900">{deleteTarget.username}@{deleteTarget.host}</div>
+                <div className="mt-1">Port: {deleteTarget.port}</div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setDeleteTarget(null)}
+                  disabled={deletingId !== null}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  disabled={deletingId !== null}
+                  className="min-w-28"
+                >
+                  {deletingId === deleteTarget.id ? 'Deleting...' : 'Confirm delete'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        {/* Page header */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => router.push('/chat')}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold">SSH Server Configs</h1>
+              <p className="text-muted-foreground mt-1">
+                Manage SSH connections the agent can use to run commands
+              </p>
+            </div>
+          </div>
+          <Button onClick={() => setShowForm(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add server
+          </Button>
+        </div>
+
+        <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+          <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+            <strong>Security notice:</strong> Credentials are stored in plain text. Use a
+            dedicated low-privilege account and avoid reusing important passwords or keys.
+          </AlertDescription>
+        </Alert>
+
+        {/* Toast notifications */}
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80">
+          {toasts.map((toast) => {
+            const isSuccess = toast.type === 'success';
+            const isError = toast.type === 'error';
+            const base = 'rounded-md px-4 py-3 shadow-lg text-sm flex items-start gap-2 border';
+            const theme = isSuccess
+              ? 'bg-green-50 text-green-800 border-green-200'
+              : isError
+                ? 'bg-red-50 text-red-800 border-red-200'
+                : 'bg-blue-50 text-blue-800 border-blue-200';
+            return (
+              <div key={toast.id} className={`${base} ${theme}`}>
+                <span className="font-semibold">
+                  {isSuccess ? 'Success' : isError ? 'Error' : 'Info'}
+                </span>
+                <span className="flex-1">{toast.message}</span>
+              </div>
+            );
+          })}
+        </div>
 
         {/* Config list */}
         <div className="space-y-4">
@@ -614,12 +638,10 @@ export default function SSHServersPage() {
                 <p className="text-muted-foreground mb-4">
                   Add an SSH server so the agent can run shell commands on your machines.
                 </p>
-                {!showForm && (
-                  <Button onClick={() => setShowForm(true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add your first server
-                  </Button>
-                )}
+                <Button onClick={() => setShowForm(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add your first server
+                </Button>
               </CardContent>
             </Card>
           ) : (
