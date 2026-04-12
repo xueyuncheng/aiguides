@@ -49,7 +49,7 @@ func NewSSHExecuteTool() (tool.Tool, error) {
 	cfg := functiontool.Config{
 		Name: "ssh_execute",
 		Description: "Execute a shell command on a remote machine via SSH. " +
-			"The user must have at least one SSH server configured at /api/ssh_server_configs. " +
+			"The user must have at least one SSH server configured at /settings/ssh-servers. " +
 			"Specify server_name to target a particular server, or leave it empty to use the default. " +
 			"Returns stdout, stderr, and the exit code of the command.",
 	}
@@ -93,7 +93,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 			slog.Error("db.First() error in executeSSHCommand", "user_id", userID, "server_name", input.ServerName, "err", err)
 			return &SSHExecuteOutput{
 				Success:     false,
-				Error:       fmt.Sprintf("SSH server config %q not found. Please add it at /api/ssh_server_configs.", input.ServerName),
+				Error:       fmt.Sprintf("SSH server config %q not found. Please add it at /settings/ssh-servers.", input.ServerName),
 				NeedsConfig: true,
 			}, nil
 		}
@@ -105,7 +105,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 			slog.Error("db.First() error finding default SSH config", "user_id", userID, "err", err)
 			return &SSHExecuteOutput{
 				Success:     false,
-				Error:       "No SSH server config found. Please add one at /api/ssh_server_configs.",
+				Error:       "No SSH server config found. Please add one at /settings/ssh-servers.",
 				NeedsConfig: true,
 			}, nil
 		}
