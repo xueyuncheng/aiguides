@@ -95,6 +95,12 @@ interface ChatPageLayoutProps {
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onClearQuote: () => void;
 
+  // Voice input
+  isRecording?: boolean;
+  isVoiceSupported?: boolean;
+  onVoiceToggle?: () => void;
+  voiceError?: string | null;
+
   // Handlers – modals
   onCloseShareModal: () => void;
   onCloseCreateProjectModal: () => void;
@@ -173,6 +179,10 @@ export function ChatPageLayout({
   onRemoveImage,
   onImageSelect,
   onClearQuote,
+  isRecording,
+  isVoiceSupported,
+  onVoiceToggle,
+  voiceError,
   onCloseShareModal,
   onCloseCreateProjectModal,
   onSubmitCreateProject,
@@ -229,6 +239,10 @@ export function ChatPageLayout({
     agentName: agentInfo.name,
     quotedText,
     onClearQuote,
+    isRecording,
+    isVoiceSupported,
+    onVoiceToggle,
+    voiceError,
   };
 
   return (
