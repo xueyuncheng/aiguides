@@ -141,6 +141,11 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 	}
 
 	// System
+	sshListServersTool, err := tools.NewSSHListServersTool()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ssh_list_servers tool: %w", err)
+	}
+
 	sshExecuteTool, err := tools.NewSSHExecuteTool()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ssh_execute tool: %w", err)
@@ -183,6 +188,7 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 			scheduledTaskCreateTool,
 			scheduledTaskListTool,
 			// System
+			sshListServersTool,
 			sshExecuteTool,
 		},
 	}

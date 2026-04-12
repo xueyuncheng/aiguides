@@ -263,6 +263,77 @@ func runOnClient(ctx context.Context, client *gossh.Client, host, cmd string) (*
 	}, nil
 }
 
+// SSHListServersInput defines the (empty) input for the ssh_list_servers tool.
+type SSHListServersInput struct{}
+
+// SSHListServersOutput holds the list of configured SSH servers.
+type SSHListServersOutput struct {
+	Servers []SSHServerInfo `json:"servers"`
+	Count   int             `json:"count"`
+}
+
+// SSHServerInfo is a single SSH server entry returned by ssh_list_servers.
+// Credentials (password, private key, passphrase) are intentionally omitted.
+type SSHServerInfo struct {
+	ID         int                 `json:"id"`
+	Name       string              `json:"name"`
+	Host       string              `json:"host"`
+	Port       int                 `json:"port"`
+	Username   string              `json:"username"`
+	AuthMethod table.SSHAuthMethod `json:"auth_method"`
+	IsDefault  bool                `json:"is_default"`
+}
+
+// NewSSHListServersTool creates a tool that lists the user's configured SSH servers.
+// Credentials are never included in the output.
+func NewSSHListServersTool() (tool.Tool, error) {
+	cfg := functiontool.Config{
+		Name: "ssh_list_servers",
+		Description: "List all SSH servers configured by the user. " +
+			"Returns server names, hosts, ports, usernames, and auth methods. " +
+			"Credentials (passwords, private keys) are never included in the output. " +
+			"Use this before ssh_execute to discover available server names.",
+	}
+
+	handler := func(ctx tool.Context, _ SSHListServersInput) (*SSHListServersOutput, error) {
+		tx, ok := middleware.GetTx(ctx)
+		if !ok {
+			slog.Error("middleware.GetTx() failed in ssh_list_servers")
+			return &SSHListServersOutput{}, nil
+		}
+
+		userID, ok := middleware.GetUserID(ctx)
+		if !ok {
+			slog.Error("middleware.GetUserID() failed in ssh_list_servers")
+			return &SSHListServersOutput{}, nil
+		}
+
+		var configs []table.SSHServerConfig
+		if err := tx.Where("user_id = ?", userID).
+			Order("is_default DESC, created_at DESC").
+			Find(&configs).Error; err != nil {
+			slog.Error("db.Find() error in ssh_list_servers", "user_id", userID, "err", err)
+			return &SSHListServersOutput{}, nil
+		}
+
+		servers := make([]SSHServerInfo, len(configs))
+		for i, c := range configs {
+			servers[i] = SSHServerInfo{
+				ID:         c.ID,
+				Name:       c.Name,
+				Host:       c.Host,
+				Port:       c.Port,
+				Username:   c.Username,
+				AuthMethod: c.AuthMethod,
+				IsDefault:  c.IsDefault,
+			}
+		}
+		return &SSHListServersOutput{Servers: servers, Count: len(servers)}, nil
+	}
+
+	return functiontool.New(cfg, handler)
+}
+
 // limitedWriter caps writes to a bytes.Buffer at a maximum byte count.
 type limitedWriter struct {
 	buf     *bytes.Buffer
