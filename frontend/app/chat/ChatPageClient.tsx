@@ -12,6 +12,7 @@ import { useScrollManager } from './[sessionId]/hooks/useScrollManager';
 import { useSessionData } from './[sessionId]/hooks/useSessionData';
 import { useStreamingChat } from './[sessionId]/hooks/useStreamingChat';
 import { useUIState } from './[sessionId]/hooks/useUIState';
+import { useVoiceInput } from './[sessionId]/hooks/useVoiceInput';
 import { mergeAssistantMessages } from './[sessionId]/utils/messages';
 
 export default function ChatPageClient() {
@@ -119,6 +120,13 @@ export default function ChatPageClient() {
     };
     setInputValueRef.current = setInputValue;
   }, [setEditingMessageId, setEditingValue, setInputValue]);
+
+  const { isRecording, isSupported: isVoiceSupported, toggleRecording, voiceError } = useVoiceInput({
+    onTranscript: useCallback((text: string) => {
+      actions.setInputValue((prev) => (prev ? `${prev} ${text}` : text));
+    }, [actions]),
+    disabled: isLoading,
+  });
 
   const scroll = useScrollManager({
     messages,
@@ -319,6 +327,10 @@ export default function ChatPageClient() {
       onRemoveImage={handleRemoveImage}
       onImageSelect={handleImageSelect}
       onClearQuote={actions.handleClearQuote}
+      isRecording={isRecording}
+      isVoiceSupported={isVoiceSupported}
+      onVoiceToggle={toggleRecording}
+      voiceError={voiceError}
       onCloseShareModal={ui.handleCloseShareModal}
       onCloseCreateProjectModal={ui.handleCloseCreateProjectModal}
       onSubmitCreateProject={handleCreateProject}

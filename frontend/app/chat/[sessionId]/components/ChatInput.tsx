@@ -1,7 +1,7 @@
 import { forwardRef, memo, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
-import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines } from 'lucide-react';
+import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines, Mic } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import type { SelectedImage } from '../types';
 
@@ -25,6 +25,10 @@ interface ChatInputProps {
   agentName: string;
   quotedText?: string;
   onClearQuote?: () => void;
+  isRecording?: boolean;
+  isVoiceSupported?: boolean;
+  onVoiceToggle?: () => void;
+  voiceError?: string | null;
 }
 
 const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ 
@@ -47,6 +51,10 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   agentName,
   quotedText,
   onClearQuote,
+  isRecording = false,
+  isVoiceSupported = false,
+  onVoiceToggle,
+  voiceError,
 }, textareaRef) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -108,6 +116,11 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
               {imageError}
             </div>
           )}
+          {voiceError && (
+            <div className="px-3 pt-2 text-xs text-red-500" role="alert" aria-live="polite">
+              {voiceError}
+            </div>
+          )}
           <form onSubmit={onSubmit} className="w-full flex items-center p-2 gap-2">
             <input
               ref={imageInputRef}
@@ -129,6 +142,34 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
               >
                 <Paperclip className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
               </Button>
+            {isVoiceSupported && (
+              <div className="relative flex items-center justify-center flex-shrink-0">
+                {isRecording && (
+                  <span
+                    className="absolute inset-0 rounded-full bg-red-500 animate-mic-ripple"
+                    aria-hidden="true"
+                  />
+                )}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={onVoiceToggle}
+                  disabled={isLoading || isLoadingHistory}
+                  className={cn(
+                    "relative h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-200",
+                    isRecording
+                      ? "bg-red-500 text-white hover:bg-red-600 shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title={isRecording ? "停止录音" : "语音输入"}
+                  aria-label={isRecording ? "停止录音" : "语音输入"}
+                  aria-pressed={isRecording}
+                >
+                  <Mic className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+                </Button>
+              </div>
+            )}
             <Textarea
               ref={textareaRef}
               value={inputValue}
