@@ -3,10 +3,16 @@ package constant
 const (
 	ContextKeyTx              string = "tx"
 	ContextKeySessionID       string = "session_id"
+	ContextKeyLocale          string = "locale"
 	ContextKeyUserID          string = "user_id"
 	ContextKeyGoogleUserID    string = "google_user_id"
 	ContextKeyGoogleUserEmail string = "google_user_email"
 	ContextKeyUserName        string = "user_name"
+)
+
+const (
+	LocaleEN string = "en"
+	LocaleZH string = "zh"
 )
 
 type AppName string

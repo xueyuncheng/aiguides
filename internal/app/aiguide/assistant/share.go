@@ -177,7 +177,7 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 	}
 
 	// Build message events from session
-	allMessages := buildMessageEvents(sess.Events())
+	allMessages := buildMessageEvents(sess.Events(), middleware.GetLocale(ctx))
 
 	response := SharedConversationResponse{
 		ShareID:   shareID,
