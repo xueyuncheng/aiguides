@@ -29,7 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleUnauthorized = useCallback(() => {
     setUser(null);
-    if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+    if (
+      typeof window !== 'undefined' &&
+      window.location.pathname !== '/login' &&
+      !window.location.pathname.startsWith('/share/')
+    ) {
       router.push('/login');
     }
   }, [router]);
