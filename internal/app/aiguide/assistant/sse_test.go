@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/middleware"
 	"aiguide/internal/pkg/tools"
 	"bytes"
 	"encoding/base64"
@@ -241,5 +242,76 @@ func TestFunctionResponseKeyPrefersID(t *testing.T) {
 
 	if key != "call-123" {
 		t.Fatalf("functionResponseKey() = %q, want %q", key, "call-123")
+	}
+}
+
+func TestLocaleFromLanguageHeader(t *testing.T) {
+	tests := []struct {
+		name   string
+		header string
+		want   string
+	}{
+		{
+			name:   "defaults to english",
+			header: "",
+			want:   constant.LocaleEN,
+		},
+		{
+			name:   "english locale",
+			header: "en-US,en;q=0.9",
+			want:   constant.LocaleEN,
+		},
+		{
+			name:   "chinese locale",
+			header: "zh-CN,zh;q=0.9,en;q=0.8",
+			want:   constant.LocaleZH,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := middleware.LocaleFromLanguageHeader(tt.header); got != tt.want {
+				t.Fatalf("middleware.LocaleFromLanguageHeader() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToolCallLabel(t *testing.T) {
+	tests := []struct {
+		name   string
+		locale string
+		tool   string
+		args   map[string]any
+		want   string
+	}{
+		{
+			name:   "english search label",
+			locale: constant.LocaleEN,
+			tool:   "web_search",
+			args:   map[string]any{"query": "golang"},
+			want:   "Searching: golang",
+		},
+		{
+			name:   "chinese search label",
+			locale: constant.LocaleZH,
+			tool:   "web_search",
+			args:   map[string]any{"query": "golang"},
+			want:   "正在搜索：golang",
+		},
+		{
+			name:   "english fallback label",
+			locale: constant.LocaleEN,
+			tool:   "custom_tool",
+			want:   "Calling custom_tool",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := toolCallLabel(tt.locale, tt.tool, tt.args); got != tt.want {
+				t.Fatalf("toolCallLabel() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

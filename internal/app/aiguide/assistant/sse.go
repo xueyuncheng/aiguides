@@ -3,6 +3,7 @@ package assistant
 import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/middleware"
 	"aiguide/internal/pkg/tools"
 	"bytes"
 	"context"
@@ -292,6 +293,8 @@ func (a *Assistant) streamAgentEvents(
 	message *genai.Content,
 	runConfig agent.RunConfig,
 ) {
+	locale := middleware.GetLocale(ctx)
+
 	// 追踪当前的 agent author，用于 FunctionResponse
 	// FunctionResponse 的 event.Author 是 "user"（GenAI 协议），但我们需要使用调用工具的 agent 名称
 	var currentAgentAuthor string
@@ -391,7 +394,7 @@ func (a *Assistant) streamAgentEvents(
 					callKey := functionCallKey(part.FunctionCall)
 					if _, seen := seenToolCalls[callKey]; !seen {
 						seenToolCalls[callKey] = struct{}{}
-						label := toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args)
+						label := toolCallLabel(locale, part.FunctionCall.Name, part.FunctionCall.Args)
 						data := gin.H{
 							"author":       event.Author,
 							"tool_call_id": part.FunctionCall.ID,
@@ -557,68 +560,6 @@ func prependMemoryContext(parts []*genai.Part, memoryContext string) []*genai.Pa
 	}
 	// 没有文本 part 时，在最前面插入一个文本 part
 	return append([]*genai.Part{genai.NewPartFromText(memoryContext)}, parts...)
-}
-
-// toolCallLabel 将工具调用转换为用户可读的进度描述
-func toolCallLabel(name string, args map[string]any) string {
-	switch name {
-	case "task_create":
-		if title, ok := args["title"].(string); ok {
-			return fmt.Sprintf("正在创建任务：%s", title)
-		}
-		return "正在创建任务"
-	case "task_update":
-		if id, ok := args["task_id"]; ok {
-			return fmt.Sprintf("正在更新任务 #%v", id)
-		}
-		return "正在更新任务"
-	case "task_list":
-		return "正在检查任务列表"
-	case "task_get":
-		return "正在获取任务详情"
-	case "finish_planning":
-		return "规划完成，准备执行"
-	case "web_search":
-		if query, ok := args["query"].(string); ok {
-			return fmt.Sprintf("正在搜索：%s", query)
-		}
-		return "正在搜索"
-	case "exa_search":
-		if query, ok := args["query"].(string); ok {
-			return fmt.Sprintf("正在语义搜索：%s", query)
-		}
-		return "正在语义搜索"
-	case "web_fetch":
-		if url, ok := args["url"].(string); ok {
-			return fmt.Sprintf("正在获取网页：%s", url)
-		}
-		return "正在获取网页"
-	case "file_download":
-		if url, ok := args["url"].(string); ok {
-			return fmt.Sprintf("正在下载文件：%s", url)
-		}
-		return "正在下载文件"
-	case "file_list":
-		return "正在查看文件列表"
-	case "file_get":
-		return "正在获取文件信息"
-	case "pdf_extract_text":
-		return "正在提取 PDF 文本"
-	case "pdf_generate_document":
-		return "正在生成 PDF 文档"
-	case "image_gen":
-		return "正在生成图片"
-	case "email_query":
-		return "正在查询邮件"
-	case "current_time":
-		return "正在获取当前时间"
-	case "audio_transcribe":
-		return "正在转写音频"
-	case "manage_memory":
-		return "正在管理记忆"
-	default:
-		return fmt.Sprintf("调用 %s", name)
-	}
 }
 
 // generateTitle 生成会话标题

@@ -49,3 +49,12 @@ func GetTx(ctx context.Context) (*gorm.DB, bool) {
 	}
 	return tx, true
 }
+
+func GetLocale(ctx context.Context) string {
+	locale, ok := ctx.Value(constant.ContextKeyLocale).(string)
+	if !ok || locale == "" {
+		return constant.LocaleEN
+	}
+
+	return locale
+}

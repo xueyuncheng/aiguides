@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"aiguide/internal/app/aiguide/table"
+	"aiguide/internal/pkg/middleware"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -292,7 +293,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 
 	sess := getResp.Session
 
-	allMessages := buildMessageEvents(sess.Events())
+	allMessages := buildMessageEvents(sess.Events(), middleware.GetLocale(ctx))
 	totalCount := len(allMessages)
 	if offset >= totalCount {
 		response := SessionHistoryResponse{
@@ -361,7 +362,7 @@ func parsePagination(ctx *gin.Context) (int, int) {
 	return limit, offset
 }
 
-func buildMessageEvents(events session.Events) []MessageEvent {
+func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 	allMessages := make([]MessageEvent, 0)
 	toolCallLocations := make(map[string]toolCallLocation)
 	for event := range events.All() {
@@ -458,7 +459,7 @@ func buildMessageEvents(events session.Events) []MessageEvent {
 				toolCall := ToolCall{
 					CallID:   part.FunctionCall.ID,
 					ToolName: part.FunctionCall.Name,
-					Label:    toolCallLabel(part.FunctionCall.Name, part.FunctionCall.Args),
+					Label:    toolCallLabel(locale, part.FunctionCall.Name, part.FunctionCall.Args),
 					Args:     part.FunctionCall.Args,
 				}
 				if response, ok := localFunctionResponses[part.FunctionCall.ID]; ok {

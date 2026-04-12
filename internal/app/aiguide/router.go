@@ -12,6 +12,7 @@ import (
 func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// API 路由
 	api := engine.Group("/api")
+	api.Use(middleware.Locale())
 
 	// 公开路由 (无需认证)
 	// 健康检查

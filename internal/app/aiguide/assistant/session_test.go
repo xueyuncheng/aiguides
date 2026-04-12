@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"aiguide/internal/pkg/constant"
 	"iter"
 	"strings"
 	"testing"
@@ -86,7 +87,7 @@ func TestBuildMessageEventsPreservesPDFFileInHistory(t *testing.T) {
 		},
 	}}
 
-	messages := buildMessageEvents(events)
+	messages := buildMessageEvents(events, constant.LocaleEN)
 	if len(messages) != 1 {
 		t.Fatalf("len(messages) = %d, want 1", len(messages))
 	}
@@ -124,7 +125,7 @@ func TestBuildMessageEventsStripsFileNamesMetadataAfterUserContext(t *testing.T)
 		},
 	}}
 
-	messages := buildMessageEvents(events)
+	messages := buildMessageEvents(events, constant.LocaleEN)
 	if len(messages) != 1 {
 		t.Fatalf("len(messages) = %d, want 1", len(messages))
 	}
