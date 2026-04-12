@@ -551,7 +551,7 @@ func (a *Assistant) fetchUserMemories(userID int) (string, error) {
 func prependMemoryContext(parts []*genai.Part, memoryContext string) []*genai.Part {
 	for i, part := range parts {
 		if part.Text != "" {
-			parts[i] = genai.NewPartFromText(memoryContext + "\n" + part.Text)
+			parts[i] = genai.NewPartFromText(memoryContext + part.Text)
 			return parts
 		}
 	}
