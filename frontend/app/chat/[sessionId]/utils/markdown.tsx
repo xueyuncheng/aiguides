@@ -47,7 +47,7 @@ function isSvgCodeElement(element: React.ReactElement<CodeElementProps> | null):
 export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, remarkMath];
 
 const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),?!:;%\]]|\.(?!\d))/g;
-const fencedCodeBlockPattern = /(```[\s\S]*?```)/g;
+export const fencedCodeBlockPattern = /(```[\s\S]*?```)/g;
 const rawSvgPattern = /(?:<\?xml[\s\S]*?\?>\s*)?(?:<!DOCTYPE[\s\S]*?>\s*)?<svg\b[\s\S]*?<\/svg>/gi;
 
 function transformOutsideCodeFences(content: string, transform: (segment: string) => string): string {
@@ -70,7 +70,8 @@ function normalizeRawSvgBlocks(content: string): string {
  */
 export function preprocessMarkdown(content: string): string {
   return transformOutsideCodeFences(normalizeRawSvgBlocks(content), (segment) => (
-    segment.replace(currencyPattern, (_, amount: string) => `\\$${amount}`)
+    segment
+      .replace(currencyPattern, (_, amount: string) => `\\$${amount}`)
   ));
 }
 export const markdownRehypePlugins: PluggableList = [rehypeKatex];
@@ -84,7 +85,7 @@ const markdownTableStyles = {
 };
 
 // Code Block component with syntax highlighting and copy button
-const CodeBlock = ({ className, children }: { className?: string; children: React.ReactNode }) => {
+export const CodeBlock = ({ className, children }: { className?: string; children: React.ReactNode }) => {
   const language = getCodeLanguage(className);
   const [codeCopied, setCodeCopied] = useState(false);
   const codeString = String(children).replace(/\n$/, '');
