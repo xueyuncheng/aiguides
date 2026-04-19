@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/app/components/ui/button';
 import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { TTSButton } from './TTSButton';
 import { cn } from '@/app/lib/utils';
 import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
 import { FEEDBACK_TIMEOUT_MS } from '../constants';
@@ -10,6 +11,7 @@ import type { ToolCallItem } from '../types';
 interface AIMessageContentProps {
   content: string;
   thought?: string;
+  id?: string;
   isStreaming?: boolean;
   images?: string[];
   isError?: boolean;
@@ -21,6 +23,7 @@ interface AIMessageContentProps {
 export const AIMessageContent = memo(({
   content,
   thought,
+  id,
   isStreaming,
   images,
   isError,
@@ -29,6 +32,7 @@ export const AIMessageContent = memo(({
   toolCalls,
 }: AIMessageContentProps) => {
   const [showRaw, setShowRaw] = useState(false);
+  const [ttsActive, setTtsActive] = useState(false);
   const [expandedToolCallIndexes, setExpandedToolCallIndexes] = useState<number[]>([]);
   const [isThoughtExpanded, setIsThoughtExpanded] = useState(() => {
     if (!thought || !thoughtStorageKey || typeof window === 'undefined') return false;
@@ -287,7 +291,8 @@ export const AIMessageContent = memo(({
         {!isStreaming && (
           <div className={cn(
             "flex gap-1 mt-2 transition-opacity duration-200",
-            isError ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+            isError ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+            ttsActive && "opacity-100"
           )}>
             {isError ? (
               onRetry && (
@@ -304,6 +309,9 @@ export const AIMessageContent = memo(({
               )
             ) : (
               <>
+                {content && (
+                  <TTSButton text={content} messageId={id || 'unknown'} isStreaming={isStreaming} onActiveChange={setTtsActive} />
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
