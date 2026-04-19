@@ -26,7 +26,7 @@ var ValidAspectRatios = map[string]bool{
 }
 
 // DefaultImageModel 定义默认使用的 Imagen 模型
-const DefaultImageModel = "gemini-3-pro-image-preview"
+const DefaultImageModel = "gemini-3.1-flash-image-preview"
 
 // ImageGenInput 定义图片生成工具的输入参数
 type ImageGenInput struct {
