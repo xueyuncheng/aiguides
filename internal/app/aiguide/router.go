@@ -41,6 +41,9 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// Agent 聊天路由
 	api.POST("/assistant/chats/:id", a.assistant.Chat)
 
+	// Text-to-speech streaming endpoint
+	api.POST("/assistant/tts/stream", a.assistant.TextToSpeechStream)
+
 	// Share management routes (authenticated)
 	shareGroup := api.Group("/assistant/share")
 	{
