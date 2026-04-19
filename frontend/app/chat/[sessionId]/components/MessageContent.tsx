@@ -291,7 +291,7 @@ export const AIMessageContent = memo(({
             {content}
           </pre>
         ) : (
-          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-3 prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold prose-table:border-collapse prose-table:w-full prose-th:border prose-td:border prose-th:border-border prose-td:border-border prose-th:bg-muted/60 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 break-words [overflow-wrap:anywhere]">
+          <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none prose-p:leading-relaxed prose-p:my-1 prose-pre:p-0 prose-pre:rounded-lg prose-pre:overflow-x-auto prose-headings:my-4 prose-headings:font-semibold prose-table:border-collapse prose-table:w-full prose-th:border prose-td:border prose-th:border-border prose-td:border-border prose-th:bg-muted/60 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 break-words [overflow-wrap:anywhere]">
             <ReactMarkdown
               remarkPlugins={markdownRemarkPlugins}
               rehypePlugins={markdownRehypePlugins}

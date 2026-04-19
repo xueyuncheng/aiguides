@@ -1,6 +1,5 @@
 import { AudioLines, FileText } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
+import { CodeBlock, fencedCodeBlockPattern } from '../utils/markdown';
 import type { MessageFile } from '../types';
 
 const getFileBadge = (mimeType: string) => {
@@ -26,6 +25,36 @@ const getFileBadge = (mimeType: string) => {
     badgeClassName: 'bg-zinc-200 dark:bg-zinc-700',
   };
 };
+
+/**
+ * Renders user message content as plain text with fenced code block support.
+ * Plain text is rendered with `white-space: pre-wrap` to preserve spaces,
+ * indentation, and newlines exactly as typed. Fenced code blocks (```) are
+ * rendered with syntax highlighting via CodeBlock.
+ */
+function renderUserContent(content: string) {
+  const parts = content.split(fencedCodeBlockPattern);
+  return parts.map((part, i) => {
+    if (i % 2 === 1) {
+      // Fenced code block — extract language and code, render with CodeBlock
+      const match = part.match(/^```(\w*)\n?([\s\S]*?)```$/);
+      const language = match?.[1] || '';
+      const code = match?.[2]?.replace(/\n$/, '') || part;
+      return (
+        <CodeBlock key={i} className={language ? `language-${language}` : undefined}>
+          {code}
+        </CodeBlock>
+      );
+    }
+    // Plain text — preserve whitespace exactly as typed
+    if (!part) return null;
+    return (
+      <span key={i} className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+        {part}
+      </span>
+    );
+  });
+}
 
 interface UserMessageProps {
   content: string;
@@ -91,14 +120,8 @@ export function UserMessage({ content, images, fileNames, files }: UserMessagePr
         </div>
       )}
       {content && (
-        <div className="prose prose-sm prose-zinc dark:prose-invert max-w-none min-w-0 prose-p:my-3 prose-p:leading-relaxed prose-pre:p-0 prose-pre:rounded-lg prose-headings:my-4 prose-headings:font-semibold break-words break-all [overflow-wrap:anywhere]">
-          <ReactMarkdown
-            remarkPlugins={markdownRemarkPlugins}
-            rehypePlugins={markdownRehypePlugins}
-            components={markdownComponents}
-          >
-            {preprocessMarkdown(content)}
-          </ReactMarkdown>
+        <div className="text-sm leading-relaxed min-w-0 break-words [overflow-wrap:anywhere]">
+          {renderUserContent(content)}
         </div>
       )}
     </div>

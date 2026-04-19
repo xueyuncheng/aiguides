@@ -113,7 +113,7 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
             key={message.id}
             ref={message.role === 'user' && message.id === latestUserMessageId ? latestUserMessageRef : undefined}
             className={cn(
-              'flex w-full group/message',
+              'flex w-full min-w-0 group/message',
               index > 0 && (isUserToAssistantPair ? 'mt-3 sm:mt-4' : 'mt-6 sm:mt-8'),
               message.role === 'user' ? 'justify-end' : 'justify-start'
             )}
@@ -135,10 +135,10 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
               </div>
             </div>
           ) : (
-            <div className="flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%] flex-row-reverse">
+            <div className="flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%] min-w-0 flex-row-reverse">
               <UserAvatar user={user} />
-              <div className="relative flex flex-col items-end">
-                <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed dark:bg-zinc-800 sm:min-w-[180px] sm:w-fit">
+              <div className="relative flex flex-col items-end min-w-0 overflow-hidden">
+                <div className="relative w-full min-w-0 max-w-full overflow-hidden rounded-2xl rounded-tr-sm bg-zinc-100 px-4 py-2.5 text-sm leading-relaxed dark:bg-zinc-800 sm:min-w-[180px]">
                   {editingMessageId === message.id ? (
                     <div className="space-y-3">
                       <div className="relative">

@@ -266,7 +266,7 @@ export function ChatPageLayout({
         onMobileToggle={onToggleMobileSidebar}
       />
 
-      <div className="flex flex-col flex-1 h-full min-w-0 md:pl-[260px] relative transition-all duration-300 overflow-hidden">
+      <div className="flex flex-col flex-1 h-full min-w-0 md:pl-[260px] relative transition-all duration-300 overflow-x-hidden">
         <div className="md:hidden fixed top-3 left-3 z-30">
           <Button
             onClick={onOpenMobileSidebar}
@@ -294,12 +294,12 @@ export function ChatPageLayout({
           <>
             <div
               ref={scrollContainerRef}
-              className="flex-1 overflow-hidden overflow-y-auto no-scrollbar mobile-scroll min-w-0"
+              className="flex-1 overflow-x-hidden overflow-y-auto no-scrollbar mobile-scroll min-w-0"
               onScroll={onScroll}
             >
-              <div className="flex flex-col items-center overflow-hidden min-w-0 w-full">
+              <div className="flex flex-col items-center min-w-0 w-full">
                 <div
-                  className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10 overflow-hidden min-w-0 mx-auto"
+                  className="w-full max-w-5xl px-3 sm:px-4 md:px-6 pt-6 sm:pt-8 md:pt-10 min-w-0 mx-auto"
                   style={{ paddingBottom: `${Math.max(16, chatInputOffset + COMPOSER_MESSAGE_GAP)}px` }}
                 >
                   <ChatMessagesPane {...messagesPaneProps} />
