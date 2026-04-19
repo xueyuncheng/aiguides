@@ -20,6 +20,7 @@ import (
 
 type Assistant struct {
 	mockImageGeneration bool
+	mockVideoGeneration bool
 	model               model.LLM
 	session             session.Service
 	db                  *gorm.DB
@@ -42,6 +43,7 @@ type Config struct {
 	DB                  *gorm.DB
 	GenaiClient         *genai.Client
 	MockImageGeneration bool
+	MockVideoGeneration bool
 	FrontendURL         string
 	WebSearchConfig     tools.WebSearchConfig
 	ExaConfig           tools.ExaConfig
@@ -77,6 +79,7 @@ func New(config *Config) (*Assistant, error) {
 
 	assistant := &Assistant{
 		mockImageGeneration: config.MockImageGeneration,
+		mockVideoGeneration: config.MockVideoGeneration,
 		model:               config.Model,
 		session:             session,
 		db:                  config.DB,

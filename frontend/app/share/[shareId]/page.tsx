@@ -79,6 +79,9 @@ export default function SharedConversationPage() {
         if (msg.images && msg.images.length > 0) {
           merged.images = [...(merged.images || []), ...(msg.images || [])];
         }
+        if (msg.videos && msg.videos.length > 0) {
+          merged.videos = [...(merged.videos || []), ...(msg.videos || [])];
+        }
         result[result.length - 1] = merged;
       } else {
         result.push(msg);
@@ -263,6 +266,7 @@ export default function SharedConversationPage() {
                               content={message.content}
                               thought={message.thought}
                               images={message.images}
+                              videos={message.videos}
                               thoughtStorageKey={`share:${data.share_id}:thought:${message.id || index}`}
                             />
                           </div>

@@ -47,6 +47,7 @@ export const mapHistoryMessage = (message: HistoryMessageResponse): Message => (
   thought: message.thought,
   timestamp: new Date(message.timestamp),
   images: message.images || [],
+  videos: message.videos || [],
   fileNames: message.file_names || [],
   files: message.files || [],
   toolCalls: (message.tool_calls || []).map(mapToolCall),
@@ -76,6 +77,7 @@ export const mergeAssistantMessages = (messages: Message[]) => {
           ? (lastMessage.thought || '') + ((lastMessage.thought || '') ? '\n\n' : '') + message.thought
           : lastMessage.thought,
         images: [...(lastMessage.images || []), ...(message.images || [])],
+        videos: [...(lastMessage.videos || []), ...(message.videos || [])],
         fileNames: [...(lastMessage.fileNames || []), ...(message.fileNames || [])],
         toolCalls: mergeToolCalls([...(lastMessage.toolCalls || []), ...(message.toolCalls || [])]),
         author: message.author || lastMessage.author,

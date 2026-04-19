@@ -62,6 +62,7 @@ type MessageEvent struct {
 	Content   string        `json:"content"`
 	Thought   string        `json:"thought,omitempty"`
 	Images    []string      `json:"images,omitempty"`     // Base64编码的图片列表
+	Videos    []string      `json:"videos,omitempty"`     // 视频文件URL列表
 	FileNames []string      `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
 	Files     []MessageFile `json:"files,omitempty"`
 	ToolCalls []ToolCall    `json:"tool_calls,omitempty"`
@@ -378,6 +379,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 		content := ""
 		thought := ""
 		var images []string
+		var videos []string
 		var fileNames []string
 		var files []MessageFile
 		var toolCalls []ToolCall
@@ -453,6 +455,13 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 						}
 					}
 				}
+				if videoList, ok := response["videos"].([]any); ok {
+					for _, vid := range videoList {
+						if vidStr, ok := vid.(string); ok {
+							videos = append(videos, vidStr)
+						}
+					}
+				}
 			}
 
 			if part.FunctionCall != nil {
@@ -480,7 +489,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 			role = "assistant"
 		}
 
-		if content != "" || thought != "" || len(images) > 0 || len(files) > 0 || len(toolCalls) > 0 {
+		if content != "" || thought != "" || len(images) > 0 || len(videos) > 0 || len(files) > 0 || len(toolCalls) > 0 {
 			message := MessageEvent{
 				ID:        event.ID,
 				Timestamp: event.Timestamp,
@@ -488,6 +497,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 				Content:   content,
 				Thought:   thought,
 				Images:    images,
+				Videos:    videos,
 				FileNames: fileNames,
 				Files:     files,
 				ToolCalls: toolCalls,
@@ -502,6 +512,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 				allMessages[messageIndex].Content += message.Content
 				allMessages[messageIndex].Thought += message.Thought
 				allMessages[messageIndex].Images = append(allMessages[messageIndex].Images, message.Images...)
+			allMessages[messageIndex].Videos = append(allMessages[messageIndex].Videos, message.Videos...)
 				allMessages[messageIndex].FileNames = append(allMessages[messageIndex].FileNames, message.FileNames...)
 				allMessages[messageIndex].Files = append(allMessages[messageIndex].Files, message.Files...)
 				toolCallOffset := len(allMessages[messageIndex].ToolCalls)
@@ -538,11 +549,11 @@ func shouldMergeAssistantMessage(allMessages []MessageEvent, current MessageEven
 		return false
 	}
 
-	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.FileNames) > 0 || len(previous.Files) > 0 || len(previous.ToolCalls) == 0 {
+	if previous.Content != "" || previous.Thought != "" || len(previous.Images) > 0 || len(previous.Videos) > 0 || len(previous.FileNames) > 0 || len(previous.Files) > 0 || len(previous.ToolCalls) == 0 {
 		return false
 	}
 
-	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.FileNames) > 0 || len(current.Files) > 0
+	return current.Content != "" || current.Thought != "" || len(current.Images) > 0 || len(current.Videos) > 0 || len(current.FileNames) > 0 || len(current.Files) > 0
 }
 
 func isDuplicateRetryUserMessage(allMessages []MessageEvent, current MessageEvent) bool {

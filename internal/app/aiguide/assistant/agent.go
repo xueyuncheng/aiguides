@@ -25,6 +25,7 @@ type AssistantAgentConfig struct {
 	GenaiClient       *genai.Client
 	DB                *gorm.DB
 	MockImageGen      bool
+	MockVideoGen      bool
 	MockEmailIMAPConn bool
 	WebSearchConfig   tools.WebSearchConfig
 	ExaConfig         tools.ExaConfig
@@ -114,6 +115,11 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create image gen tool: %w", err)
 	}
 
+	videoGenTool, err := tools.NewVideoGenTool(config.GenaiClient, config.DB, config.FileStore, config.MockVideoGen)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create video gen tool: %w", err)
+	}
+
 	// Tasks
 	taskListTool, err := tools.NewTaskListTool(config.DB)
 	if err != nil {
@@ -181,6 +187,7 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 			pdfGenerateDocumentTool,
 			audioTranscribeTool,
 			imageGenTool,
+			videoGenTool,
 			// Tasks
 			taskListTool,
 			taskGetTool,
