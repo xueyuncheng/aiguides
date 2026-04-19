@@ -66,6 +66,7 @@ export async function consumeAssistantStream({
   let assistantContent = '';
   let assistantThought = '';
   let assistantImages: string[] = [];
+  let assistantVideos: string[] = [];
 
   const resetEventType = () => {
     currentEventType = 'data';
@@ -247,6 +248,25 @@ export async function consumeAssistantStream({
           });
         }
 
+        if (Array.isArray(data.videos)) {
+          assistantVideos = [...assistantVideos, ...data.videos.filter((item): item is string => typeof item === 'string')];
+
+          setMessages((prev) => {
+            const nextMessages = [...prev];
+            const lastIndex = nextMessages.length - 1;
+
+            if (lastIndex >= 0 && nextMessages[lastIndex].role === 'assistant') {
+              nextMessages[lastIndex] = {
+                ...nextMessages[lastIndex],
+                videos: assistantVideos,
+                isStreaming: true,
+              };
+            }
+
+            return nextMessages;
+          });
+        }
+
         if (typeof data.content !== 'string' || data.content.length === 0) {
           continue;
         }
@@ -262,6 +282,7 @@ export async function consumeAssistantStream({
           assistantContent = isThought ? '' : data.content;
           assistantThought = isThought ? data.content : '';
           assistantImages = [];
+          assistantVideos = [];
 
           setMessages((prev) => [
             ...prev,
@@ -274,6 +295,7 @@ export async function consumeAssistantStream({
               author: currentAuthor,
               isStreaming: true,
               images: [],
+              videos: [],
             },
           ]);
           continue;
@@ -295,6 +317,7 @@ export async function consumeAssistantStream({
               content: assistantContent,
               thought: assistantThought,
               images: assistantImages,
+              videos: assistantVideos,
               isStreaming: true,
             };
           }

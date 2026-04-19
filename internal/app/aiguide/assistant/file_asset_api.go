@@ -81,7 +81,7 @@ func sanitizeDownloadFilename(name string) string {
 
 func buildContentDisposition(mimeType, originalName string) string {
 	dispositionType := "attachment"
-	if mimeType == "application/pdf" {
+	if mimeType == "application/pdf" || strings.HasPrefix(mimeType, "video/") {
 		dispositionType = "inline"
 	}
 

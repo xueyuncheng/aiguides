@@ -40,6 +40,7 @@ type Config struct {
 	AllowedEmails       []string     `yaml:"allowed_emails"`
 	SecureCookie        *bool        `yaml:"secure_cookie"` // 默认 true（生产环境），本地开发设置为 false
 	MockImageGeneration bool         `yaml:"mock_image_generation"`
+	MockVideoGeneration bool         `yaml:"mock_video_generation"`
 	WebSearch           WebSearch    `yaml:"web_search"` // Web 搜索配置
 	ExaSearch           ExaSearch    `yaml:"exa_search"` // Exa 搜索配置
 	Redis               redis.Config `yaml:"redis"`      // Redis 配置
@@ -146,6 +147,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		DB:                  db,
 		GenaiClient:         genaiClient,
 		MockImageGeneration: config.MockImageGeneration,
+		MockVideoGeneration: config.MockVideoGeneration,
 		FrontendURL:         config.FrontendURL,
 		WebSearchConfig:     webSearchConfig,
 		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},

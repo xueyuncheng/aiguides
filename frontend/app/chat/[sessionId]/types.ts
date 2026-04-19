@@ -24,6 +24,7 @@ export interface Message {
   author?: string;
   isStreaming?: boolean;
   images?: string[];
+  videos?: string[];
   fileNames?: string[]; // 文件名列表，与 images 对应
   files?: MessageFile[];
   isError?: boolean;
@@ -68,6 +69,7 @@ export interface HistoryMessageResponse {
   thought?: string;
   timestamp: string;
   images?: string[];
+  videos?: string[];
   file_names?: string[];
   files?: MessageFile[];
   tool_calls?: ToolCallResponse[];

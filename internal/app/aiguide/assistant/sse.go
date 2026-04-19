@@ -443,6 +443,19 @@ func (a *Assistant) streamAgentEvents(
 							ctx.Writer.Flush()
 						}
 					}
+
+					// 将 map[string]any 转换为 VideoGenOutput
+					var videoOutput tools.VideoGenOutput
+					if jsonData, err := json.Marshal(response); err == nil {
+						if err := json.Unmarshal(jsonData, &videoOutput); err == nil && videoOutput.Success && len(videoOutput.Videos) > 0 {
+							data := gin.H{
+								"author": author,
+								"videos": videoOutput.Videos,
+							}
+							ctx.SSEvent("data", data)
+							ctx.Writer.Flush()
+						}
+					}
 				}
 			}
 		}

@@ -14,6 +14,7 @@ interface AIMessageContentProps {
   id?: string;
   isStreaming?: boolean;
   images?: string[];
+  videos?: string[];
   isError?: boolean;
   onRetry?: () => void;
   thoughtStorageKey?: string;
@@ -26,6 +27,7 @@ export const AIMessageContent = memo(({
   id,
   isStreaming,
   images,
+  videos,
   isError,
   onRetry,
   thoughtStorageKey,
@@ -257,6 +259,19 @@ export const AIMessageContent = memo(({
                 alt={`Generated image ${index + 1}`}
                 className="max-w-full h-auto rounded-lg border shadow-sm"
                 loading="lazy"
+              />
+            ))}
+          </div>
+        )}
+        {/* Display videos if present */}
+        {videos && videos.length > 0 && (
+          <div className="mb-4 space-y-3">
+            {videos.map((videoUrl, index) => (
+              <video
+                key={index}
+                src={videoUrl}
+                controls
+                className="max-w-full rounded-lg border shadow-sm"
               />
             ))}
           </div>

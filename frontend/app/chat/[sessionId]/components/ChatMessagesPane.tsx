@@ -122,10 +122,12 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
             <div className="w-full">
               <div className="relative text-sm w-full leading-relaxed" data-ai-message="">
                 <AIMessageContent
+                  id={message.id}
                   content={message.content}
                   thought={message.thought}
                   isStreaming={message.isStreaming}
                   images={message.images}
+                  videos={message.videos}
                   isError={message.isError}
                   onRetry={onRetry}
                   toolCalls={message.toolCalls}
