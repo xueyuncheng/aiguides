@@ -3,6 +3,7 @@ import { Check, Copy, Pencil } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/lib/utils';
 import { ChatSkeleton, AIMessageContent, UserMessage, UserAvatar } from './index';
+import { TTSButton } from './TTSButton';
 import type { AgentInfo, Message } from '../types';
 
 const isImeComposing = (event: React.KeyboardEvent<HTMLTextAreaElement>) =>
@@ -209,6 +210,9 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
                     </>
                   ) : (
                     <>
+                      {message.content && (
+                        <TTSButton text={message.content} messageId={message.id || 'unknown'} />
+                      )}
                       <Button
                         size="sm"
                         variant="ghost"
