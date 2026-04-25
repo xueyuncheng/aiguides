@@ -95,13 +95,15 @@ export default function EmailServersPage() {
 
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isLoading) {
-        handleCancel();
+        setShowForm(false);
+        setFormData(DEFAULT_FORM);
+        setEditingId(null);
+        setShowPassword(false);
       }
     };
 
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showForm, isLoading]);
 
   // Close delete modal on Escape

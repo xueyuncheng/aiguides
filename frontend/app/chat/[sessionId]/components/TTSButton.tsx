@@ -15,7 +15,6 @@ interface TTSButtonProps {
 
 export const TTSButton = memo(({
   text,
-  messageId,
   isStreaming,
   onActiveChange,
 }: TTSButtonProps) => {
@@ -37,8 +36,9 @@ export const TTSButton = memo(({
 
   // Revoke all object URLs on unmount.
   useEffect(() => {
+    const urls = allObjectURLs.current;
     return () => {
-      allObjectURLs.current.forEach((url) => URL.revokeObjectURL(url));
+      urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, []);
 
@@ -124,7 +124,6 @@ export const TTSButton = memo(({
       let buffer = '';
       let firstChunk = true;
 
-      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
