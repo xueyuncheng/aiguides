@@ -58,11 +58,12 @@ export default function SharedConversationPage() {
     }
   }, [shareId]);
 
+  const messages = data?.messages;
   const processedMessages = useMemo(() => {
-    if (!data?.messages || data.messages.length === 0) return [];
+    if (!messages || messages.length === 0) return [];
 
     const result: Message[] = [];
-    data.messages.forEach((msg) => {
+    messages.forEach((msg) => {
       const last = result[result.length - 1];
       if (
         last &&
@@ -88,7 +89,7 @@ export default function SharedConversationPage() {
       }
     });
     return result;
-  }, [data?.messages]);
+  }, [messages]);
   const conversationTitle = data?.title?.trim() || 'Shared Conversation';
 
   useEffect(() => {

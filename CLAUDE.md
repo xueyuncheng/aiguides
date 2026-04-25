@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 AIGuides is a full-stack AI assistant built with Go (Gin + Google ADK/Gemini) backend and Next.js frontend. It supports multimodal chat (text + images), image/video generation, audio transcription, email querying via IMAP, web search/fetch, SSH command execution, cross-session memory, scheduled tasks, project organization, and Google OAuth authentication.
 
 **Tech Stack:**
-- Backend: Go 1.25.5, Gin, GORM, SQLite, Google ADK
+- Backend: Go 1.26.1, Gin, GORM, SQLite, Google ADK
 - Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS 4
 - AI: Google Gemini 2.0 + Imagen + Veo 3.1
 
