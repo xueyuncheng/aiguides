@@ -4,208 +4,190 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-AIGuides is a full-stack AI assistant built with Go (Gin + Google ADK/Gemini) backend and Next.js frontend. It supports multimodal chat (text + images), image generation via Imagen, email querying via IMAP, web search/fetch, cross-session memory, session management, and Google OAuth authentication.
+AIGuides is a full-stack AI assistant built with Go (Gin + Google ADK/Gemini) backend and Next.js frontend. It supports multimodal chat (text + images), image/video generation, audio transcription, email querying via IMAP, web search/fetch, SSH command execution, cross-session memory, scheduled tasks, project organization, and Google OAuth authentication.
 
 **Tech Stack:**
-- Backend: Go 1.25.5+, Gin, GORM, SQLite, Google ADK
+- Backend: Go 1.25.5, Gin, GORM, SQLite, Google ADK
 - Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS 4
-- AI: Google Gemini 2.0 + Imagen
+- AI: Google Gemini 2.0 + Imagen + Veo 3.1
 
 ## Development Commands
 
 ### Backend
 ```bash
-# Run backend (development)
-go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml
-
-# Format code
-go fmt ./...
-
-# Run all tests
-go test ./...
-
-# Run tests without cache
-go test -count=1 ./...
-
-# Run specific package tests
-go test -v ./internal/app/aiguide/assistant
-
-# Run specific test
-go test -v ./internal/app/aiguide/assistant -run TestAgentCreation
-
-# Run tools package tests
-go test -v ./internal/pkg/tools -run TestWebFetch
+go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml   # Run dev server
+go fmt ./...                                                  # Format code
+go test ./...                                                 # All tests
+go test -count=1 ./...                                        # Tests without cache
+go test -v ./internal/app/aiguide/assistant                  # Specific package
+go test -v ./internal/app/aiguide/assistant -run TestAgentCreation  # Specific test
 ```
 
 ### Frontend
 ```bash
 cd frontend
-
-# Install dependencies
-pnpm install
-
-# Development server
-pnpm dev
-
-# Production build + start
-pnpm build && pnpm start
-
-# Lint
-pnpm lint
-
-# Run all frontend tests (Vitest)
-pnpm test
-
-# Run a specific test file
-pnpm exec vitest run app/chat/[sessionId]/hooks/useStreamingChat.test.tsx
-
-# Run tests matching a name pattern
-pnpm test -- -t "test name pattern"
+pnpm install          # Install dependencies
+pnpm dev              # Dev server (http://localhost:3000)
+pnpm lint             # ESLint
+pnpm test             # Vitest (all tests)
+pnpm exec vitest run app/chat/[sessionId]/hooks/useStreamingChat.test.tsx  # Single test file
+pnpm verify           # lint + test + build — run before pushing frontend changes
 ```
 
 ### Full Stack
 ```bash
-# Start both backend and frontend
-./scripts/start.sh
-
-# Backend: http://localhost:8080
-# Frontend: http://localhost:3000
+./scripts/start.sh    # Starts backend (:8080) and frontend (:3000) in foreground
 ```
 
 ### Docker
 ```bash
-make build-backend   # Build backend image only
-make build-frontend  # Build frontend image only
-make build           # Build both images
-make deploy          # Deploy with docker-compose (4 services: backend, frontend, SearXNG, Redis)
-make down            # Stop services
-make save-images     # Save images to .tar files (for server transfer)
-make load-images     # Load images from .tar files (on server)
+make build            # Build both images
+make deploy           # docker-compose up (backend, frontend, SearXNG, Redis)
+make down             # Stop services
+make save-images      # Export images to .tar for server transfer
+make load-images      # Import images from .tar on server
 ```
 
 ## Architecture
 
 ### Backend Structure
 
-**Entry Point:**
-- `cmd/aiguide/aiguide.go` - Loads YAML config and starts service
+**Entry Point:** `cmd/aiguide/aiguide.go` — loads YAML config, starts Gin server.
 
 **Core Application (`internal/app/aiguide/`):**
-- `aiguide.go` - Service initialization and `Config` struct with YAML tags
-- `router.go` - API routes (auth, sessions, assistant chat, settings, share)
-- `login.go` - Google OAuth handlers
-- `migration/` - Database auto-migration using GORM
-- `table/` - Database models: User, Session, Message, EmailServerConfig, ShareSession
-- `setting/` - Settings API (email server configs)
+- `aiguide.go` — Service initialization and `Config` struct with YAML tags
+- `router.go` — All API route registration
+- `login.go` — Google OAuth handlers
+- `migration/` — GORM auto-migration on startup
+- `table/table.go` — All database models (register new models in `GetAllModels()`)
+- `setting/` — CRUD APIs for email and SSH server configurations
 
 **Assistant Runtime (`internal/app/aiguide/assistant/`):**
 
-The assistant uses a **multi-agent architecture**:
-- `agent.go` - Builds the root agent with all tools via `llmagent.New`
-- `planner_agent.go` + `planner_agent_prompt.md` - Planner agent for task decomposition
-- `executor_agent.go` + `executor_agent_prompt.md` - Executor agent for task execution
-- `assistant_agent_prompt.md` - Root agent system prompt (embedded via `//go:embed`)
-- `runner.go` - Runner initialization and management
-- `sse.go` - SSE streaming chat handler with multimodal support
-- `session.go` - Session CRUD APIs (create, list, delete, history)
-- `session_edit.go` - Session message editing
-- `share.go` - Time-limited readonly session sharing
+Single assistant agent with all tools registered in `agent.go` via `llmagent.New`. A separate planner agent (`planner_agent.go`) exists for task decomposition with its own tool set (task CRUD + `finish_planning`).
+
+Key files:
+- `agent.go` — Tool creation and registration for the assistant agent
+- `planner_agent.go` + `planner_agent_prompt.md` — Planner agent for task decomposition
+- `assistant_agent_prompt.md` — Root agent system prompt (embedded via `//go:embed`)
+- `runner.go` — ADK runner initialization
+- `assistant.go` — Assistant struct wiring (main runner, executor runner for scheduled tasks, scheduler)
+- `sse.go` — SSE streaming chat handler with multimodal support
+- `tts_api.go` — Streaming TTS endpoint with sentence-level chunking
+- `session.go` — Session CRUD APIs
+- `session_edit.go` — Session message editing (branching)
+- `share.go` — Time-limited readonly session sharing
+- `project.go` — Project CRUD APIs
+- `memory_api.go` — Memory CRUD and summary APIs
+- `scheduled_task_api.go` — Scheduled task management APIs
+- `scheduler.go` — Background scheduler executing due tasks via executor runner
 
 **Tools (`internal/pkg/tools/`):**
-- `imagegen.go` - Imagen image generation (mock mode, aspect ratios, multiple images)
-- `email.go` - IMAP email query tool (requires user email server config)
-- `websearch.go` - SearXNG web search integration
-- `webfetch.go` - Web page fetching/scraping via go-readability
-- `exasearch.go` - Exa neural search integration
-- `memory.go` - Cross-session memory management
-- `task_manager.go` - Agent task management
-- `time.go` - Time utilities for agents
+Each tool follows the ADK `functiontool` pattern with Input/Output structs and JSON schema tags.
+- `imagegen.go` — Imagen image generation
+- `videogen.go` — Veo 3.1 video generation
+- `audio.go` — Audio transcription (chunked processing)
+- `email.go` / `send_email.go` — IMAP query and email sending
+- `websearch.go` — SearXNG web search
+- `webfetch.go` — Web page fetching via go-readability
+- `exasearch.go` — Exa neural search
+- `memory.go` — Cross-session memory management
+- `task_manager.go` — Task CRUD (list, get, create, update)
+- `scheduled_task.go` — Scheduled task creation
+- `ssh.go` — SSH command execution (list servers, execute)
+- `file_asset.go` / `file_download.go` — File management
+- `pdf.go` — PDF text extraction and document generation
+- `time.go` — Current time utility
 
 **Infrastructure (`internal/pkg/`):**
-- `auth/` - Google OAuth + JWT cookie implementation
-- `middleware/` - Auth middleware, context utilities
-- `redis/` - Redis client wrapper (used for rate limiting)
-- `storage/` - Local file store for uploaded assets
-- `constant/` - Shared constants
+- `auth/` — Google OAuth + JWT cookie implementation
+- `middleware/` — Auth middleware, rate limiter, locale, context utilities
+- `redis/` — Redis client (rate limiting)
+- `storage/` — Local file store for uploaded assets
+- `constant/` — Shared constants and enums
 
 ### Frontend Structure
 
-**Pages (`frontend/app/`):**
-- `page.tsx` - Landing page
-- `login/` - Google OAuth login flow
-- `chat/` - Sessions list
-- `chat/[sessionId]/` - Main chat interface with multimodal input
-  - `components/` - Chat-specific components (ChatInput, MessageContent, ShareModal, etc.)
-  - `hooks/` - Custom hooks (useFileUpload)
-  - `utils/markdown.tsx` - Markdown + KaTeX rendering
-  - `types.ts`, `constants.ts` - Type definitions and constants
-- `settings/` - Email server configuration UI
-- `share/[shareId]/` - Read-only shared conversation view
-- `components/ui/` - Radix UI component wrappers
-- `contexts/AuthContext.tsx` - Authentication state
+- `frontend/app/page.tsx` — Landing page
+- `frontend/app/login/` — Google OAuth login flow
+- `frontend/app/chat/` — Sessions list
+- `frontend/app/chat/[sessionId]/` — Main chat interface with multimodal input
+  - `components/` — ChatInput, MessageContent, ShareModal, etc.
+  - `hooks/` — useFileUpload, etc.
+  - `utils/markdown.tsx` — Markdown + KaTeX rendering
+- `frontend/app/settings/` — Email/SSH server configuration UI
+- `frontend/app/share/[shareId]/` — Read-only shared conversation view
+- `frontend/app/contexts/AuthContext.tsx` — Authentication state
+- `frontend/app/components/ui/` — Radix UI component wrappers
 
 ### Key Patterns
 
-**Agent Tool Registration:**
-Tools are registered in `internal/app/aiguide/assistant/agent.go` via `llmagent.New`. Planner and executor sub-agents are registered as tools on the root agent.
-
 **SSE Streaming:**
-Chat responses stream via Server-Sent Events in `sse.go`:
-- Supports text + image multipart input
-- Validates image size (5MB max), count (4 max), and MIME types
-- Streams agent responses with tool calls and results
-- Saves messages to database for session history
+`sse.go` handles chat requests — validates multipart input (images: 5MB max, 4 max), streams agent responses with tool calls/results, saves messages to DB.
 
 **Database:**
-- SQLite with GORM, auto-migration on startup via `migration/migration.go`
-- Models in `internal/app/aiguide/table/`; register new models in `GetAllModels()`
+SQLite with GORM. Models in `table/table.go`; register new models in `GetAllModels()`. Auto-migration on startup via `migration/migration.go`.
 
 **Authentication:**
-- Google OAuth flow: `/api/auth/login/google` → `/api/auth/callback/google`
-- JWT tokens in HTTP-only cookies; refresh via `/api/auth/refresh`
-- Email whitelist support via `allowed_emails` config
-- Auth middleware protects all routes except public endpoints (e.g., `/api/share/*`)
+Google OAuth flow: `/api/auth/login/google` → `/api/auth/callback/google`. JWT tokens in HTTP-only cookies; refresh via `/api/auth/refresh`. Email whitelist via `allowed_emails` config. Auth middleware protects all routes except public endpoints (`/api/share/*`, `/api/health`).
+
+**Frontend API Proxy:**
+`next.config.ts` rewrites `/api/*`, `/auth/*`, `/config`, `/health` to backend. Backend URL configured via `NEXT_PUBLIC_BACKEND_URL` env var (defaults to `http://backend:8080`).
 
 **Configuration:**
-- YAML config at `cmd/aiguide/aiguide.yaml`; see `cmd/aiguide/aiguide.yaml.example`
+YAML config at `cmd/aiguide/aiguide.yaml` (see `cmd/aiguide/aiguide.yaml.example`).
 - Required: `api_key`, `model_name`
-- Required for rate limiting: `redis.addr` (Redis instance)
-- Optional: OAuth credentials, JWT secret, allowed emails, `web_search.instance_url` (SearXNG), `exa_search.api_key`, `mock_image_generation`, `rate_limit.rate` / `rate_limit.period_seconds`
+- Required for rate limiting: `redis.addr`
+- Optional: OAuth credentials, JWT secret, allowed emails, `web_search.instance_url`, `exa_search.api_key`, `mock_image_generation`, `mock_video_generation`, rate limit settings
+
+### API Routes
+
+Authenticated routes (under `/api`):
+- `POST /api/assistant/chats/:id` — SSE streaming chat
+- `POST /api/assistant/tts/stream` — TTS streaming
+- `/api/assistant/share` — Share management (POST create, GET list, DELETE /:shareId)
+- `/api/assistant/memories` — Memory CRUD (GET list, POST create, GET /summary, PATCH /:memoryId, DELETE /:memoryId)
+- `/api/assistant/scheduled-tasks` — Scheduled tasks (GET list, PATCH /:taskId, DELETE /:taskId)
+- `/api/assistant/projects` — Project management (GET, POST, PATCH /:projectId, DELETE /:projectId)
+- `/api/assistant/files/:fileId/download` — File download
+- `/api/:agentId/sessions` — Session management (GET list, POST create, POST /:sessionId/edit, PATCH /:sessionId/project, GET /:sessionId/history, DELETE /:sessionId)
+- `/api/email_server_configs` — Email server config CRUD
+- `/api/ssh_server_configs` — SSH server config CRUD
+
+Public routes: `/api/health`, `/api/auth/*`, `/api/share/:shareId`
 
 ## Code Style Guidelines
 
 ### Go Code
 Follow [Effective Go](https://go.dev/doc/effective_go) and [Google Go Style Guide](https://google.github.io/styleguide/go/).
 
-**Specific conventions:**
+**Conventions:**
 - Use `log/slog` for structured logging: `slog.Error("message", "err", err)`
 - Place main/entry functions above helper functions they call
 - Tool handlers return `(*Output, error)` for ADK integration
 
 **Error Handling and Logging:**
-- **At error source**: MUST `slog.Error()` with full context, then return wrapped error
-- **At error propagation**: DO NOT log — just wrap and return with `fmt.Errorf("...: %w", err)`
-- Log once at the source; never log the same error multiple times as it propagates
+- **At error source** (stdlib/3rd-party call): MUST `slog.Error()` with full context, then return wrapped error
+- **At error propagation** (internal calls): DO NOT log — just `fmt.Errorf("...: %w", err)`
+- Log once at the source; never log the same error multiple times
 - Exception: GORM database errors should always log at source
 
 ```go
-// At source (stdlib/3rd-party call):
+// At source:
 resp, err := http.DefaultClient.Do(req)
 if err != nil {
     slog.Error("http.DefaultClient.Do() error", "url", url, "err", err)
     return nil, fmt.Errorf("请求失败: %w", err)
 }
 
-// At propagation (internal calls):
+// At propagation:
 result, err := someInternalFunction()
 if err != nil {
-    return nil, fmt.Errorf("failed to process: %w", err)  // No slog.Error here
+    return nil, fmt.Errorf("failed to process: %w", err)
 }
 ```
 
-**Dependency Management:**
-- Core deps: `google.golang.org/adk`, `google.golang.org/genai`
-- Add ADK sub-packages as needed: `go get google.golang.org/adk/...`
+**Dependencies:** Core deps are `google.golang.org/adk` and `google.golang.org/genai`. Add ADK sub-packages via `go get google.golang.org/adk/...`.
 
 ### TypeScript/React
 - TypeScript with strict type checking; functional components with hooks
@@ -221,26 +203,19 @@ if err != nil {
 
 ### Modifying Agent Behavior
 - Root agent system prompt: `internal/app/aiguide/assistant/assistant_agent_prompt.md`
-- Planner/executor prompts: `planner_agent_prompt.md`, `executor_agent_prompt.md`
+- Planner prompt: `internal/app/aiguide/assistant/planner_agent_prompt.md`
 - Model config: Change in YAML (`model_name`, `api_key`)
-
-### Frontend API Integration
-- API base: `/api` prefix (proxied to backend via Next.js rewrites in `next.config.ts`)
-- Auth: JWT cookie sent automatically
-- SSE endpoint: `/api/assistant/chats/:id` (POST)
-- Session APIs: `/api/:agentId/sessions/*`
-- Share API: `/api/assistant/share` (POST to create), `/api/share/:shareId` (GET, public)
 
 ## Testing
 
-Backend has tests across `internal/app/aiguide/assistant`, `internal/app/aiguide`, `internal/pkg/tools`, `internal/pkg/auth`, `internal/pkg/storage`, and `internal/pkg/middleware`.
+Backend tests across `internal/app/aiguide/assistant`, `internal/app/aiguide`, `internal/pkg/tools`, `internal/pkg/auth`, `internal/pkg/storage`, `internal/pkg/middleware`.
 
-Frontend tests use Vitest with jsdom; test setup lives in `frontend/test/setup.ts`. Test files are co-located under `frontend/app/**/*.test.{ts,tsx}`.
+Frontend tests use Vitest with jsdom; setup in `frontend/test/setup.ts`. Test files co-located under `frontend/app/**/*.test.{ts,tsx}`.
 
 ```bash
-go test ./...                                          # All backend tests
-go test -v ./internal/app/aiguide/assistant           # Assistant package
-go test -v ./internal/pkg/tools                       # Tools package
-cd frontend && pnpm test                               # All frontend tests
+go test ./...                                              # All backend tests
+go test -v ./internal/app/aiguide/assistant               # Assistant package
+go test -v ./internal/pkg/tools                           # Tools package
+cd frontend && pnpm test                                   # All frontend tests
 cd frontend && pnpm exec vitest run <path/to/file.test.tsx>  # Single file
 ```
