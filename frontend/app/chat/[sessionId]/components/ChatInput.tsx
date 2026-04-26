@@ -1,7 +1,7 @@
 import { forwardRef, memo, useRef } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Textarea } from '@/app/components/ui/textarea';
-import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines, Mic } from 'lucide-react';
+import { ArrowUp, X, Paperclip, MessageSquare, FileText, AudioLines, Mic, Phone } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import type { SelectedImage } from '../types';
 
@@ -29,6 +29,8 @@ interface ChatInputProps {
   isVoiceSupported?: boolean;
   onVoiceToggle?: () => void;
   voiceError?: string | null;
+  isVoiceCallActive?: boolean;
+  onVoiceCallToggle?: () => void;
 }
 
 const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ 
@@ -55,6 +57,8 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   isVoiceSupported = false,
   onVoiceToggle,
   voiceError,
+  isVoiceCallActive = false,
+  onVoiceCallToggle,
 }, textareaRef) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -169,6 +173,26 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
                   <Mic className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 </Button>
               </div>
+            )}
+            {onVoiceCallToggle && (
+              <Button
+                type="button"
+                size="icon"
+                variant="ghost"
+                onClick={onVoiceCallToggle}
+                disabled={isLoading || isLoadingHistory}
+                className={cn(
+                  "h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-200",
+                  isVoiceCallActive
+                    ? "bg-green-500 text-white hover:bg-green-600 shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+                title={isVoiceCallActive ? "结束语音通话" : "语音通话"}
+                aria-label={isVoiceCallActive ? "结束语音通话" : "语音通话"}
+                aria-pressed={isVoiceCallActive}
+              >
+                <Phone className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </Button>
             )}
             <Textarea
               ref={textareaRef}

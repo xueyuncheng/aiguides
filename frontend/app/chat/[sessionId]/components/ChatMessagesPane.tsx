@@ -3,6 +3,8 @@ import { Check, Copy, Pencil } from 'lucide-react';
 import { Button } from '@/app/components/ui/button';
 import { cn } from '@/app/lib/utils';
 import { ChatSkeleton, AIMessageContent, UserMessage, UserAvatar } from './index';
+import { AudioWaveform } from './AudioWaveform';
+import { VoiceAudioPlayer, resolveVoiceAudioUrl } from './VoiceAudioPlayer';
 import { TTSButton } from './TTSButton';
 import type { AgentInfo, Message } from '../types';
 
@@ -70,7 +72,7 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
     );
   }
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && processedMessages.length === 0) {
     return (
       <div className="text-center animate-fade-in px-4 pb-2">
         <div className="flex justify-center mb-5 sm:mb-6">
@@ -121,6 +123,14 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
           >
           {message.role === 'assistant' ? (
             <div className="w-full">
+              {message.isVoiceMessage && message.isStreaming ? (
+                <AudioWaveform className="text-zinc-400 dark:text-zinc-500 mb-2" />
+              ) : resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl) ? (
+                <VoiceAudioPlayer
+                  audioUrl={resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl)!}
+                  className="max-w-sm mb-2"
+                />
+              ) : null}
               <div className="relative text-sm w-full leading-relaxed" data-ai-message="">
                 <AIMessageContent
                   id={message.id}
@@ -174,6 +184,8 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
                       images={message.images}
                       fileNames={message.fileNames}
                       files={message.files}
+                      voiceAudioFileId={message.voiceAudioFileId}
+                      voiceAudioUrl={message.voiceAudioUrl}
                     />
                   )}
                 </div>

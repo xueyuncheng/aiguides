@@ -6,6 +6,10 @@ api_key: your_gemini_api_key_here
 model_name: gemini-2.0-flash-exp
 # base_url: https://xxxx.com # 自定义 Gemini API Base URL (可选)
 
+# Gemini Live API 模型（可选，用于实时语音对话）
+# 使用与主模型相同的 api_key 和 proxy
+# live_model: "gemini-3.1-flash-live-preview"
+
 # 服务器配置
 use_gin: true
 gin_port: 8080

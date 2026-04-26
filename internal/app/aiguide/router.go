@@ -44,6 +44,9 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	// Text-to-speech streaming endpoint
 	api.POST("/assistant/tts/stream", a.assistant.TextToSpeechStream)
 
+	// Real-time voice conversation via Gemini Live API (WebSocket)
+	api.GET("/assistant/live", a.assistant.VoiceCall)
+
 	// Share management routes (authenticated)
 	shareGroup := api.Group("/assistant/share")
 	{

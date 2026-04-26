@@ -45,6 +45,7 @@ type Config struct {
 	ExaSearch           ExaSearch    `yaml:"exa_search"` // Exa 搜索配置
 	Redis               redis.Config `yaml:"redis"`      // Redis 配置
 	RateLimit           RateLimit    `yaml:"rate_limit"` // 限流配置
+	LiveModel           string       `yaml:"live_model"`
 	FileStorageDir      string       `yaml:"file_storage_dir"`
 	PDFWorkDir          string       `yaml:"pdf_work_dir"`
 }
@@ -151,6 +152,10 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		FrontendURL:         config.FrontendURL,
 		WebSearchConfig:     webSearchConfig,
 		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
+		APIKey:              config.APIKey,
+		BaseURL:             config.BaseURL,
+		HTTPClient:          httpClient,
+		LiveModel:           config.LiveModel,
 	}
 
 	fileStorageDir := config.FileStorageDir

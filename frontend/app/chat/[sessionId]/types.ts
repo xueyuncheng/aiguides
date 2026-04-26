@@ -25,10 +25,13 @@ export interface Message {
   isStreaming?: boolean;
   images?: string[];
   videos?: string[];
-  fileNames?: string[]; // 文件名列表，与 images 对应
+  fileNames?: string[];
   files?: MessageFile[];
   isError?: boolean;
   toolCalls?: ToolCallItem[];
+  voiceAudioFileId?: number;
+  voiceAudioUrl?: string;
+  isVoiceMessage?: boolean;
 }
 
 export interface MessageFile {
@@ -73,6 +76,7 @@ export interface HistoryMessageResponse {
   file_names?: string[];
   files?: MessageFile[];
   tool_calls?: ToolCallResponse[];
+  voice_audio_file_id?: number;
 }
 
 export interface SessionHistoryResponse {

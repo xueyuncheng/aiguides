@@ -19,6 +19,7 @@ import (
 const maxInlinePDFExtractChars = 12000
 const pdfFileMetadataPrefix = "<!-- PDF_FILE:"
 const audioFileMetadataPrefix = "<!-- AUDIO_FILE:"
+const voiceAudioMetadataPrefix = "<!-- VOICE_AUDIO:"
 
 type pdfFileMetadata struct {
 	Name string `json:"name,omitempty"`
@@ -27,6 +28,10 @@ type pdfFileMetadata struct {
 type audioFileMetadata struct {
 	Name   string `json:"name,omitempty"`
 	FileID int    `json:"file_id,omitempty"`
+}
+
+type voiceAudioMetadata struct {
+	FileID int `json:"file_id,omitempty"`
 }
 
 func appendTextPart(parts []*genai.Part, message string, fileNames []string, uploadCount int) []*genai.Part {
@@ -165,17 +170,8 @@ func buildPDFExtractedTextPart(fileName string, result *tools.SaveChatPDFAssetRe
 }
 
 func extractPDFFileNameFromText(text string) (string, bool) {
-	if !strings.HasPrefix(text, pdfFileMetadataPrefix) {
-		return "", false
-	}
-
-	endIdx := strings.Index(text, "-->")
-	if endIdx <= 0 {
-		return "", false
-	}
-
-	metaStr := strings.TrimSpace(text[len(pdfFileMetadataPrefix):endIdx])
-	if metaStr == "" {
+	metaStr, _, ok := parseMetadataComment(text, pdfFileMetadataPrefix)
+	if !ok {
 		return "", false
 	}
 
@@ -213,4 +209,34 @@ func buildAudioUploadedPart(fileName string, fileID int) *genai.Part {
 	builder.WriteString("If the user asks to read or transcribe this audio, use file_list/file_get to confirm the file_id and then call audio_transcribe.")
 
 	return genai.NewPartFromText(builder.String())
+}
+
+func parseMetadataComment(text, prefix string) (jsonStr, remaining string, ok bool) {
+	if !strings.HasPrefix(text, prefix) {
+		return "", "", false
+	}
+	endIdx := strings.Index(text, "-->")
+	if endIdx <= 0 {
+		return "", "", false
+	}
+	jsonStr = strings.TrimSpace(text[len(prefix):endIdx])
+	if jsonStr == "" {
+		return "", "", false
+	}
+	remaining = strings.TrimPrefix(text[endIdx+3:], "\n")
+	return jsonStr, remaining, true
+}
+
+func extractVoiceAudioMetadata(text string) (fileID int, transcript string, ok bool) {
+	metaStr, remaining, ok := parseMetadataComment(text, voiceAudioMetadataPrefix)
+	if !ok {
+		return 0, "", false
+	}
+
+	var metadata voiceAudioMetadata
+	if err := json.Unmarshal([]byte(metaStr), &metadata); err != nil {
+		return 0, "", false
+	}
+
+	return metadata.FileID, remaining, true
 }

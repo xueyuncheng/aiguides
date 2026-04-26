@@ -56,16 +56,17 @@ type SessionHistoryResponse struct {
 
 // MessageEvent 定义消息事件结构
 type MessageEvent struct {
-	ID        string        `json:"id"`
-	Timestamp time.Time     `json:"timestamp"`
-	Role      string        `json:"role"` // "user" or "assistant"
-	Content   string        `json:"content"`
-	Thought   string        `json:"thought,omitempty"`
-	Images    []string      `json:"images,omitempty"`     // Base64编码的图片列表
-	Videos    []string      `json:"videos,omitempty"`     // 视频文件URL列表
-	FileNames []string      `json:"file_names,omitempty"` // 文件名列表，与 Images 对应
-	Files     []MessageFile `json:"files,omitempty"`
-	ToolCalls []ToolCall    `json:"tool_calls,omitempty"`
+	ID               string        `json:"id"`
+	Timestamp        time.Time     `json:"timestamp"`
+	Role             string        `json:"role"` // "user" or "assistant"
+	Content          string        `json:"content"`
+	Thought          string        `json:"thought,omitempty"`
+	Images           []string      `json:"images,omitempty"`
+	Videos           []string      `json:"videos,omitempty"`
+	FileNames        []string      `json:"file_names,omitempty"`
+	Files            []MessageFile `json:"files,omitempty"`
+	ToolCalls        []ToolCall    `json:"tool_calls,omitempty"`
+	VoiceAudioFileID int           `json:"voice_audio_file_id,omitempty"`
 }
 
 type MessageFile struct {
@@ -383,6 +384,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 		var fileNames []string
 		var files []MessageFile
 		var toolCalls []ToolCall
+		voiceAudioFileID := 0
 		localToolCallIDs := make([]string, 0)
 		localFunctionResponses := make(map[string]map[string]any)
 		hasFunctionResponse := false
@@ -401,6 +403,11 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 						Name:     fileName,
 						Label:    label,
 					})
+					continue
+				}
+				if fileID, transcript, ok := extractVoiceAudioMetadata(part.Text); ok {
+					voiceAudioFileID = fileID
+					content += transcript
 					continue
 				}
 				text := part.Text
@@ -489,18 +496,19 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 			role = "assistant"
 		}
 
-		if content != "" || thought != "" || len(images) > 0 || len(videos) > 0 || len(files) > 0 || len(toolCalls) > 0 {
+		if content != "" || thought != "" || len(images) > 0 || len(videos) > 0 || len(files) > 0 || len(toolCalls) > 0 || voiceAudioFileID > 0 {
 			message := MessageEvent{
-				ID:        event.ID,
-				Timestamp: event.Timestamp,
-				Role:      role,
-				Content:   content,
-				Thought:   thought,
-				Images:    images,
-				Videos:    videos,
-				FileNames: fileNames,
-				Files:     files,
-				ToolCalls: toolCalls,
+				ID:               event.ID,
+				Timestamp:        event.Timestamp,
+				Role:             role,
+				Content:          content,
+				Thought:          thought,
+				Images:           images,
+				Videos:           videos,
+				FileNames:        fileNames,
+				Files:            files,
+				ToolCalls:        toolCalls,
+				VoiceAudioFileID: voiceAudioFileID,
 			}
 			if isDuplicateRetryUserMessage(allMessages, message) {
 				continue
