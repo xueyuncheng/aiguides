@@ -93,12 +93,16 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 	defer close(writeCh)
 	go wsWriter(conn, writeCh, connCancel)
 
+	sessionWriteCh := make(chan func() error, 32)
+	defer close(sessionWriteCh)
+	go sessionWriter(liveSession, sessionWriteCh, connCancel)
+
 	writeCh <- wsServerMessage{Type: serverMsgTypeSetupOK}
 
 	saveTurn, waitSaves := a.startSaveLoop(userID, sessionID)
 	defer waitSaves()
 
-	firstErr := a.bridgeVoiceCall(connCtx, connCancel, writeCh, liveSession, conn, saveTurn)
+	firstErr := a.bridgeVoiceCall(connCtx, connCancel, writeCh, liveSession, conn, saveTurn, userID, sessionID, sessionWriteCh)
 
 	if firstErr != nil {
 		slog.Info("VoiceCall: session ended", "reason", firstErr.Error(), "userID", userID)
@@ -130,6 +134,10 @@ func (a *Assistant) connectLiveSession(ctx context.Context, userID int) (*genai.
 		},
 		InputAudioTranscription:  &genai.AudioTranscriptionConfig{},
 		OutputAudioTranscription: &genai.AudioTranscriptionConfig{},
+		SystemInstruction: &genai.Content{
+			Parts: []*genai.Part{genai.NewPartFromText(assistantAgentInstruction + "\n\n## 当前模式\n你正在通过语音通话与用户交互。")},
+		},
+		Tools: buildGenaiTools(a.liveTools),
 	})
 	if err != nil {
 		slog.Error("VoiceCall: Live.Connect failed", "err", err, "userID", userID)
@@ -153,6 +161,16 @@ func wsWriter(conn *websocket.Conn, writeCh <-chan wsServerMessage, cancel conte
 	}
 }
 
+func sessionWriter(liveSession *genai.Session, writeCh <-chan func() error, cancel context.CancelFunc) {
+	for fn := range writeCh {
+		if err := fn(); err != nil {
+			slog.Error("VoiceCall: liveSession write error", "err", err)
+			cancel()
+			return
+		}
+	}
+}
+
 type saveRequest struct {
 	role       string
 	text       string
@@ -163,10 +181,29 @@ type saveRequest struct {
 func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(string, string, [][]byte, uint32), wait func()) {
 	saveCh := make(chan saveRequest, 16)
 	saveDone := make(chan struct{})
+	var firstUserTranscript string
+	var userTurnCount int
+	var titleGenerated bool
 	go func() {
 		defer close(saveDone)
 		for req := range saveCh {
 			a.saveVoiceTurn(context.Background(), userID, sessionID, req.role, req.text, req.audio, req.sampleRate)
+			if req.role != "user" || req.text == "" {
+				continue
+			}
+			if firstUserTranscript == "" {
+				firstUserTranscript = req.text
+			}
+			userTurnCount++
+			if userTurnCount == 2 && !titleGenerated {
+				titleGenerated = true
+				transcript := firstUserTranscript
+				go func() {
+					if err := a.generateTitle(context.Background(), sessionID, transcript); err != nil {
+						slog.Error("startSaveLoop: generateTitle (2nd turn) failed", "err", err)
+					}
+				}()
+			}
 		}
 	}()
 
@@ -180,6 +217,13 @@ func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(s
 	wait = func() {
 		close(saveCh)
 		<-saveDone
+		if firstUserTranscript != "" && !titleGenerated {
+			go func() {
+				if err := a.generateTitle(context.Background(), sessionID, firstUserTranscript); err != nil {
+					slog.Error("startSaveLoop: generateTitle (fallback) failed", "err", err)
+				}
+			}()
+		}
 	}
 	return
 }
@@ -191,15 +235,35 @@ func (a *Assistant) bridgeVoiceCall(
 	liveSession *genai.Session,
 	conn *websocket.Conn,
 	saveTurn func(string, string, [][]byte, uint32),
+	userID int,
+	sessionID string,
+	sessionWriteCh chan<- func() error,
 ) error {
 	tracker := &turnTracker{phase: phaseWaiting}
+	registry := buildLiveToolRegistry(a.liveTools)
+
+	toolCtx := context.WithValue(ctx, constant.ContextKeyUserID, userID)
+	toolCtx = context.WithValue(toolCtx, constant.ContextKeySessionID, sessionID)
+	toolCtx = context.WithValue(toolCtx, constant.ContextKeyTx, a.db)
 
 	errCh := make(chan error, 2)
 	go func() {
-		errCh <- a.receiveFromGeminiWithTracking(writeCh, liveSession, tracker, saveTurn)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("VoiceCall: panic in receiveFromGemini", "panic", r)
+				errCh <- fmt.Errorf("panic in receiveFromGemini: %v", r)
+			}
+		}()
+		errCh <- a.receiveFromGeminiWithTracking(ctx, writeCh, liveSession, tracker, saveTurn, registry, toolCtx, sessionWriteCh)
 	}()
 	go func() {
-		errCh <- receiveFromClientWithTracking(conn, liveSession, cancel, tracker)
+		defer func() {
+			if r := recover(); r != nil {
+				slog.Error("VoiceCall: panic in receiveFromClient", "panic", r)
+				errCh <- fmt.Errorf("panic in receiveFromClient: %v", r)
+			}
+		}()
+		errCh <- receiveFromClientWithTracking(ctx, conn, liveSession, cancel, tracker, sessionWriteCh)
 	}()
 
 	firstErr := <-errCh
@@ -216,7 +280,7 @@ func (a *Assistant) bridgeVoiceCall(
 	return firstErr
 }
 
-func (a *Assistant) receiveFromGeminiWithTracking(writeCh chan<- wsServerMessage, liveSession *genai.Session, tracker *turnTracker, saveTurn func(string, string, [][]byte, uint32)) error {
+func (a *Assistant) receiveFromGeminiWithTracking(ctx context.Context, writeCh chan<- wsServerMessage, liveSession *genai.Session, tracker *turnTracker, saveTurn func(string, string, [][]byte, uint32), registry liveToolRegistry, toolCtx context.Context, sessionWriteCh chan<- func() error) error {
 	for {
 		msg, err := liveSession.Receive()
 		if err != nil {
@@ -226,6 +290,25 @@ func (a *Assistant) receiveFromGeminiWithTracking(writeCh chan<- wsServerMessage
 
 		if msg.GoAway != nil {
 			writeCh <- wsServerMessage{Type: serverMsgTypeGoAway}
+		}
+
+		if msg.ToolCall != nil {
+			writeCh <- wsServerMessage{Type: serverMsgTypeToolCallStart}
+			responses := make([]*genai.FunctionResponse, 0, len(msg.ToolCall.FunctionCalls))
+			for _, call := range msg.ToolCall.FunctionCalls {
+				responses = append(responses, executeLiveTool(toolCtx, registry, call))
+			}
+			writeCh <- wsServerMessage{Type: serverMsgTypeToolCallEnd}
+			select {
+			case sessionWriteCh <- func() error {
+				return liveSession.SendToolResponse(genai.LiveSendToolResponseParameters{
+					FunctionResponses: responses,
+				})
+			}:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+			continue
 		}
 
 		sc := msg.ServerContent
@@ -367,7 +450,7 @@ func (t *turnTracker) handleTurnComplete(saveTurn func(string, string, [][]byte,
 	writeCh <- wsServerMessage{Type: serverMsgTypeTurnComplete}
 }
 
-func receiveFromClientWithTracking(conn *websocket.Conn, liveSession *genai.Session, cancel context.CancelFunc, tracker *turnTracker) error {
+func receiveFromClientWithTracking(ctx context.Context, conn *websocket.Conn, liveSession *genai.Session, cancel context.CancelFunc, tracker *turnTracker, sessionWriteCh chan<- func() error) error {
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
@@ -389,33 +472,38 @@ func receiveFromClientWithTracking(conn *websocket.Conn, liveSession *genai.Sess
 				continue
 			}
 			tracker.userAudio = append(tracker.userAudio, pcm)
-
-			if err := liveSession.SendRealtimeInput(genai.LiveRealtimeInput{
-				Audio: &genai.Blob{
-					Data:     pcm,
-					MIMEType: "audio/pcm;rate=16000",
-				},
-			}); err != nil {
-				return fmt.Errorf("SendRealtimeInput: %w", err)
+			select {
+			case sessionWriteCh <- func() error {
+				return liveSession.SendRealtimeInput(genai.LiveRealtimeInput{
+					Audio: &genai.Blob{Data: pcm, MIMEType: "audio/pcm;rate=16000"},
+				})
+			}:
+			case <-ctx.Done():
+				return nil
 			}
 
 		case clientMsgTypeEnd:
-			if err := liveSession.SendRealtimeInput(genai.LiveRealtimeInput{
-				AudioStreamEnd: true,
-			}); err != nil {
-				return fmt.Errorf("SendRealtimeInput(end): %w", err)
+			select {
+			case sessionWriteCh <- func() error {
+				return liveSession.SendRealtimeInput(genai.LiveRealtimeInput{AudioStreamEnd: true})
+			}:
+			case <-ctx.Done():
+				return nil
 			}
 
 		case clientMsgTypeText:
 			if msg.Data == "" {
 				continue
 			}
-			if err := liveSession.SendClientContent(genai.LiveClientContentInput{
-				Turns: []*genai.Content{
-					genai.NewContentFromText(msg.Data, genai.RoleUser),
-				},
-			}); err != nil {
-				return fmt.Errorf("SendClientContent: %w", err)
+			text := msg.Data
+			select {
+			case sessionWriteCh <- func() error {
+				return liveSession.SendClientContent(genai.LiveClientContentInput{
+					Turns: []*genai.Content{genai.NewContentFromText(text, genai.RoleUser)},
+				})
+			}:
+			case <-ctx.Done():
+				return nil
 			}
 		}
 	}

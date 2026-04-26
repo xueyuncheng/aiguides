@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
@@ -46,6 +47,7 @@ type Assistant struct {
 	apiKey         string
 	baseURL        string
 	httpClient     *http.Client
+	liveTools      []adktool.Tool
 }
 
 type Config struct {
@@ -107,6 +109,29 @@ func New(config *Config) (*Assistant, error) {
 		apiKey:              config.APIKey,
 		baseURL:             config.BaseURL,
 		httpClient:          config.HTTPClient,
+	}
+
+	allTools, err := createAssistantTools(&AssistantAgentConfig{
+		Model:           config.Model,
+		GenaiClient:     config.GenaiClient,
+		DB:              config.DB,
+		MockImageGen:    config.MockImageGeneration,
+		MockVideoGen:    config.MockVideoGeneration,
+		WebSearchConfig: config.WebSearchConfig,
+		ExaConfig:       config.ExaConfig,
+		FileStore:       config.FileStore,
+		PDFWorkDir:      config.PDFWorkDir,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("createAssistantTools() for live: %w", err)
+	}
+	// Exclude tools that return large binary payloads (images/video) — the Live API
+	// has a strict message size limit and voice sessions are audio-only anyway.
+	liveUnsupported := map[string]bool{"generate_image": true, "generate_video": true}
+	for _, t := range allTools {
+		if !liveUnsupported[t.Name()] {
+			assistant.liveTools = append(assistant.liveTools, t)
+		}
 	}
 
 	runner, err := assistant.createRunner()

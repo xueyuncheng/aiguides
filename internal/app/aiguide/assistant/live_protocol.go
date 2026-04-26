@@ -15,6 +15,8 @@ const (
 	serverMsgTypeInterrupted      = "interrupted"
 	serverMsgTypeError            = "error"
 	serverMsgTypeGoAway           = "go_away"
+	serverMsgTypeToolCallStart    = "tool_call_start"
+	serverMsgTypeToolCallEnd      = "tool_call_end"
 )
 
 type wsClientMessage struct {

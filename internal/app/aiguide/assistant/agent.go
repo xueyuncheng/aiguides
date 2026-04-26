@@ -40,6 +40,35 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 
+	toolList, err := createAssistantTools(config)
+	if err != nil {
+		return nil, err
+	}
+
+	agentConfig := llmagent.Config{
+		Name:        "assistant",
+		Model:       config.Model,
+		Description: "AI assistant that answers questions and executes tasks using available tools",
+		Instruction: assistantAgentInstruction,
+		GenerateContentConfig: &genai.GenerateContentConfig{
+			ThinkingConfig: &genai.ThinkingConfig{
+				IncludeThoughts: true,
+			},
+		},
+		Tools: toolList,
+	}
+
+	a, err := llmagent.New(agentConfig)
+	if err != nil {
+		slog.Error("failed to create assistant agent", "err", err)
+		return nil, fmt.Errorf("failed to create assistant agent: %w", err)
+	}
+
+	slog.Info("assistant agent created successfully")
+	return a, nil
+}
+
+func createAssistantTools(config *AssistantAgentConfig) ([]tool.Tool, error) {
 	// Context
 	currentTimeTool, err := tools.NewCurrentTimeTool()
 	if err != nil {
@@ -157,55 +186,35 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create ssh_execute tool: %w", err)
 	}
 
-	agentConfig := llmagent.Config{
-		Name:        "assistant",
-		Model:       config.Model,
-		Description: "AI assistant that answers questions and executes tasks using available tools",
-		Instruction: assistantAgentInstruction,
-		GenerateContentConfig: &genai.GenerateContentConfig{
-			ThinkingConfig: &genai.ThinkingConfig{
-				IncludeThoughts: true,
-			},
-		},
-		Tools: []tool.Tool{
-			// Context
-			currentTimeTool,
-			memoryTool,
-			// Web
-			webSearchTool,
-			exaSearchTool,
-			webFetchTool,
-			// Email
-			emailQueryTool,
-			sendEmailTool,
-			// Files
-			fileDownloadTool,
-			fileListTool,
-			fileGetTool,
-			// Documents & media
-			pdfExtractTextTool,
-			pdfGenerateDocumentTool,
-			audioTranscribeTool,
-			imageGenTool,
-			videoGenTool,
-			// Tasks
-			taskListTool,
-			taskGetTool,
-			taskUpdateTool,
-			scheduledTaskCreateTool,
-			scheduledTaskListTool,
-			// System
-			sshListServersTool,
-			sshExecuteTool,
-		},
-	}
-
-	a, err := llmagent.New(agentConfig)
-	if err != nil {
-		slog.Error("failed to create assistant agent", "err", err)
-		return nil, fmt.Errorf("failed to create assistant agent: %w", err)
-	}
-
-	slog.Info("assistant agent created successfully")
-	return a, nil
+	return []tool.Tool{
+		// Context
+		currentTimeTool,
+		memoryTool,
+		// Web
+		webSearchTool,
+		exaSearchTool,
+		webFetchTool,
+		// Email
+		emailQueryTool,
+		sendEmailTool,
+		// Files
+		fileDownloadTool,
+		fileListTool,
+		fileGetTool,
+		// Documents & media
+		pdfExtractTextTool,
+		pdfGenerateDocumentTool,
+		audioTranscribeTool,
+		imageGenTool,
+		videoGenTool,
+		// Tasks
+		taskListTool,
+		taskGetTool,
+		taskUpdateTool,
+		scheduledTaskCreateTool,
+		scheduledTaskListTool,
+		// System
+		sshListServersTool,
+		sshExecuteTool,
+	}, nil
 }

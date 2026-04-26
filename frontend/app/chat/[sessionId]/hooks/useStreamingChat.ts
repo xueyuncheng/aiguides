@@ -6,6 +6,7 @@ import { getChatPath, resolveSessionId } from '@/app/chat/utils/session';
 import type { Message, SelectedImage } from '../types';
 import { trimOuterNewlines } from '../utils/messages';
 import { consumeAssistantStream, createAssistantErrorMessage } from '../utils/assistantStream';
+import { useTitlePoller } from './useTitlePoller';
 
 type AuthenticatedFetch = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 
@@ -42,19 +43,13 @@ export function useStreamingChat({
 }: UseStreamingChatParams) {
   const [isLoading, setIsLoading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const titlePollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const activeSessionIdRef = useRef(sessionId);
+
+  const { startPoll: startTitlePoll, stopPoll: stopTitlePoll } = useTitlePoller(loadSessions, 1000, 30);
 
   useEffect(() => {
     activeSessionIdRef.current = sessionId;
   }, [sessionId]);
-
-  const clearTitlePoll = useCallback(() => {
-    if (titlePollIntervalRef.current) {
-      clearInterval(titlePollIntervalRef.current);
-      titlePollIntervalRef.current = null;
-    }
-  }, []);
 
   const handleCancelMessage = useCallback(() => {
     if (abortControllerRef.current) {
@@ -62,9 +57,9 @@ export function useStreamingChat({
       abortControllerRef.current = null;
     }
 
-    clearTitlePoll();
+    stopTitlePoll();
     setIsLoading(false);
-  }, [clearTitlePoll]);
+  }, [stopTitlePoll]);
 
   const sendMessage = useCallback(async (content: string, images: SelectedImage[], targetSessionId: string = sessionId) => {
     if (isLoading) {
@@ -119,25 +114,7 @@ export function useStreamingChat({
 
     const isFirstMessage = messages.filter((message) => message.role === 'user').length === 0;
     if (isFirstMessage) {
-      clearTitlePoll();
-
-      let pollCount = 0;
-      const maxPolls = 30;
-
-      titlePollIntervalRef.current = setInterval(async () => {
-        const fetchedSessions = await loadSessions(true);
-        const currentSession = fetchedSessions?.find((item) => item.session_id === resolvedSessionId);
-
-        if (currentSession?.title) {
-          clearTitlePoll();
-          return;
-        }
-
-        pollCount += 1;
-        if (pollCount >= maxPolls) {
-          clearTitlePoll();
-        }
-      }, 1000);
+      startTitlePoll(resolvedSessionId);
     }
 
     try {
@@ -185,7 +162,7 @@ export function useStreamingChat({
         });
       }
     } catch (error) {
-      clearTitlePoll();
+      stopTitlePoll();
 
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request cancelled by user');
@@ -203,16 +180,16 @@ export function useStreamingChat({
       setIsLoading(false);
       abortControllerRef.current = null;
     }
-  }, [agentId, authenticatedFetch, clearImages, clearTitlePoll, currentProjectId, isLoading, loadSessions, markSessionLoaded, messages, sessionId, sessions, setInputValue, setMessages, setSessionId, userId]);
+  }, [agentId, authenticatedFetch, clearImages, stopTitlePoll, currentProjectId, isLoading, markSessionLoaded, messages, sessionId, sessions, setInputValue, setMessages, setSessionId, userId]);
 
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      clearTitlePoll();
+      stopTitlePoll();
     };
-  }, [clearTitlePoll]);
+  }, [stopTitlePoll]);
 
   return {
     isLoading,
