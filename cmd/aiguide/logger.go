@@ -13,8 +13,19 @@ func initLogger() {
 	opts := &slog.HandlerOptions{
 		AddSource: true,
 	}
+
+	logFile, err := os.OpenFile("aiguide.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		logFile = nil
+	}
+
+	var dest io.Writer = os.Stdout
+	if logFile != nil {
+		dest = io.MultiWriter(os.Stdout, logFile)
+	}
+
 	// Use a custom writer to convert escaped "\n" back to real newlines
-	writer := &newlineWriter{w: os.Stdout}
+	writer := &newlineWriter{w: dest}
 	var handler slog.Handler = slog.NewTextHandler(writer, opts)
 	handler = &stackHandler{handler}
 	slog.SetDefault(slog.New(handler))

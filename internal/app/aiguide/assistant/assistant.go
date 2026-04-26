@@ -7,6 +7,8 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"sync"
 
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
@@ -36,6 +38,14 @@ type Assistant struct {
 	scheduler      *Scheduler
 
 	authService *auth.AuthService
+
+	liveClient     *genai.Client
+	liveClientOnce sync.Once
+	liveClientErr  error
+	liveModel      string
+	apiKey         string
+	baseURL        string
+	httpClient     *http.Client
 }
 
 type Config struct {
@@ -49,6 +59,10 @@ type Config struct {
 	ExaConfig           tools.ExaConfig
 	FileStore           storage.FileStore
 	PDFWorkDir          string
+	APIKey              string
+	BaseURL             string
+	HTTPClient          *http.Client
+	LiveModel           string
 }
 
 func New(config *Config) (*Assistant, error) {
@@ -89,6 +103,10 @@ func New(config *Config) (*Assistant, error) {
 		exaConfig:           config.ExaConfig,
 		fileStore:           config.FileStore,
 		pdfWorkDir:          config.PDFWorkDir,
+		liveModel:           config.LiveModel,
+		apiKey:              config.APIKey,
+		baseURL:             config.BaseURL,
+		httpClient:          config.HTTPClient,
 	}
 
 	runner, err := assistant.createRunner()
@@ -110,4 +128,11 @@ func New(config *Config) (*Assistant, error) {
 func (a *Assistant) Run(ctx context.Context) error {
 	a.scheduler.Start(ctx)
 	return nil
+}
+
+func (a *Assistant) getLiveClient(ctx context.Context) (*genai.Client, error) {
+	a.liveClientOnce.Do(func() {
+		a.liveClient, a.liveClientErr = newLiveClient(ctx, a.apiKey, a.baseURL, a.httpClient)
+	})
+	return a.liveClient, a.liveClientErr
 }

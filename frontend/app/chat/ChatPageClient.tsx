@@ -13,7 +13,9 @@ import { useSessionData } from './[sessionId]/hooks/useSessionData';
 import { useStreamingChat } from './[sessionId]/hooks/useStreamingChat';
 import { useUIState } from './[sessionId]/hooks/useUIState';
 import { useVoiceInput } from './[sessionId]/hooks/useVoiceInput';
+import { useVoiceCall } from './[sessionId]/hooks/useVoiceCall';
 import { mergeAssistantMessages } from './[sessionId]/utils/messages';
+import { createSessionId, getChatPath } from './utils/session';
 
 export default function ChatPageClient() {
   const params = useParams();
@@ -128,6 +130,31 @@ export default function ChatPageClient() {
     disabled: isLoading,
   });
 
+  const {
+    status: voiceCallStatus,
+    voiceMessages,
+    startCall,
+    endCall,
+    error: voiceCallError,
+  } = useVoiceCall(sessionId);
+
+  const isVoiceCallActive = voiceCallStatus === 'connected' || voiceCallStatus === 'connecting';
+
+  const handleVoiceCallToggle = useCallback(() => {
+    if (isVoiceCallActive) {
+      endCall();
+    } else {
+      let targetSessionId = sessionId;
+      if (!targetSessionId) {
+        targetSessionId = createSessionId();
+        setSessionId(targetSessionId);
+        markSessionLoaded(targetSessionId);
+        window.history.pushState(null, '', getChatPath(targetSessionId));
+      }
+      startCall(targetSessionId);
+    }
+  }, [isVoiceCallActive, endCall, startCall, sessionId, setSessionId, markSessionLoaded]);
+
   const scroll = useScrollManager({
     messages,
     isStreamingResponse,
@@ -195,7 +222,24 @@ export default function ChatPageClient() {
     if (!agentInfo) router.push('/');
   }, [agentInfo, loading, router, user]);
 
-  const processedMessages = useMemo(() => mergeAssistantMessages(messages), [messages]);
+  const processedMessages = useMemo(() => {
+    const allMessages = [...messages];
+    if (voiceMessages.length > 0) {
+      const now = new Date();
+      for (const vm of voiceMessages) {
+        allMessages.push({
+          id: vm.id,
+          role: vm.role === 'user' ? 'user' : 'assistant',
+          content: vm.transcript,
+          timestamp: now,
+          isStreaming: !vm.isComplete,
+          voiceAudioUrl: vm.audioUrl ?? undefined,
+          isVoiceMessage: true,
+        });
+      }
+    }
+    return mergeAssistantMessages(allMessages);
+  }, [messages, voiceMessages]);
   const chatUser = useMemo(
     () => (user ? { name: user.name, picture: user.picture } : null),
     [user]
@@ -331,6 +375,11 @@ export default function ChatPageClient() {
       isVoiceSupported={isVoiceSupported}
       onVoiceToggle={toggleRecording}
       voiceError={voiceError}
+      isVoiceCallActive={isVoiceCallActive}
+      onVoiceCallToggle={handleVoiceCallToggle}
+      voiceCallStatus={voiceCallStatus}
+      voiceCallError={voiceCallError}
+      onEndVoiceCall={endCall}
       onCloseShareModal={ui.handleCloseShareModal}
       onCloseCreateProjectModal={ui.handleCloseCreateProjectModal}
       onSubmitCreateProject={handleCreateProject}

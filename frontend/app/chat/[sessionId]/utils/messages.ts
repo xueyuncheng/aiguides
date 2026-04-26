@@ -51,6 +51,7 @@ export const mapHistoryMessage = (message: HistoryMessageResponse): Message => (
   fileNames: message.file_names || [],
   files: message.files || [],
   toolCalls: (message.tool_calls || []).map(mapToolCall),
+  voiceAudioFileId: message.voice_audio_file_id || undefined,
 });
 
 export const mergeAssistantMessages = (messages: Message[]) => {

@@ -1,5 +1,6 @@
 import { AudioLines, FileText } from 'lucide-react';
 import { CodeBlock, fencedCodeBlockPattern } from '../utils/markdown';
+import { VoiceAudioPlayer, resolveVoiceAudioUrl } from './VoiceAudioPlayer';
 import type { MessageFile } from '../types';
 
 const getFileBadge = (mimeType: string) => {
@@ -61,11 +62,19 @@ interface UserMessageProps {
   images?: string[];
   fileNames?: string[];
   files?: MessageFile[];
+  voiceAudioFileId?: number;
+  voiceAudioUrl?: string;
 }
 
-export function UserMessage({ content, images, fileNames, files }: UserMessageProps) {
+export function UserMessage({ content, images, fileNames, files, voiceAudioFileId, voiceAudioUrl }: UserMessageProps) {
   return (
     <div className="space-y-2">
+      {resolveVoiceAudioUrl(voiceAudioFileId, voiceAudioUrl) && (
+        <VoiceAudioPlayer
+          audioUrl={resolveVoiceAudioUrl(voiceAudioFileId, voiceAudioUrl)!}
+          className="max-w-sm"
+        />
+      )}
       {files && files.length > 0 && (
         <div className="space-y-2">
           {files.map((file, index) => {

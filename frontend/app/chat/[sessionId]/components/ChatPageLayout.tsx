@@ -1,5 +1,5 @@
 import { type Ref, type RefObject } from 'react';
-import { Menu } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import SessionSidebar from '@/app/components/SessionSidebar';
 import { Button } from '@/app/components/ui/button';
 import { ChatInput, CreateProjectModal, SelectionAskTooltip } from './index';
@@ -7,6 +7,7 @@ import { ChatMessagesPane } from './ChatMessagesPane';
 import { ShareModal } from './ShareModal';
 import { COMPOSER_MESSAGE_GAP } from '../constants';
 import type { AgentInfo, Message, SelectedImage } from '../types';
+import type { VoiceCallStatus } from '../hooks/useVoiceCall';
 import type { Session, Project } from '@/app/components/SessionSidebar';
 
 interface ChatPageLayoutProps {
@@ -101,6 +102,13 @@ interface ChatPageLayoutProps {
   onVoiceToggle?: () => void;
   voiceError?: string | null;
 
+  // Voice call
+  isVoiceCallActive?: boolean;
+  onVoiceCallToggle?: () => void;
+  voiceCallStatus?: VoiceCallStatus;
+  voiceCallError?: string | null;
+  onEndVoiceCall?: () => void;
+
   // Handlers – modals
   onCloseShareModal: () => void;
   onCloseCreateProjectModal: () => void;
@@ -183,6 +191,11 @@ export function ChatPageLayout({
   isVoiceSupported,
   onVoiceToggle,
   voiceError,
+  isVoiceCallActive,
+  onVoiceCallToggle,
+  voiceCallStatus,
+  voiceCallError,
+  onEndVoiceCall,
   onCloseShareModal,
   onCloseCreateProjectModal,
   onSubmitCreateProject,
@@ -190,7 +203,7 @@ export function ChatPageLayout({
   onSubmitRenameProject,
   onScroll,
 }: ChatPageLayoutProps) {
-  const isEmptyState = messages.length === 0 && !isLoadingHistory;
+  const isEmptyState = messages.length === 0 && processedMessages.length === 0 && !isLoadingHistory && !isVoiceCallActive;
 
   const messagesPaneProps = {
     agentInfo,
@@ -243,6 +256,8 @@ export function ChatPageLayout({
     isVoiceSupported,
     onVoiceToggle,
     voiceError,
+    isVoiceCallActive,
+    onVoiceCallToggle,
   };
 
   return (
@@ -306,6 +321,28 @@ export function ChatPageLayout({
                 </div>
               </div>
             </div>
+            {(voiceCallStatus === 'connected' || voiceCallError) && (
+              <div className="w-full md:pl-[260px] flex justify-center px-3 sm:px-4 md:px-6">
+                {voiceCallStatus === 'connected' ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    <span>Stream is live</span>
+                    {onEndVoiceCall && (
+                      <button
+                        type="button"
+                        onClick={onEndVoiceCall}
+                        className="ml-1 p-0.5 rounded hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
+                        aria-label="End voice call"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-red-500">{voiceCallError}</span>
+                )}
+              </div>
+            )}
             <ChatInput {...chatInputProps} />
           </>
         )}

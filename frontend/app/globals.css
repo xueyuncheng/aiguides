@@ -198,4 +198,14 @@
   .bg-grid-black {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' width='32' height='32' fill='none' stroke='rgb(0 0 0 / 0.04)'%3E%3Cpath d='M0 .5H31.5V32'/%3E%3C/svg%3E");
   }
+
+  /* Voice waveform bar animation */
+  .animate-waveform {
+    animation: waveform 1.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes waveform {
+    0% { height: 4px; }
+    100% { height: calc(var(--waveform-max-scale, 1) * 20px); }
+  }
 }

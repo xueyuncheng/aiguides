@@ -6,6 +6,7 @@ __debug_*
 *.png
 .claude/
 cmd/aiguide/data/
+*.log
 
 # Docker artifacts
 *.tar
