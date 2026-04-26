@@ -20,7 +20,7 @@
 ## 快速启动
 
 1. **安装依赖**
-   - Go 1.25.5+
+   - Go 1.26.1+
    - Node.js 20+
    - pnpm（`npm install -g pnpm`）
 
@@ -49,8 +49,8 @@
 
 ## 技术栈
 
-- **后端**: Go 1.25+, Gin, GORM, SQLite, Google ADK
-- **前端**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **后端**: Go 1.26.1+, Gin, GORM, SQLite, Google ADK
+- **前端**: Next.js 16, React 19, TypeScript, Tailwind CSS
 - **AI**: Google Gemini 2.0 + Imagen
 
 ## 手动启动
