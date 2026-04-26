@@ -121,6 +121,58 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
   const playbackCtxRef = useRef<AudioContext | null>(null);
   const nextPlayTimeRef = useRef(0);
 
+  const toolCallAudioCtxRef = useRef<AudioContext | null>(null);
+  const isToolCallActiveRef = useRef(false);
+  const toolCallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startToolCallSound = useCallback(() => {
+    if (isToolCallActiveRef.current) return;
+    const ctx = new AudioContext();
+    toolCallAudioCtxRef.current = ctx;
+    isToolCallActiveRef.current = true;
+
+    const notes = [330, 392, 440, 523, 659];
+    const noteDuration = 0.12;
+    const noteGap = 0.11;
+    const totalDuration = (notes.length - 1) * noteGap + noteDuration;
+    const loopGap = 0.6;
+
+    const playChime = () => {
+      if (!isToolCallActiveRef.current) return;
+      const now = ctx.currentTime;
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, 0);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const start = now + i * noteGap;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.18, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + noteDuration);
+        osc.start(start);
+        osc.stop(start + noteDuration);
+      });
+      toolCallTimerRef.current = setTimeout(() => {
+        toolCallTimerRef.current = null;
+        playChime();
+      }, (totalDuration + loopGap) * 1000);
+    };
+
+    playChime();
+  }, []);
+
+  const stopToolCallSound = useCallback(() => {
+    isToolCallActiveRef.current = false;
+    if (toolCallTimerRef.current !== null) {
+      clearTimeout(toolCallTimerRef.current);
+      toolCallTimerRef.current = null;
+    }
+    toolCallAudioCtxRef.current?.close();
+    toolCallAudioCtxRef.current = null;
+  }, []);
+
   const turnPhaseRef = useRef<'waiting' | 'user' | 'model'>('waiting');
   const userAudioChunksRef = useRef<Int16Array[]>([]);
   const modelAudioChunksRef = useRef<Int16Array[]>([]);
@@ -157,6 +209,8 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     playbackCtxRef.current = null;
     nextPlayTimeRef.current = 0;
 
+    stopToolCallSound();
+
     turnPhaseRef.current = 'waiting';
     userAudioChunksRef.current = [];
     modelAudioChunksRef.current = [];
@@ -164,7 +218,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     currentModelMsgIdRef.current = null;
 
     setStatus('idle');
-  }, []);
+  }, [stopToolCallSound]);
 
   useEffect(() => () => cleanup(), [cleanup]);
 
@@ -273,7 +327,6 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     switch (msg.type) {
       case 'setup_ok':
         setStatus('connected');
-        startCapture(stream, ws);
         break;
 
       case 'input_transcript':
@@ -281,6 +334,12 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
           finalizeModelTurn();
         }
         handleInputTranscript(msg.data, turnRefs, setVoiceMessages);
+        // input_transcript.finished marks the end of the user's speech — use it as an
+        // additional trigger for finalizeUserTurn() so audio is attached even when the
+        // model's first 'audio' chunk arrives before the transcript (or never arrives).
+        if (msg.finished && turnPhaseRef.current === 'user') {
+          finalizeUserTurn();
+        }
         break;
 
       case 'audio':
@@ -295,16 +354,26 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
         break;
 
       case 'turn_complete':
+        stopToolCallSound();
         finalizeModelTurn();
         turnPhaseRef.current = 'waiting';
         userAudioChunksRef.current = [];
         break;
 
       case 'interrupted':
+        stopToolCallSound();
         resetPlayback();
         finalizeModelTurn();
         turnPhaseRef.current = 'waiting';
         userAudioChunksRef.current = [];
+        break;
+
+      case 'tool_call_start':
+        startToolCallSound();
+        break;
+
+      case 'tool_call_end':
+        stopToolCallSound();
         break;
 
       case 'go_away':
@@ -318,7 +387,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
         break;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleanup, finalizeModelTurn, finalizeUserTurn, playPCMChunk, resetPlayback, startCapture]);
+  }, [cleanup, finalizeModelTurn, finalizeUserTurn, playPCMChunk, resetPlayback, startCapture, startToolCallSound, stopToolCallSound]);
 
   const startCall = useCallback(async (overrideSessionId?: string) => {
     if (status !== 'idle') return;
@@ -351,6 +420,8 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
 
     ws.onmessage = (ev) => handleWsMessage(ev, stream, ws);
 
+    ws.onopen = () => startCapture(stream, ws);
+
     ws.onerror = () => {
       setError('WebSocket connection error');
       setStatus('error');
@@ -360,7 +431,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     ws.onclose = () => {
       cleanup();
     };
-  }, [cleanup, handleWsMessage, sessionId, status]);
+  }, [cleanup, handleWsMessage, sessionId, startCapture, status]);
 
   const endCall = useCallback(() => {
     if (userAudioChunksRef.current.length > 0 || currentUserMsgIdRef.current) {

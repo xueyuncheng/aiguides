@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import { agentInfoMap } from './[sessionId]/constants';
 import { ChatPageLayout } from './[sessionId]/components/ChatPageLayout';
 import { useFileUpload } from './[sessionId]/hooks/useFileUpload';
+import { useTitlePoller } from './[sessionId]/hooks/useTitlePoller';
 import { useMessageActions } from './[sessionId]/hooks/useMessageActions';
 import { useScrollManager } from './[sessionId]/hooks/useScrollManager';
 import { useSessionData } from './[sessionId]/hooks/useSessionData';
@@ -90,16 +91,6 @@ export default function ChatPageClient() {
     markSessionLoaded,
   });
 
-  const isStreamingResponse = useMemo(
-    () => messages.some((m) => m.isStreaming),
-    [messages]
-  );
-
-  const latestUserMessageId = useMemo(
-    () => [...messages].reverse().find((m) => m.role === 'user')?.id,
-    [messages]
-  );
-
   const actions = useMessageActions({
     agentId,
     sessionId,
@@ -140,6 +131,13 @@ export default function ChatPageClient() {
 
   const isVoiceCallActive = voiceCallStatus === 'connected' || voiceCallStatus === 'connecting';
 
+  const { startPoll: startTitlePoll, stopPoll: stopTitlePoll } = useTitlePoller(loadSessions, 3000, 20);
+  useEffect(() => {
+    if (voiceCallStatus === 'connected' && sessionId) startTitlePoll(sessionId);
+    else stopTitlePoll();
+    return stopTitlePoll;
+  }, [voiceCallStatus, sessionId, startTitlePoll, stopTitlePoll]);
+
   const handleVoiceCallToggle = useCallback(() => {
     if (isVoiceCallActive) {
       endCall();
@@ -155,8 +153,37 @@ export default function ChatPageClient() {
     }
   }, [isVoiceCallActive, endCall, startCall, sessionId, setSessionId, markSessionLoaded]);
 
+  const processedMessages = useMemo(() => {
+    const allMessages = [...messages];
+    if (voiceMessages.length > 0) {
+      const now = new Date();
+      for (const vm of voiceMessages) {
+        allMessages.push({
+          id: vm.id,
+          role: vm.role === 'user' ? 'user' : 'assistant',
+          content: vm.transcript,
+          timestamp: now,
+          isStreaming: !vm.isComplete,
+          voiceAudioUrl: vm.audioUrl ?? undefined,
+          isVoiceMessage: true,
+        });
+      }
+    }
+    return mergeAssistantMessages(allMessages);
+  }, [messages, voiceMessages]);
+
+  const isStreamingResponse = useMemo(
+    () => processedMessages.some((m) => m.isStreaming),
+    [processedMessages]
+  );
+
+  const latestUserMessageId = useMemo(
+    () => [...processedMessages].reverse().find((m) => m.role === 'user')?.id,
+    [processedMessages]
+  );
+
   const scroll = useScrollManager({
-    messages,
+    messages: processedMessages,
     isStreamingResponse,
     isLoading,
     latestUserMessageId,
@@ -222,24 +249,6 @@ export default function ChatPageClient() {
     if (!agentInfo) router.push('/');
   }, [agentInfo, loading, router, user]);
 
-  const processedMessages = useMemo(() => {
-    const allMessages = [...messages];
-    if (voiceMessages.length > 0) {
-      const now = new Date();
-      for (const vm of voiceMessages) {
-        allMessages.push({
-          id: vm.id,
-          role: vm.role === 'user' ? 'user' : 'assistant',
-          content: vm.transcript,
-          timestamp: now,
-          isStreaming: !vm.isComplete,
-          voiceAudioUrl: vm.audioUrl ?? undefined,
-          isVoiceMessage: true,
-        });
-      }
-    }
-    return mergeAssistantMessages(allMessages);
-  }, [messages, voiceMessages]);
   const chatUser = useMemo(
     () => (user ? { name: user.name, picture: user.picture } : null),
     [user]
