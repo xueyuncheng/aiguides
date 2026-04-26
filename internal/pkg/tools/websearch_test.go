@@ -198,6 +198,7 @@ func TestSearXNGSearch(t *testing.T) {
 		server.URL,
 		"golang",
 		5,
+		"en",
 	)
 
 	if err != nil {
@@ -235,6 +236,7 @@ func TestEmptySearchResults(t *testing.T) {
 		server.URL,
 		"nonexistent query",
 		5,
+		"en",
 	)
 
 	if err != nil {
@@ -334,6 +336,7 @@ func TestInvalidJSON(t *testing.T) {
 		server.URL,
 		"golang",
 		5,
+		"en",
 	)
 
 	if err == nil {
@@ -358,6 +361,7 @@ func TestHTTPError(t *testing.T) {
 				server.URL,
 				"golang",
 				5,
+				"en",
 			)
 
 			if err == nil {
@@ -382,6 +386,7 @@ func TestNumResultsLimit(t *testing.T) {
 		server.URL,
 		"golang",
 		2, // 只要 2 个结果
+		"en",
 	)
 
 	if err != nil {
