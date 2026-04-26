@@ -16,11 +16,13 @@ AIGuides is a full-stack AI assistant built with Go (Gin + Google ADK/Gemini) ba
 ### Backend
 ```bash
 go run cmd/aiguide/aiguide.go -f cmd/aiguide/aiguide.yaml   # Run dev server
-go fmt ./...                                                  # Format code
+go fmt ./...  # or: make fmt                                 # Format code
 go test ./...                                                 # All tests
 go test -count=1 ./...                                        # Tests without cache
 go test -v ./internal/app/aiguide/assistant                  # Specific package
 go test -v ./internal/app/aiguide/assistant -run TestAgentCreation  # Specific test
+go test -v ./internal/pkg/tools -run TestWebFetch            # Test in tools package
+go test -count=1 -v ./internal/app/aiguide/assistant -run TestName  # No cache + specific test
 ```
 
 ### Frontend
@@ -30,7 +32,9 @@ pnpm install          # Install dependencies
 pnpm dev              # Dev server (http://localhost:3000)
 pnpm lint             # ESLint
 pnpm test             # Vitest (all tests)
-pnpm exec vitest run app/chat/[sessionId]/hooks/useStreamingChat.test.tsx  # Single test file
+pnpm test -- app/chat/[sessionId]/hooks/useStreamingChat.test.tsx   # Single test file
+pnpm test -- -t "test name"                                          # Filter tests by name
+pnpm exec vitest run app/chat/[sessionId]/hooks/useStreamingChat.test.tsx -t "test name"  # File + name
 pnpm verify           # lint + test + build — run before pushing frontend changes
 ```
 
@@ -42,6 +46,8 @@ pnpm verify           # lint + test + build — run before pushing frontend chan
 ### Docker
 ```bash
 make build            # Build both images
+make build-backend    # Backend image only
+make build-frontend   # Frontend image only
 make deploy           # docker-compose up (backend, frontend, SearXNG, Redis)
 make down             # Stop services
 make save-images      # Export images to .tar for server transfer
@@ -192,6 +198,10 @@ if err != nil {
 ### TypeScript/React
 - TypeScript with strict type checking; functional components with hooks
 - Tailwind CSS for styling; ESLint for linting
+- Use `import type` for type-only imports
+- Use `@/` path alias for frontend-local imports
+- Prefer `Record<string, unknown>` over `any` for unknown object payloads
+- Reuse shared UI wrappers from `frontend/app/components/ui/` before adding new primitives
 
 ## Important Implementation Notes
 
@@ -217,5 +227,6 @@ go test ./...                                              # All backend tests
 go test -v ./internal/app/aiguide/assistant               # Assistant package
 go test -v ./internal/pkg/tools                           # Tools package
 cd frontend && pnpm test                                   # All frontend tests
-cd frontend && pnpm exec vitest run <path/to/file.test.tsx>  # Single file
+cd frontend && pnpm test -- <path/to/file.test.tsx>        # Single file
+cd frontend && pnpm test -- -t "test name"                 # Filter by name
 ```
