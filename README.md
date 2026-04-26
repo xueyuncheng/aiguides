@@ -1,16 +1,20 @@
 # aiguides
 
-基于 Google ADK + Gemini 的全栈 AI 助手，支持多模态聊天、图片生成、网页搜索、邮件查询、**跨会话记忆**等功能。
+基于 Google ADK + Gemini 的全栈 AI 助手，支持多模态聊天、图片/视频生成、网页搜索、邮件查询、**跨会话记忆**、语音通话等功能。
 
 ## 主要功能
 
 - 多模态对话（文字 + 图片输入）
 - AI 图片生成（Imagen）
+- AI 视频生成（Veo 3.1）
+- 实时语音通话（Gemini Live API）
 - 网页搜索与内容抓取
-- 邮件查询（IMAP）
+- 邮件查询与发送（IMAP）
+- SSH 命令执行
+- PDF 提取与生成
 - 定时任务（支持每天/每周/一次性任务创建）
 - **跨会话记忆**：AI 能记住用户特征、偏好和上下文
-- 会话管理
+- 会话管理与项目组织
 - Google OAuth 登录
 
 ## 聊天页面展示
@@ -51,7 +55,7 @@
 
 - **后端**: Go 1.26.1+, Gin, GORM, SQLite, Google ADK
 - **前端**: Next.js 16, React 19, TypeScript, Tailwind CSS
-- **AI**: Google Gemini 2.0 + Imagen
+- **AI**: Google Gemini 2.0 + Imagen + Veo 3.1
 
 ## 手动启动
 
@@ -74,7 +78,7 @@ make deploy  # 启动服务
 
 ## 记忆功能 (Memory Feature)
 
-AI 助手现在支持跨会话记忆功能，可以记住用户的：
+AI 助手支持跨会话记忆功能，可以记住用户的：
 - **事实**（Facts）：职业、技能、背景等客观信息
 - **偏好**（Preferences）：喜好、习惯、风格倾向等
 - **上下文**（Context）：正在进行的项目、话题、目标等
