@@ -17,8 +17,8 @@ import (
 // WebSearchInput 定义网页搜索的输入参数
 type WebSearchInput struct {
 	Query      string `json:"query" jsonschema:"必填，搜索关键词或问题"`
-	NumResults int    `json:"num_results,omitempty" jsonschema:"返回结果数量，范围1-20，默认5"`
-	Language   string `json:"language,omitempty" jsonschema:"搜索语言，如'zh-CN'中文、'en'英文，默认'zh-CN'"`
+	NumResults int    `json:"num_results,omitempty" jsonschema:"返回结果数量，范围1-20，默认10"`
+	Language   string `json:"language,omitempty" jsonschema:"搜索语言，如'zh-CN'中文、'en'英文，默认'en'"`
 }
 
 // WebSearchOutput 定义网页搜索的输出结果
@@ -105,16 +105,21 @@ func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearc
 	// 设置默认值
 	numResults := input.NumResults
 	if numResults <= 0 {
-		numResults = 5
+		numResults = 10
 	}
 	if numResults > 20 {
 		numResults = 20
 	}
 
-	slog.Info("执行网页搜索", "query", input.Query, "num_results", numResults)
+	language := input.Language
+	if language == "" {
+		language = "en"
+	}
+
+	slog.Info("执行网页搜索", "query", input.Query, "num_results", numResults, "language", language)
 
 	// 直接使用配置的实例
-	result, err := searchSearXNG(ctx, config.SearXNG.InstanceURL, input.Query, numResults)
+	result, err := searchSearXNG(ctx, config.SearXNG.InstanceURL, input.Query, numResults, language)
 	if err == nil {
 		slog.Info("搜索成功", "instance", config.SearXNG.InstanceURL, "results_count", len(result.Results))
 		return result, nil
@@ -129,13 +134,16 @@ func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearc
 }
 
 // searchSearXNG 调用单个 SearXNG 实例进行搜索
-func searchSearXNG(ctx context.Context, instanceURL, query string, numResults int) (*WebSearchOutput, error) {
+func searchSearXNG(ctx context.Context, instanceURL, query string, numResults int, language string) (*WebSearchOutput, error) {
 	// 构建请求 URL
 	apiURL := fmt.Sprintf("%s/search", instanceURL)
 	params := url.Values{}
 	params.Add("q", query)
 	params.Add("format", "json")
 	params.Add("pageno", "1")
+	params.Add("categories", "general")
+	params.Add("engines", "google,duckduckgo,brave,startpage,wikipedia")
+	params.Add("lang", language)
 
 	fullURL := fmt.Sprintf("%s?%s", apiURL, params.Encode())
 
