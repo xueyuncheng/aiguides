@@ -34,6 +34,11 @@ function getBackendWsUrl(): string {
   }
   if (typeof window !== 'undefined') {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    // In production (HTTPS) use same-origin so Caddy can proxy to the backend.
+    // In development (HTTP) connect directly to the backend port.
+    if (window.location.protocol === 'https:') {
+      return `${proto}://${window.location.hostname}`;
+    }
     return `${proto}://${window.location.hostname}:8080`;
   }
   return 'ws://localhost:8080';
