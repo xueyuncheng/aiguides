@@ -258,6 +258,7 @@ export function ChatPageLayout({
     voiceError,
     isVoiceCallActive,
     onVoiceCallToggle,
+    voiceCallError,
   };
 
   return (
