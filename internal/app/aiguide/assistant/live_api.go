@@ -105,7 +105,9 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 	firstErr := a.bridgeVoiceCall(connCtx, connCancel, writeCh, liveSession, conn, saveTurn, userID, sessionID, sessionWriteCh)
 
 	if firstErr != nil {
-		slog.Info("VoiceCall: session ended", "reason", firstErr.Error(), "userID", userID)
+		slog.Info("VoiceCall: session ended with error", "reason", firstErr.Error(), "userID", userID)
+		// Send error to client before the deferred close(writeCh) shuts down wsWriter.
+		writeCh <- wsServerMessage{Type: serverMsgTypeError, Data: firstErr.Error()}
 	} else {
 		slog.Info("VoiceCall: session ended normally", "userID", userID)
 	}

@@ -31,6 +31,7 @@ interface ChatInputProps {
   voiceError?: string | null;
   isVoiceCallActive?: boolean;
   onVoiceCallToggle?: () => void;
+  voiceCallError?: string | null;
 }
 
 const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({ 
@@ -59,6 +60,7 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   voiceError,
   isVoiceCallActive = false,
   onVoiceCallToggle,
+  voiceCallError,
 }, textareaRef) => {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -123,6 +125,11 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
           {voiceError && (
             <div className="px-3 pt-2 text-xs text-red-500" role="alert" aria-live="polite">
               {voiceError}
+            </div>
+          )}
+          {voiceCallError && (
+            <div className="px-3 pt-2 text-xs text-red-500" role="alert" aria-live="polite">
+              {voiceCallError}
             </div>
           )}
           <form onSubmit={onSubmit} className="w-full flex items-center p-2 gap-2">
