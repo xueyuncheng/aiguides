@@ -34,9 +34,12 @@ function getBackendWsUrl(): string {
   }
   if (typeof window !== 'undefined') {
     const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
-    return `${proto}://${window.location.host}`;
+    if (window.location.protocol === 'https:') {
+      return `${proto}://${window.location.hostname}`;
+    }
+    return `${proto}://${window.location.hostname}:8080`;
   }
-  return 'ws://localhost:3000';
+  return 'ws://localhost:8080';
 }
 
 function pcmToWavBlob(int16Chunks: Int16Array[], sampleRate: number): Blob {
