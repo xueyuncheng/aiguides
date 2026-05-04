@@ -22,9 +22,14 @@ app.prepare().then(() => {
     handle(req, res, parse(req.url, true));
   });
 
+  // Next.js upgrade handler covers HMR and other internal WebSocket needs.
+  const nextUpgradeHandler = app.getUpgradeHandler();
+
   server.on('upgrade', (req, socket, head) => {
     if (req.url.startsWith('/api/assistant/live')) {
       proxy.ws(req, socket, head);
+    } else {
+      nextUpgradeHandler(req, socket, head);
     }
   });
 
