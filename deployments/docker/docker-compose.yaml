@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./config:/config:ro
+      - ./config:/app/config:ro
       - ./data:/app/data
     environment:
       - GIN_MODE=release
