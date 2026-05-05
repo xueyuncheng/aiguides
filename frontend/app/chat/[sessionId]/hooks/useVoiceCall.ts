@@ -220,6 +220,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     currentUserMsgIdRef.current = null;
     currentModelMsgIdRef.current = null;
 
+    setVoiceMessages([]);
     setStatus('idle');
   }, [stopToolCallSound]);
 
