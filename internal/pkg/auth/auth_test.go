@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -310,5 +311,48 @@ func TestBackwardCompatibility(t *testing.T) {
 
 	if claims.TokenType != "access" {
 		t.Errorf("Expected GenerateJWT to generate access token, got %s", claims.TokenType)
+	}
+}
+
+func TestGetAuthURLWithForceConsent(t *testing.T) {
+	config := &Config{
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+		RedirectURL:  "http://localhost:3000/api/auth/callback/google",
+		JWTSecret:    "test-secret",
+	}
+	authService := NewAuthService(config)
+
+	url := authService.GetAuthURLWithForceConsent("test-state")
+
+	checks := []struct {
+		want string
+		desc string
+	}{
+		{"prompt=consent", "prompt=consent for fresh refresh_token"},
+		{"access_type=offline", "access_type=offline for refresh_token"},
+		{"test-state", "state parameter"},
+		{"calendar", "calendar scope"},
+	}
+	for _, c := range checks {
+		if !strings.Contains(url, c.want) {
+			t.Errorf("GetAuthURLWithForceConsent() URL missing %s (%s)\nURL: %s", c.want, c.desc, url)
+		}
+	}
+}
+
+func TestGetOAuthConfig_ReturnsNonNilWithClientID(t *testing.T) {
+	config := &Config{
+		ClientID:     "test-client-id",
+		ClientSecret: "test-client-secret",
+	}
+	authService := NewAuthService(config)
+
+	oauthConfig := authService.GetOAuthConfig()
+	if oauthConfig == nil {
+		t.Fatal("GetOAuthConfig() should not return nil")
+	}
+	if oauthConfig.ClientID != config.ClientID {
+		t.Errorf("GetOAuthConfig() ClientID = %q, want %q", oauthConfig.ClientID, config.ClientID)
 	}
 }

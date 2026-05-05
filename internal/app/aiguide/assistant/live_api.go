@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -82,7 +83,9 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 	connCtx, connCancel := context.WithCancel(ctx.Request.Context())
 	defer connCancel()
 
-	liveSession, err := a.connectLiveSession(connCtx, userID)
+	historyContext := a.buildHistoryContext(connCtx, userIDStr, sessionID)
+
+	liveSession, err := a.connectLiveSession(connCtx, userID, historyContext)
 	if err != nil {
 		writeWSError(conn, err.Error())
 		return
@@ -113,7 +116,7 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 	}
 }
 
-func (a *Assistant) connectLiveSession(ctx context.Context, userID int) (*genai.Session, error) {
+func (a *Assistant) connectLiveSession(ctx context.Context, userID int, historyContext string) (*genai.Session, error) {
 	liveClient, err := a.getLiveClient(ctx)
 	if err != nil {
 		slog.Error("VoiceCall: getLiveClient failed", "err", err, "userID", userID)
@@ -123,6 +126,11 @@ func (a *Assistant) connectLiveSession(ctx context.Context, userID int) (*genai.
 	liveModel := a.liveModel
 	if liveModel == "" {
 		liveModel = defaultLiveModel
+	}
+
+	systemInstruction := assistantAgentInstruction + "\n\n## 当前模式\n你正在通过语音通话与用户交互。"
+	if historyContext != "" {
+		systemInstruction += "\n\n" + historyContext
 	}
 
 	session, err := liveClient.Live.Connect(ctx, liveModel, &genai.LiveConnectConfig{
@@ -137,7 +145,7 @@ func (a *Assistant) connectLiveSession(ctx context.Context, userID int) (*genai.
 		InputAudioTranscription:  &genai.AudioTranscriptionConfig{},
 		OutputAudioTranscription: &genai.AudioTranscriptionConfig{},
 		SystemInstruction: &genai.Content{
-			Parts: []*genai.Part{genai.NewPartFromText(assistantAgentInstruction + "\n\n## 当前模式\n你正在通过语音通话与用户交互。")},
+			Parts: []*genai.Part{genai.NewPartFromText(systemInstruction)},
 		},
 		Tools: buildGenaiTools(a.liveTools),
 	})
@@ -586,4 +594,87 @@ func (a *Assistant) saveVoiceAudio(ctx context.Context, userID int, sessionID, r
 func writeWSError(conn *websocket.Conn, errMsg string) {
 	data, _ := json.Marshal(wsServerMessage{Type: serverMsgTypeError, Data: errMsg})
 	conn.WriteMessage(websocket.TextMessage, data)
+}
+
+// maxHistoryTurns is the maximum number of text turns included in the Live session context.
+const maxHistoryTurns = 20
+
+// buildHistoryContext loads the text history from the ADK session and formats it
+// as a "## 历史对话" block to be appended to the Live session's system instruction.
+// Returns an empty string if there is no history or the session cannot be loaded.
+// Binary content (images, audio blobs) is skipped — only the textual substance
+// is needed for conversational continuity.
+func (a *Assistant) buildHistoryContext(ctx context.Context, userIDStr, sessionID string) string {
+	getResp, err := a.session.Get(ctx, &adksession.GetRequest{
+		AppName:   constant.AppNameAssistant.String(),
+		UserID:    userIDStr,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		slog.Warn("buildHistoryContext: session.Get failed", "err", err, "sessionID", sessionID)
+		return ""
+	}
+
+	type turn struct {
+		role string
+		text string
+	}
+	var turns []turn
+
+	for event := range getResp.Session.Events().All() {
+		if event.Content == nil {
+			continue
+		}
+
+		var textParts []string
+		for _, part := range event.Content.Parts {
+			// Skip thoughts, tool calls, tool responses, and binary blobs.
+			if part.Thought || part.FunctionCall != nil || part.FunctionResponse != nil || part.InlineData != nil {
+				continue
+			}
+			if part.Text == "" {
+				continue
+			}
+			text := part.Text
+			// Voice turns store "<!-- VOICE_AUDIO: {...} -->\nTranscript" — extract transcript only.
+			if _, transcript, ok := extractVoiceAudioMetadata(text); ok {
+				text = transcript
+			}
+			text = stripUserContext(strings.TrimSpace(text))
+			if text != "" {
+				textParts = append(textParts, text)
+			}
+		}
+
+		if len(textParts) == 0 {
+			continue
+		}
+
+		role := "助手"
+		if event.Content.Role == "user" {
+			role = "用户"
+		}
+		turns = append(turns, turn{role: role, text: strings.Join(textParts, "\n")})
+	}
+
+	if len(turns) == 0 {
+		return ""
+	}
+
+	// Keep only the most recent turns to stay within the system instruction size limit.
+	if len(turns) > maxHistoryTurns {
+		turns = turns[len(turns)-maxHistoryTurns:]
+	}
+
+	slog.Info("buildHistoryContext: built history", "turns", len(turns), "sessionID", sessionID)
+
+	var sb strings.Builder
+	sb.WriteString("## 历史对话\n以下是本次对话在切换到语音模式前的文字记录，请以此为上下文继续对话：\n\n")
+	for _, t := range turns {
+		sb.WriteString(t.role)
+		sb.WriteString("：")
+		sb.WriteString(t.text)
+		sb.WriteString("\n\n")
+	}
+	return strings.TrimRight(sb.String(), "\n")
 }

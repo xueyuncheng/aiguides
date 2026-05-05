@@ -174,11 +174,6 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 	assistantConfig.PDFWorkDir = pdfWorkDir
 
-	assistant, err := assistant.New(assistantConfig)
-	if err != nil {
-		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
-	}
-
 	authConfig := &auth.Config{
 		ClientID:     config.GoogleClientID,
 		ClientSecret: config.GoogleClientSecret,
@@ -186,6 +181,12 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		JWTSecret:    config.JWTSecret,
 	}
 	authService := auth.NewAuthService(authConfig)
+	assistantConfig.OAuthConfig = authService.GetOAuthConfig()
+
+	assistant, err := assistant.New(assistantConfig)
+	if err != nil {
+		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
+	}
 
 	guide := &AIGuide{
 		config:      config,
