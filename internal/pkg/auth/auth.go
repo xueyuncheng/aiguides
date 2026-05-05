@@ -67,6 +67,7 @@ func NewAuthService(config *Config) *AuthService {
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
 			"https://www.googleapis.com/auth/userinfo.profile",
+			"https://www.googleapis.com/auth/calendar",
 		},
 		Endpoint: google.Endpoint,
 	}
@@ -80,6 +81,20 @@ func NewAuthService(config *Config) *AuthService {
 // GetAuthURL 获取 Google OAuth 认证 URL
 func (s *AuthService) GetAuthURL(state string) string {
 	return s.oauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
+}
+
+// GetAuthURLWithForceConsent 强制显示授权对话框以获取新的 refresh_token。
+// 用于存量用户补充 Calendar scope 的重新授权场景。
+func (s *AuthService) GetAuthURLWithForceConsent(state string) string {
+	return s.oauthConfig.AuthCodeURL(state,
+		oauth2.AccessTypeOffline,
+		oauth2.SetAuthURLParam("prompt", "consent"),
+	)
+}
+
+// GetOAuthConfig 返回 OAuth2 配置，供工具层代表用户调用 Google API 使用。
+func (s *AuthService) GetOAuthConfig() *oauth2.Config {
+	return s.oauthConfig
 }
 
 // ExchangeCode 使用授权码交换访问令牌

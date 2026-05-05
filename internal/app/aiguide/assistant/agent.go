@@ -4,8 +4,10 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
+	"net/http"
 
 	"aiguide/internal/pkg/storage"
+	"golang.org/x/oauth2"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
 	"google.golang.org/adk/model"
@@ -31,6 +33,8 @@ type AssistantAgentConfig struct {
 	ExaConfig         tools.ExaConfig
 	FileStore         storage.FileStore
 	PDFWorkDir        string
+	OAuthConfig       *oauth2.Config
+	HTTPClient        *http.Client
 }
 
 // NewAssistantAgent creates the single assistant agent with all tools.
@@ -186,7 +190,7 @@ func createAssistantTools(config *AssistantAgentConfig) ([]tool.Tool, error) {
 		return nil, fmt.Errorf("failed to create ssh_execute tool: %w", err)
 	}
 
-	return []tool.Tool{
+	toolList := []tool.Tool{
 		// Context
 		currentTimeTool,
 		memoryTool,
@@ -216,5 +220,16 @@ func createAssistantTools(config *AssistantAgentConfig) ([]tool.Tool, error) {
 		// System
 		sshListServersTool,
 		sshExecuteTool,
-	}, nil
+	}
+
+	// Calendar tool requires OAuth to be configured.
+	if config.OAuthConfig != nil {
+		calendarTool, err := tools.NewCalendarTool(config.DB, config.OAuthConfig, config.HTTPClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create manage_calendar tool: %w", err)
+		}
+		toolList = append(toolList, calendarTool)
+	}
+
+	return toolList, nil
 }

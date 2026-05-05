@@ -20,6 +20,7 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 	api.GET("/auth/login/google", a.GoogleLogin)
+	api.GET("/auth/login/google/reauth", a.GoogleReauth)
 	api.GET("/auth/callback/google", a.GoogleCallback)
 	api.POST("/auth/logout", a.Logout)
 	api.POST("/auth/refresh", a.RefreshToken)
@@ -96,6 +97,12 @@ func (a *AIGuide) initRouter(engine *gin.Engine) error {
 	}
 
 	registerSettingRoutes(a.db, api)
+
+	calendarGroup := api.Group("/calendar")
+	{
+		calendarGroup.GET("/status", a.GetCalendarStatus)
+		calendarGroup.DELETE("/status", a.RevokeCalendarAccess)
+	}
 
 	return nil
 }

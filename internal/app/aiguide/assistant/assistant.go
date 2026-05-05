@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"sync"
 
+	"golang.org/x/oauth2"
 	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
@@ -33,6 +34,7 @@ type Assistant struct {
 	exaConfig           tools.ExaConfig
 	fileStore           storage.FileStore
 	pdfWorkDir          string
+	oauthConfig         *oauth2.Config
 
 	runner         *runner.Runner
 	executorRunner *runner.Runner
@@ -65,6 +67,7 @@ type Config struct {
 	BaseURL             string
 	HTTPClient          *http.Client
 	LiveModel           string
+	OAuthConfig         *oauth2.Config
 }
 
 func New(config *Config) (*Assistant, error) {
@@ -109,6 +112,7 @@ func New(config *Config) (*Assistant, error) {
 		apiKey:              config.APIKey,
 		baseURL:             config.BaseURL,
 		httpClient:          config.HTTPClient,
+		oauthConfig:         config.OAuthConfig,
 	}
 
 	allTools, err := createAssistantTools(&AssistantAgentConfig{
@@ -121,6 +125,8 @@ func New(config *Config) (*Assistant, error) {
 		ExaConfig:       config.ExaConfig,
 		FileStore:       config.FileStore,
 		PDFWorkDir:      config.PDFWorkDir,
+		OAuthConfig:     config.OAuthConfig,
+		HTTPClient:      config.HTTPClient,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("createAssistantTools() for live: %w", err)
