@@ -138,6 +138,16 @@ export default function ChatPageClient() {
     return stopTitlePoll;
   }, [voiceCallStatus, sessionId, startTitlePoll, stopTitlePoll]);
 
+  // When voice call ends, reload session history (voice messages get saved to DB).
+  const prevVoiceCallStatusRef = useRef(voiceCallStatus);
+  useEffect(() => {
+    const prev = prevVoiceCallStatusRef.current;
+    prevVoiceCallStatusRef.current = voiceCallStatus;
+    if (prev === 'connected' && voiceCallStatus === 'idle' && sessionId) {
+      loadSessionHistory(sessionId, true);
+    }
+  }, [voiceCallStatus, sessionId, loadSessionHistory]);
+
   const handleVoiceCallToggle = useCallback(() => {
     if (isVoiceCallActive) {
       endCall();
