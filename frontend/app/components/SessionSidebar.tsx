@@ -2,7 +2,7 @@
 
 import { useState, useMemo, memo, useEffect, useCallback } from 'react';
 import { Button } from '@/app/components/ui/button';
-import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Terminal, Clock } from 'lucide-react';
+import { Plus, ChevronLeft, ChevronRight, Trash2, LogOut, FolderOpen, MoreHorizontal, Pencil, Brain, Share2, Terminal, Clock, Calendar } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
 import { useAuth } from '@/app/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/app/components/ui/avatar';
@@ -150,31 +150,11 @@ const SessionSidebar = memo(({
     }
   }, [isMobileOpen, onMobileToggle, onNewSession]);
 
-  const handleMemoryCenterClick = useCallback(() => {
+  const openPage = useCallback((path: string) => {
     if (currentSessionId) {
       localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
     }
-    window.open('/memory', '_blank');
-    if (onMobileToggle && isMobileOpen) {
-      onMobileToggle();
-    }
-  }, [currentSessionId, isMobileOpen, onMobileToggle]);
-
-  const handleSSHServersClick = useCallback(() => {
-    if (currentSessionId) {
-      localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
-    }
-    window.open('/settings/ssh-servers', '_blank');
-    if (onMobileToggle && isMobileOpen) {
-      onMobileToggle();
-    }
-  }, [currentSessionId, isMobileOpen, onMobileToggle]);
-
-  const handleScheduledTasksClick = useCallback(() => {
-    if (currentSessionId) {
-      localStorage.setItem('aiguide:lastChatPath', `/chat/${currentSessionId}`);
-    }
-    window.open('/scheduled-tasks', '_blank');
+    window.open(path, '_blank');
     if (onMobileToggle && isMobileOpen) {
       onMobileToggle();
     }
@@ -510,25 +490,32 @@ const SessionSidebar = memo(({
               <DropdownMenuContent align="start" side="top" className="w-56 bg-zinc-900 border-zinc-800 text-zinc-100">
                 <DropdownMenuItem
                   className="cursor-pointer"
-                  onClick={handleMemoryCenterClick}
+                  onClick={() => openPage('/memory')}
                 >
                   <Brain className="mr-2 h-4 w-4" />
                   <span>记忆中心</span>
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                   className="cursor-pointer"
-                   onClick={handleSSHServersClick}
-                 >
-                   <Terminal className="mr-2 h-4 w-4" />
-                   <span>SSH Servers</span>
-                 </DropdownMenuItem>
-                 <DropdownMenuItem
-                   className="cursor-pointer"
-                   onClick={handleScheduledTasksClick}
-                 >
-                   <Clock className="mr-2 h-4 w-4" />
-                   <span>定时任务</span>
-                 </DropdownMenuItem>
+                  className="cursor-pointer"
+                  onClick={() => openPage('/settings/ssh-servers')}
+                >
+                  <Terminal className="mr-2 h-4 w-4" />
+                  <span>SSH Servers</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => openPage('/scheduled-tasks')}
+                >
+                  <Clock className="mr-2 h-4 w-4" />
+                  <span>定时任务</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="cursor-pointer"
+                  onClick={() => openPage('/settings/google-calendar')}
+                >
+                  <Calendar className="mr-2 h-4 w-4" />
+                  <span>Google Calendar</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-red-400 focus:text-red-400 focus:bg-red-900/20 cursor-pointer"
