@@ -23,6 +23,7 @@ func (a *Assistant) baseAgentConfig() *Config {
 		PDFWorkDir:      a.pdfWorkDir,
 		OAuthConfig:     a.oauthConfig,
 		HTTPClient:      a.httpClient,
+		ThinkingBudget:  a.thinkingBudget,
 	}
 }
 

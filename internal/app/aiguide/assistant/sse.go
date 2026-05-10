@@ -373,10 +373,11 @@ func (a *Assistant) streamAgentEvents(
 					// 这里只返回 partial 的文本内容。
 					// LLM 通常会先返回 partial 的文本内容，然后再返回这些 partial 组合而成的完整内容。
 					// 所以我们只需要返回一份就可以了，因为 partial 更快生成，所以我们返回 partial 内容。
+					isThought := part.Thought || isResearchIntermediateAgent(event.Author)
 					data := gin.H{
 						"author":     event.Author,
 						"content":    part.Text,
-						"is_thought": part.Thought,
+						"is_thought": isThought,
 					}
 					ctx.SSEvent("data", data)
 					ctx.Writer.Flush()
@@ -391,6 +392,9 @@ func (a *Assistant) streamAgentEvents(
 
 			for _, part := range content.Parts {
 				if part.FunctionCall != nil {
+					if shouldHideToolCall(part.FunctionCall.Name, event.Author) {
+						continue
+					}
 					callKey := functionCallKey(part.FunctionCall)
 					if _, seen := seenToolCalls[callKey]; !seen {
 						seenToolCalls[callKey] = struct{}{}
@@ -647,4 +651,31 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	}
 
 	return nil
+}
+
+// researchIntermediateAgents lists the deep research pipeline agents whose text
+// output should be streamed as "thought" (collapsed in the UI). Only the
+// report_writer's text is treated as regular visible content.
+var researchIntermediateAgents = map[string]bool{
+	"research_planner":    true,
+	"researcher_breadth":  true,
+	"researcher_depth":    true,
+	"researcher_verify":   true,
+}
+
+func isResearchIntermediateAgent(author string) bool {
+	return researchIntermediateAgents[author]
+}
+
+// shouldHideToolCall returns true for tool calls that should not appear in the
+// SSE stream: internal ADK delegation calls, and redundant current_time calls
+// from parallel research agents.
+func shouldHideToolCall(toolName, author string) bool {
+	if strings.HasPrefix(toolName, "transfer_to_") {
+		return true
+	}
+	if toolName == "current_time" && researchIntermediateAgents[author] {
+		return true
+	}
+	return false
 }

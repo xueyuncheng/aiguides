@@ -68,6 +68,7 @@ export interface ChatRequest {
 export interface HistoryMessageResponse {
   id: string;
   role: 'user' | 'assistant';
+  author?: string;
   content: string;
   thought?: string;
   timestamp: string;

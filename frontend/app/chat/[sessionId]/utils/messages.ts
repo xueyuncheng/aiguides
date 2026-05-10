@@ -1,4 +1,5 @@
 import type { HistoryMessageResponse, Message, ToolCallItem, ToolCallResponse } from '../types';
+import { DEEP_RESEARCH_AGENTS } from '../constants';
 
 export const trimOuterNewlines = (value: string) => value.replace(/^[\n\r]+|[\n\r]+$/g, '');
 
@@ -43,6 +44,7 @@ export const mergeToolCalls = (toolCalls: ToolCallItem[]) => {
 export const mapHistoryMessage = (message: HistoryMessageResponse): Message => ({
   id: message.id,
   role: message.role,
+  author: message.author || undefined,
   content: message.content,
   thought: message.thought,
   timestamp: new Date(message.timestamp),
@@ -54,6 +56,22 @@ export const mapHistoryMessage = (message: HistoryMessageResponse): Message => (
   voiceAudioFileId: message.voice_audio_file_id || undefined,
 });
 
+const isDeepResearchAgent = (author?: string) =>
+  author ? DEEP_RESEARCH_AGENTS.has(author) : false;
+
+const hasOnlyThought = (msg: Message) =>
+  !msg.content && !!msg.thought && (!msg.toolCalls || msg.toolCalls.length === 0);
+
+const canMergeAssistantMessages = (a: Message, b: Message) => {
+  if (a.role !== 'assistant' || b.role !== 'assistant') return false;
+  if (a.isError || b.isError) return false;
+  if ((a.author || '') === (b.author || '')) return true;
+  if (isDeepResearchAgent(a.author) && isDeepResearchAgent(b.author)) return true;
+  // Merge a thought-only delegation message into the following research block.
+  if (hasOnlyThought(a) && isDeepResearchAgent(b.author)) return true;
+  return false;
+};
+
 export const mergeAssistantMessages = (messages: Message[]) => {
   if (messages.length === 0) {
     return [];
@@ -64,13 +82,7 @@ export const mergeAssistantMessages = (messages: Message[]) => {
   messages.forEach((message) => {
     const lastMessage = mergedMessages[mergedMessages.length - 1];
 
-    if (
-      lastMessage &&
-      lastMessage.role === 'assistant' &&
-      message.role === 'assistant' &&
-      !lastMessage.isError &&
-      !message.isError
-    ) {
+    if (lastMessage && canMergeAssistantMessages(lastMessage, message)) {
       mergedMessages[mergedMessages.length - 1] = {
         ...lastMessage,
         content: (lastMessage.content || '') + (message.content || ''),

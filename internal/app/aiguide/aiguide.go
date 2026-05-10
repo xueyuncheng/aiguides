@@ -46,6 +46,7 @@ type Config struct {
 	Redis               redis.Config `yaml:"redis"`      // Redis 配置
 	RateLimit           RateLimit    `yaml:"rate_limit"` // 限流配置
 	LiveModel           string       `yaml:"live_model"`
+	ThinkingBudget      int32        `yaml:"thinking_budget"`
 	FileStorageDir      string       `yaml:"file_storage_dir"`
 	PDFWorkDir          string       `yaml:"pdf_work_dir"`
 }
@@ -119,7 +120,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	// Enable WAL journal mode and a generous busy timeout so concurrent
 	// goroutines (scheduler + chat sessions) do not collide on writes.
-	dialector := sqlite.Open(config.DBFile + "?_journal_mode=WAL&_busy_timeout=5000")
+	dialector := sqlite.Open(config.DBFile + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(30000)&_txlock=immediate")
 	dbConfig := &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 		NamingStrategy: schema.NamingStrategy{
@@ -157,6 +158,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 		BaseURL:         config.BaseURL,
 		HTTPClient:      httpClient,
 		LiveModel:       config.LiveModel,
+		ThinkingBudget:  config.ThinkingBudget,
 	}
 
 	fileStorageDir := config.FileStorageDir
@@ -222,10 +224,15 @@ func getHTTPClient(proxy string) (*http.Client, error) {
 		slog.Error("url.Parse() error", "err", err)
 		return nil, fmt.Errorf("url.Parse() error, err = %w", err)
 	}
-	parsedProxy := http.ProxyURL(parsedProxyURL)
 	httpClient := &http.Client{
 		Transport: &http.Transport{
-			Proxy: parsedProxy,
+			Proxy:                 http.ProxyURL(parsedProxyURL),
+			MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   10,
+			IdleConnTimeout:       120 * time.Second,
+			TLSHandshakeTimeout:   15 * time.Second,
+			ResponseHeaderTimeout: 60 * time.Second,
+			ForceAttemptHTTP2:     true,
 		},
 	}
 	return httpClient, nil

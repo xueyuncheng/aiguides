@@ -30,13 +30,14 @@ var taskAgentInstruction string
 var systemAgentInstruction string
 
 type toolPartition struct {
-	Common []tool.Tool
-	Web    []tool.Tool
-	Comms  []tool.Tool
-	Media  []tool.Tool
-	File   []tool.Tool
-	Task   []tool.Tool
-	System []tool.Tool
+	Common   []tool.Tool
+	Web      []tool.Tool
+	Comms    []tool.Tool
+	Media    []tool.Tool
+	File     []tool.Tool
+	Task     []tool.Tool
+	System   []tool.Tool
+	Research []tool.Tool
 }
 
 func partitionTools(allTools []tool.Tool) toolPartition {
@@ -46,10 +47,12 @@ func partitionTools(allTools []tool.Tool) toolPartition {
 		case "current_time":
 			p.Common = append(p.Common, t)
 			p.Web = append(p.Web, t)
+			p.Research = append(p.Research, t)
 		case "manage_memory":
 			p.Common = append(p.Common, t)
 		case "web_search", "exa_search", "web_fetch":
 			p.Web = append(p.Web, t)
+			p.Research = append(p.Research, t)
 		case "query_emails", "send_email", "manage_calendar":
 			p.Comms = append(p.Comms, t)
 		case "generate_image", "generate_video", "audio_transcribe",
@@ -69,7 +72,7 @@ func partitionTools(allTools []tool.Tool) toolPartition {
 	return p
 }
 
-func buildSubAgents(p toolPartition, m model.LLM) ([]agent.Agent, error) {
+func buildSubAgents(p toolPartition, m model.LLM, thinkingBudget int32) ([]agent.Agent, error) {
 	type subAgentDef struct {
 		name        string
 		description string
@@ -121,25 +124,42 @@ func buildSubAgents(p toolPartition, m model.LLM) ([]agent.Agent, error) {
 		if len(def.tools) == 0 {
 			continue
 		}
-		a, err := createSubAgent(def.name, def.description, def.instruction, def.tools, m)
+		a, err := createSubAgent(def.name, def.description, def.instruction, def.tools, m, thinkingBudget)
 		if err != nil {
 			return nil, err
 		}
 		agents = append(agents, a)
 	}
+	// Build the deep research agent using workflow agents (SequentialAgent + LoopAgent).
+	if len(p.Research) > 0 {
+		deepResearch, err := buildDeepResearchAgent(p.Research, m, thinkingBudget)
+		if err != nil {
+			return nil, fmt.Errorf("failed to build deep_research_agent: %w", err)
+		}
+		agents = append(agents, deepResearch)
+	}
+
 	return agents, nil
 }
 
-func createSubAgent(name, description, instruction string, tools []tool.Tool, m model.LLM) (agent.Agent, error) {
+func newThinkingConfig(budget int32) *genai.ThinkingConfig {
+	cfg := &genai.ThinkingConfig{
+		IncludeThoughts: true,
+	}
+	if budget > 0 {
+		cfg.ThinkingBudget = &budget
+	}
+	return cfg
+}
+
+func createSubAgent(name, description, instruction string, tools []tool.Tool, m model.LLM, thinkingBudget int32) (agent.Agent, error) {
 	cfg := llmagent.Config{
 		Name:        name,
 		Model:       m,
 		Description: description,
 		Instruction: instruction,
 		GenerateContentConfig: &genai.GenerateContentConfig{
-			ThinkingConfig: &genai.ThinkingConfig{
-				IncludeThoughts: true,
-			},
+			ThinkingConfig: newThinkingConfig(thinkingBudget),
 		},
 		Tools: tools,
 	}

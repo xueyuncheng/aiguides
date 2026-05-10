@@ -30,7 +30,7 @@ func NewAssistantAgent(config *Config) (agent.Agent, error) {
 
 	partition := partitionTools(allTools)
 
-	subAgents, err := buildSubAgents(partition, config.Model)
+	subAgents, err := buildSubAgents(partition, config.Model, config.ThinkingBudget)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build sub-agents: %w", err)
 	}
@@ -41,9 +41,7 @@ func NewAssistantAgent(config *Config) (agent.Agent, error) {
 		Description: "AI assistant that answers questions and delegates to specialized sub-agents",
 		Instruction: assistantAgentInstruction,
 		GenerateContentConfig: &genai.GenerateContentConfig{
-			ThinkingConfig: &genai.ThinkingConfig{
-				IncludeThoughts: true,
-			},
+			ThinkingConfig: newThinkingConfig(config.ThinkingBudget),
 		},
 		Tools:     partition.Common,
 		SubAgents: subAgents,

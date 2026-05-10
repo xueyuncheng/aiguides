@@ -100,21 +100,23 @@ type liveToolContext struct {
 	context.Context
 }
 
-func (c *liveToolContext) UserContent() *genai.Content                                              { return nil }
-func (c *liveToolContext) InvocationID() string                                                     { return "" }
-func (c *liveToolContext) AgentName() string                                                        { return "assistant" }
-func (c *liveToolContext) ReadonlyState() session.ReadonlyState                                     { return nil }
-func (c *liveToolContext) UserID() string                                                           { return "" }
-func (c *liveToolContext) AppName() string                                                          { return "" }
-func (c *liveToolContext) SessionID() string                                                        { return "" }
-func (c *liveToolContext) Branch() string                                                           { return "" }
-func (c *liveToolContext) Artifacts() agent.Artifacts                                               { return nil }
-func (c *liveToolContext) State() session.State                                                     { return nil }
-func (c *liveToolContext) FunctionCallID() string                                                   { return "" }
-func (c *liveToolContext) Actions() *session.EventActions                                           { return &session.EventActions{} }
-func (c *liveToolContext) SearchMemory(_ context.Context, _ string) (*memory.SearchResponse, error) { return nil, nil }
-func (c *liveToolContext) ToolConfirmation() *toolconfirmation.ToolConfirmation                    { return nil }
-func (c *liveToolContext) RequestConfirmation(_ string, _ any) error                               { return nil }
+func (c *liveToolContext) UserContent() *genai.Content          { return nil }
+func (c *liveToolContext) InvocationID() string                 { return "" }
+func (c *liveToolContext) AgentName() string                    { return "assistant" }
+func (c *liveToolContext) ReadonlyState() session.ReadonlyState { return nil }
+func (c *liveToolContext) UserID() string                       { return "" }
+func (c *liveToolContext) AppName() string                      { return "" }
+func (c *liveToolContext) SessionID() string                    { return "" }
+func (c *liveToolContext) Branch() string                       { return "" }
+func (c *liveToolContext) Artifacts() agent.Artifacts           { return nil }
+func (c *liveToolContext) State() session.State                 { return nil }
+func (c *liveToolContext) FunctionCallID() string               { return "" }
+func (c *liveToolContext) Actions() *session.EventActions       { return &session.EventActions{} }
+func (c *liveToolContext) SearchMemory(_ context.Context, _ string) (*memory.SearchResponse, error) {
+	return nil, nil
+}
+func (c *liveToolContext) ToolConfirmation() *toolconfirmation.ToolConfirmation { return nil }
+func (c *liveToolContext) RequestConfirmation(_ string, _ any) error            { return nil }
 
 func summarizeToolResponse(ctx context.Context, client *genai.Client, modelName, toolName string, data []byte) (map[string]any, error) {
 	if client == nil || modelName == "" {

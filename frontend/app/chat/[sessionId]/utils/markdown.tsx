@@ -147,6 +147,26 @@ export const CodeBlock = ({ className, children }: { className?: string; childre
 
 // Markdown components configuration
 export const markdownComponents: Components = {
+  h1: ({ children, ...props }) => (
+    <h1 {...props} className="text-2xl font-bold mt-6 mb-3 pb-1 border-b border-border">
+      {children}
+    </h1>
+  ),
+  h2: ({ children, ...props }) => (
+    <h2 {...props} className="text-xl font-bold mt-5 mb-2">
+      {children}
+    </h2>
+  ),
+  h3: ({ children, ...props }) => (
+    <h3 {...props} className="text-lg font-semibold mt-4 mb-2">
+      {children}
+    </h3>
+  ),
+  h4: ({ children, ...props }) => (
+    <h4 {...props} className="text-base font-semibold mt-3 mb-1">
+      {children}
+    </h4>
+  ),
   blockquote: ({ children, ...props }) => (
     <blockquote
       {...props}
@@ -220,5 +240,13 @@ export const markdownComponents: Components = {
   ),
   ol: ({ ...props }) => (
     <ol {...props} className="list-decimal pl-6 space-y-1 my-4 text-sm" />
+  ),
+  hr: ({ ...props }) => (
+    <hr {...props} className="my-6 border-t border-border" />
+  ),
+  p: ({ children, ...props }) => (
+    <p {...props} className="my-2 text-sm leading-relaxed">
+      {children}
+    </p>
   ),
 };

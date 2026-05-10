@@ -1,17 +1,26 @@
 import { useState, useEffect, useRef, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/app/components/ui/button';
-import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { Code2, Eye, Copy, Check, X, ChevronDown, ChevronRight, RotateCcw, Search } from 'lucide-react';
 import { TTSButton } from './TTSButton';
 import { cn } from '@/app/lib/utils';
 import { markdownRemarkPlugins, markdownRehypePlugins, markdownComponents, preprocessMarkdown } from '../utils/markdown';
-import { FEEDBACK_TIMEOUT_MS } from '../constants';
+import { FEEDBACK_TIMEOUT_MS, DEEP_RESEARCH_AGENTS } from '../constants';
 import type { ToolCallItem } from '../types';
+
+const BounceDots = ({ className = 'bg-primary' }: { className?: string }) => (
+  <div className="flex space-x-0.5 shrink-0">
+    <div className={`w-1 h-1 rounded-full animate-bounce [animation-delay:-0.3s] ${className}`} />
+    <div className={`w-1 h-1 rounded-full animate-bounce [animation-delay:-0.15s] ${className}`} />
+    <div className={`w-1 h-1 rounded-full animate-bounce ${className}`} />
+  </div>
+);
 
 interface AIMessageContentProps {
   content: string;
   thought?: string;
   id?: string;
+  author?: string;
   isStreaming?: boolean;
   images?: string[];
   videos?: string[];
@@ -25,6 +34,7 @@ export const AIMessageContent = memo(({
   content,
   thought,
   id,
+  author,
   isStreaming,
   images,
   videos,
@@ -148,102 +158,159 @@ export const AIMessageContent = memo(({
     })()
   );
 
+  const isDeepResearch = author ? DEEP_RESEARCH_AGENTS.has(author) : false;
+  const researchSourceCount = isDeepResearch && toolCalls
+    ? toolCalls.filter((tc) => ['web_search', 'exa_search', 'web_fetch'].includes(tc.toolName)).length
+    : 0;
+
   return (
     <div className="group">
-      {/* Thought Process section */}
-      {thought && (
-        <div className="mb-4">
-          <button
-            onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
-            className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border border-muted-foreground/20 bg-muted/50"
-            aria-expanded={isThoughtExpanded}
-          >
-            {isThoughtExpanded ? (
-              <ChevronDown className="h-3 w-3" />
-            ) : (
-              <ChevronRight className="h-3 w-3" />
-            )}
-            <span>{isStreaming && !content ? '思考中' : '查看思考过程'}</span>
-            {isStreaming && !content && (
-              <div className="flex space-x-0.5 ml-1">
-                <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                <div className="w-1 h-1 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                <div className="w-1 h-1 bg-primary rounded-full animate-bounce"></div>
-              </div>
-            )}
-          </button>
-
-          <div className={cn(
-            "mt-3 overflow-hidden transition-all duration-300 ease-in-out",
-            isThoughtExpanded ? "max-h-[99999px] opacity-100" : "max-h-0 opacity-0"
-          )}>
-            <div className="text-xs text-muted-foreground/90 leading-relaxed pl-4 border-l-2 border-primary/20 py-1 whitespace-pre-wrap bg-muted/20 rounded-r-md max-h-[600px] overflow-y-auto">
-              {thought}
-              {isStreaming && (
-                <span className="inline-block w-1 h-3 ml-1 bg-primary animate-pulse align-middle" />
+      {isDeepResearch ? (
+        /* Unified deep research panel */
+        (thought || (toolCalls && toolCalls.length > 0)) && (
+          <div className="mb-4">
+            <button
+              onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
+              className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border border-muted-foreground/20 bg-muted/50"
+              aria-expanded={isThoughtExpanded}
+            >
+              {isThoughtExpanded ? (
+                <ChevronDown className="h-3 w-3" />
+              ) : (
+                <ChevronRight className="h-3 w-3" />
               )}
+              <Search className="h-3 w-3" />
+              <span>
+                {isStreaming && !content
+                  ? '深度研究中'
+                  : `深度研究 · ${researchSourceCount > 0 ? `检索了 ${researchSourceCount} 个来源` : '研究完成'}`}
+              </span>
+              {isStreaming && !content && (
+                <BounceDots />
+              )}
+            </button>
+
+            <div className={cn(
+              "mt-3 overflow-hidden transition-all duration-300 ease-in-out",
+              isThoughtExpanded ? "max-h-[99999px] opacity-100" : "max-h-0 opacity-0"
+            )}>
+              <div className="border border-muted-foreground/10 rounded-md overflow-hidden">
+                {/* Tool calls inside panel */}
+                {toolCalls && toolCalls.length > 0 && (
+                  <div className="flex flex-col">
+                    {toolCalls.map((tc, i) => (
+                      <div key={i} className="text-xs text-muted-foreground flex items-center gap-2 px-3 py-1.5 border-b border-muted-foreground/5 last:border-b-0">
+                        {isStreaming && tc.status === 'running' ? (
+                          <BounceDots className="bg-primary/60" />
+                        ) : (
+                          <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                        )}
+                        <span className="min-w-0 flex-1 break-all">{tc.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* Thought content inside panel */}
+                {thought && (
+                  <div className="text-xs text-muted-foreground/90 leading-relaxed px-3 py-2 border-t border-muted-foreground/10 whitespace-pre-wrap bg-muted/20 max-h-[400px] overflow-y-auto">
+                    {thought}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Tool calls section */}
-      {toolCalls && toolCalls.length > 0 && (
-        <div className="mb-3 flex flex-col gap-1.5">
-          {toolCalls.map((tc, i) => {
-            const audioProgress = tc.toolName === 'audio_transcribe' ? getAudioTranscriptProgress(tc.result) : null;
-
-            return (
-              <div
-                key={i}
-                className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
+        )
+      ) : (
+        /* Regular thought + tool calls (non-research messages) */
+        <>
+          {/* Thought Process section */}
+          {thought && (
+            <div className="mb-4">
+              <button
+                onClick={() => setIsThoughtExpanded(!isThoughtExpanded)}
+                className="flex items-center gap-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 px-3 rounded-md border border-muted-foreground/20 bg-muted/50"
+                aria-expanded={isThoughtExpanded}
               >
-                <div className="flex items-center gap-2 px-3 py-1.5">
-                {isStreaming && tc.status === 'running' ? (
-                  <div className="flex space-x-0.5 shrink-0">
-                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <div className="w-1 h-1 bg-primary/60 rounded-full animate-bounce" />
-                  </div>
+                {isThoughtExpanded ? (
+                  <ChevronDown className="h-3 w-3" />
                 ) : (
-                  <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                  <ChevronRight className="h-3 w-3" />
                 )}
-                <span className="min-w-0 flex-1 break-all">{tc.label}</span>
-                {tc.args && Object.keys(tc.args).length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => toggleToolArgs(i)}
-                    className="inline-flex items-center gap-1 rounded border border-muted-foreground/15 px-2 py-0.5 text-[11px] hover:bg-muted/60 transition-colors shrink-0"
-                    aria-expanded={expandedToolCallIndexes.includes(i)}
-                  >
-                    {expandedToolCallIndexes.includes(i) ? (
-                      <ChevronDown className="h-3 w-3" />
-                    ) : (
-                      <ChevronRight className="h-3 w-3" />
-                    )}
-                    <span>参数</span>
-                  </button>
+                <span>{isStreaming && !content ? '思考中' : '查看思考过程'}</span>
+                {isStreaming && !content && (
+                  <BounceDots />
                 )}
+              </button>
+
+              <div className={cn(
+                "mt-3 overflow-hidden transition-all duration-300 ease-in-out",
+                isThoughtExpanded ? "max-h-[99999px] opacity-100" : "max-h-0 opacity-0"
+              )}>
+                <div className="text-xs text-muted-foreground/90 leading-relaxed pl-4 border-l-2 border-primary/20 py-1 whitespace-pre-wrap bg-muted/20 rounded-r-md max-h-[600px] overflow-y-auto">
+                  {thought}
+                  {isStreaming && (
+                    <span className="inline-block w-1 h-3 ml-1 bg-primary animate-pulse align-middle" />
+                  )}
                 </div>
-                {audioProgress && (
-                  <div className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2">
-                    {audioProgress.progressLabel && (
-                      <div className="mb-1 text-[11px] text-muted-foreground/80">{audioProgress.progressLabel}</div>
-                    )}
-                    <pre className="max-h-48 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-foreground/90">
-                      {audioProgress.transcript}
-                    </pre>
-                  </div>
-                )}
-                {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
-                  <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
-                    {formatToolArgs(tc.args)}
-                  </pre>
-                )}
               </div>
-            );
-          })}
-        </div>
+            </div>
+          )}
+
+          {/* Tool calls section */}
+          {toolCalls && toolCalls.length > 0 && (
+            <div className="mb-3 flex flex-col gap-1.5">
+              {toolCalls.map((tc, i) => {
+                const audioProgress = tc.toolName === 'audio_transcribe' ? getAudioTranscriptProgress(tc.result) : null;
+
+                return (
+                  <div
+                    key={i}
+                    className="text-xs text-muted-foreground bg-muted/40 border border-muted-foreground/10 rounded-md overflow-hidden max-w-full"
+                  >
+                    <div className="flex items-center gap-2 px-3 py-1.5">
+                    {isStreaming && tc.status === 'running' ? (
+                      <BounceDots className="bg-primary/60" />
+                    ) : (
+                      <Check className="h-3 w-3 shrink-0 text-emerald-600" />
+                    )}
+                    <span className="min-w-0 flex-1 break-all">{tc.label}</span>
+                    {tc.args && Object.keys(tc.args).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleToolArgs(i)}
+                        className="inline-flex items-center gap-1 rounded border border-muted-foreground/15 px-2 py-0.5 text-[11px] hover:bg-muted/60 transition-colors shrink-0"
+                        aria-expanded={expandedToolCallIndexes.includes(i)}
+                      >
+                        {expandedToolCallIndexes.includes(i) ? (
+                          <ChevronDown className="h-3 w-3" />
+                        ) : (
+                          <ChevronRight className="h-3 w-3" />
+                        )}
+                        <span>参数</span>
+                      </button>
+                    )}
+                    </div>
+                    {audioProgress && (
+                      <div className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2">
+                        {audioProgress.progressLabel && (
+                          <div className="mb-1 text-[11px] text-muted-foreground/80">{audioProgress.progressLabel}</div>
+                        )}
+                        <pre className="max-h-48 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-foreground/90">
+                          {audioProgress.transcript}
+                        </pre>
+                      </div>
+                    )}
+                    {tc.args && Object.keys(tc.args).length > 0 && expandedToolCallIndexes.includes(i) && (
+                      <pre className="border-t border-muted-foreground/10 bg-background/70 px-3 py-2 overflow-x-auto whitespace-pre-wrap break-all text-[11px] leading-relaxed">
+                        {formatToolArgs(tc.args)}
+                      </pre>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* Content display */}

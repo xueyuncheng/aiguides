@@ -11,11 +11,11 @@ import (
 	"sync"
 
 	"golang.org/x/oauth2"
-	adktool "google.golang.org/adk/tool"
 	"google.golang.org/adk/model"
 	"google.golang.org/adk/runner"
 	"google.golang.org/adk/session"
 	"google.golang.org/adk/session/database"
+	adktool "google.golang.org/adk/tool"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -41,6 +41,8 @@ type Assistant struct {
 	scheduler      *Scheduler
 
 	authService *auth.AuthService
+
+	thinkingBudget int32
 
 	liveClient     *genai.Client
 	liveClientOnce sync.Once
@@ -70,6 +72,7 @@ type Config struct {
 	BaseURL           string
 	HTTPClient        *http.Client
 	LiveModel         string
+	ThinkingBudget    int32
 	OAuthConfig       *oauth2.Config
 }
 
@@ -112,6 +115,7 @@ func New(config *Config) (*Assistant, error) {
 		exaConfig:           config.ExaConfig,
 		fileStore:           config.FileStore,
 		pdfWorkDir:          config.PDFWorkDir,
+		thinkingBudget:      config.ThinkingBudget,
 		liveModel:           config.LiveModel,
 		apiKey:              config.APIKey,
 		baseURL:             config.BaseURL,
