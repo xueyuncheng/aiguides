@@ -123,14 +123,31 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
           >
           {message.role === 'assistant' ? (
             <div className="w-full">
-              {message.isVoiceMessage && message.isStreaming ? (
-                <AudioWaveform className="text-zinc-400 dark:text-zinc-500 mb-2" />
-              ) : resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl) ? (
-                <VoiceAudioPlayer
-                  audioUrl={resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl)!}
-                  className="max-w-sm mb-2"
-                />
-              ) : null}
+              {(message.isVoiceMessage || resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl)) ? (
+                <div className="flex flex-col gap-1">
+                  {message.isVoiceMessage && message.isStreaming ? (
+                    <AudioWaveform className="text-zinc-400 dark:text-zinc-500" />
+                  ) : resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl) ? (
+                    <VoiceAudioPlayer
+                      audioUrl={resolveVoiceAudioUrl(message.voiceAudioFileId, message.voiceAudioUrl)!}
+                      className="max-w-sm"
+                    />
+                  ) : null}
+                  <div className="relative text-sm leading-relaxed" data-ai-message="">
+                    <AIMessageContent
+                      id={message.id}
+                      content={message.content}
+                      thought={message.thought}
+                      isStreaming={message.isStreaming}
+                      images={message.images}
+                      videos={message.videos}
+                      isError={message.isError}
+                      onRetry={onRetry}
+                      toolCalls={message.toolCalls}
+                    />
+                  </div>
+                </div>
+              ) : (
               <div className="relative text-sm w-full leading-relaxed" data-ai-message="">
                 <AIMessageContent
                   id={message.id}
@@ -144,6 +161,7 @@ export const ChatMessagesPane = memo(function ChatMessagesPane({
                   toolCalls={message.toolCalls}
                 />
               </div>
+              )}
             </div>
           ) : (
             <div className="flex gap-2 sm:gap-3 md:gap-4 max-w-[95%] sm:max-w-[90%] md:max-w-[85%] min-w-0 flex-row-reverse">
