@@ -8,12 +8,11 @@ import (
 	"google.golang.org/adk/runner"
 )
 
-// baseAgentConfig builds an AssistantAgentConfig from the assistant's fields.
-// Both createRunner and createExecutorRunner use this to avoid repeating the
-// same field assignments.
-func (a *Assistant) baseAgentConfig() *AssistantAgentConfig {
-	return &AssistantAgentConfig{
+// baseAgentConfig builds a Config from the assistant's fields for agent creation.
+func (a *Assistant) baseAgentConfig() *Config {
+	return &Config{
 		Model:           a.model,
+		ModelName:       a.modelName,
 		GenaiClient:     a.genaiClient,
 		DB:              a.db,
 		MockImageGen:    a.mockImageGeneration,

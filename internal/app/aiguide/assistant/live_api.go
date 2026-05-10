@@ -306,7 +306,7 @@ func (a *Assistant) receiveFromGeminiWithTracking(ctx context.Context, writeCh c
 			writeCh <- wsServerMessage{Type: serverMsgTypeToolCallStart}
 			responses := make([]*genai.FunctionResponse, 0, len(msg.ToolCall.FunctionCalls))
 			for _, call := range msg.ToolCall.FunctionCalls {
-				responses = append(responses, executeLiveTool(toolCtx, registry, call))
+				responses = append(responses, executeLiveTool(toolCtx, registry, call, a.genaiClient, a.modelName))
 			}
 			writeCh <- wsServerMessage{Type: serverMsgTypeToolCallEnd}
 			select {

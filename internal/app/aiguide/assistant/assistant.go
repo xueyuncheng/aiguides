@@ -46,6 +46,7 @@ type Assistant struct {
 	liveClientOnce sync.Once
 	liveClientErr  error
 	liveModel      string
+	modelName      string
 	apiKey         string
 	baseURL        string
 	httpClient     *http.Client
@@ -53,21 +54,23 @@ type Assistant struct {
 }
 
 type Config struct {
-	Model               model.LLM
-	DB                  *gorm.DB
-	GenaiClient         *genai.Client
-	MockImageGeneration bool
-	MockVideoGeneration bool
-	FrontendURL         string
-	WebSearchConfig     tools.WebSearchConfig
-	ExaConfig           tools.ExaConfig
-	FileStore           storage.FileStore
-	PDFWorkDir          string
-	APIKey              string
-	BaseURL             string
-	HTTPClient          *http.Client
-	LiveModel           string
-	OAuthConfig         *oauth2.Config
+	Model             model.LLM
+	ModelName         string
+	DB                *gorm.DB
+	GenaiClient       *genai.Client
+	MockImageGen      bool
+	MockVideoGen      bool
+	MockEmailIMAPConn bool
+	FrontendURL       string
+	WebSearchConfig   tools.WebSearchConfig
+	ExaConfig         tools.ExaConfig
+	FileStore         storage.FileStore
+	PDFWorkDir        string
+	APIKey            string
+	BaseURL           string
+	HTTPClient        *http.Client
+	LiveModel         string
+	OAuthConfig       *oauth2.Config
 }
 
 func New(config *Config) (*Assistant, error) {
@@ -97,9 +100,10 @@ func New(config *Config) (*Assistant, error) {
 	}
 
 	assistant := &Assistant{
-		mockImageGeneration: config.MockImageGeneration,
-		mockVideoGeneration: config.MockVideoGeneration,
+		mockImageGeneration: config.MockImageGen,
+		mockVideoGeneration: config.MockVideoGen,
 		model:               config.Model,
+		modelName:           config.ModelName,
 		session:             session,
 		db:                  config.DB,
 		genaiClient:         config.GenaiClient,
@@ -115,19 +119,7 @@ func New(config *Config) (*Assistant, error) {
 		oauthConfig:         config.OAuthConfig,
 	}
 
-	allTools, err := createAssistantTools(&AssistantAgentConfig{
-		Model:           config.Model,
-		GenaiClient:     config.GenaiClient,
-		DB:              config.DB,
-		MockImageGen:    config.MockImageGeneration,
-		MockVideoGen:    config.MockVideoGeneration,
-		WebSearchConfig: config.WebSearchConfig,
-		ExaConfig:       config.ExaConfig,
-		FileStore:       config.FileStore,
-		PDFWorkDir:      config.PDFWorkDir,
-		OAuthConfig:     config.OAuthConfig,
-		HTTPClient:      config.HTTPClient,
-	})
+	allTools, err := createAssistantTools(config)
 	if err != nil {
 		return nil, fmt.Errorf("createAssistantTools() for live: %w", err)
 	}
