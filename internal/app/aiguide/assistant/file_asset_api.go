@@ -26,7 +26,7 @@ func (a *Assistant) DownloadFile(ctx *gin.Context) {
 
 	fileID, err := strconv.Atoi(ctx.Param("fileId"))
 	if err != nil || fileID <= 0 {
-		slog.Error("strconv.Atoi() error", "file_id", ctx.Param("fileId"), "err", err)
+		slog.Error("failed to parse file id", "file_id", ctx.Param("fileId"), "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid file id"})
 		return
 	}
@@ -40,7 +40,7 @@ func (a *Assistant) DownloadFile(ctx *gin.Context) {
 	var asset table.FileAsset
 	if err := a.db.Where("id = ? AND user_id = ?", fileID, userID).First(&asset).Error; err != nil {
 		if err != gorm.ErrRecordNotFound {
-			slog.Error("db.First() error", "file_id", fileID, "user_id", userID, "err", err)
+			slog.Error("failed to query file asset", "file_id", fileID, "user_id", userID, "err", err)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load file"})
 			return
 		}
@@ -54,7 +54,7 @@ func (a *Assistant) DownloadFile(ctx *gin.Context) {
 
 	rc, err := a.fileStore.Open(ctx, asset.StoragePath)
 	if err != nil {
-		slog.Error("fileStore.Open() error", "storage_path", asset.StoragePath, "err", err)
+		slog.Error("failed to open file from storage", "storage_path", asset.StoragePath, "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to open file"})
 		return
 	}
@@ -66,7 +66,7 @@ func (a *Assistant) DownloadFile(ctx *gin.Context) {
 	ctx.Header("Content-Length", strconv.FormatInt(asset.SizeBytes, 10))
 
 	if _, err := io.Copy(ctx.Writer, rc); err != nil {
-		slog.Error("io.Copy() error", "file_id", fileID, "err", err)
+		slog.Error("failed to write file to response", "file_id", fileID, "err", err)
 	}
 }
 

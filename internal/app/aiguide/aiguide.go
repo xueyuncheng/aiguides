@@ -94,7 +94,7 @@ func (a *AIGuide) secureCookie() bool {
 func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	httpClient, err := getHTTPClient(config.Proxy)
 	if err != nil {
-		return nil, fmt.Errorf("getHTTPClient() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create http client: %w", err)
 	}
 
 	genaiConfig := &genai.ClientConfig{
@@ -108,14 +108,14 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	// 创建 genai client，用于图片生成等功能
 	genaiClient, err := genai.NewClient(ctx, genaiConfig)
 	if err != nil {
-		slog.Error("genai.NewClient() error", "err", err)
-		return nil, fmt.Errorf("genai.NewClient() error, err = %w", err)
+		slog.Error("failed to create genai client", "err", err)
+		return nil, fmt.Errorf("failed to create genai client: %w", err)
 	}
 
 	model, err := gemini.NewModel(ctx, config.ModelName, genaiConfig)
 	if err != nil {
-		slog.Error("gemini.NewModel() error", "err", err)
-		return nil, fmt.Errorf("gemini.NewModel() error, err = %w", err)
+		slog.Error("failed to create gemini model", "err", err)
+		return nil, fmt.Errorf("failed to create gemini model: %w", err)
 	}
 
 	// Enable WAL journal mode and a generous busy timeout so concurrent
@@ -130,8 +130,8 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	db, err := gorm.Open(dialector, dbConfig)
 	if err != nil {
-		slog.Error("gorm.Open() error", "err", err)
-		return nil, fmt.Errorf("gorm.Open() error, err = %w", err)
+		slog.Error("failed to open database", "err", err)
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
 	migrator := migration.New(db)
@@ -167,7 +167,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 	fileStore, err := storage.NewLocalFileStore(fileStorageDir)
 	if err != nil {
-		return nil, fmt.Errorf("storage.NewLocalFileStore() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create file store: %w", err)
 	}
 	assistantConfig.FileStore = fileStore
 
@@ -188,7 +188,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	assistant, err := assistant.New(assistantConfig)
 	if err != nil {
-		return nil, fmt.Errorf("assistant.New() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create assistant: %w", err)
 	}
 
 	guide := &AIGuide{
@@ -201,7 +201,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 
 	rdb, err := redis.New(ctx, config.Redis)
 	if err != nil {
-		return nil, fmt.Errorf("redis.New() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create redis client: %w", err)
 	}
 
 	guide.redisClient = rdb
@@ -221,8 +221,8 @@ func getHTTPClient(proxy string) (*http.Client, error) {
 
 	parsedProxyURL, err := url.Parse(proxy)
 	if err != nil {
-		slog.Error("url.Parse() error", "err", err)
-		return nil, fmt.Errorf("url.Parse() error, err = %w", err)
+		slog.Error("failed to parse proxy url", "err", err)
+		return nil, fmt.Errorf("failed to parse proxy url: %w", err)
 	}
 	httpClient := &http.Client{
 		Transport: &http.Transport{
@@ -240,21 +240,21 @@ func getHTTPClient(proxy string) (*http.Client, error) {
 
 func (a *AIGuide) Run(ctx context.Context) error {
 	if err := a.migrator.Run(); err != nil {
-		return fmt.Errorf("a.migrator.Run() error, err = %w", err)
+		return fmt.Errorf("failed to run database migration: %w", err)
 	}
 
 	if err := a.assistant.Run(ctx); err != nil {
-		return fmt.Errorf("a.agentManager.Run() error, err = %w", err)
+		return fmt.Errorf("failed to start assistant: %w", err)
 	}
 
 	engine := gin.Default()
 	if err := a.initRouter(engine); err != nil {
-		return fmt.Errorf("a.initRouter() error, err = %w", err)
+		return fmt.Errorf("failed to initialize router: %w", err)
 	}
 
 	slog.Info("http listen", "port", a.config.GinPort)
 	if err := engine.Run(":" + a.config.GinPort); err != nil {
-		slog.Error("engine.Run() error", "err", err)
+		slog.Error("failed to start http server", "err", err)
 	}
 
 	return nil

@@ -56,7 +56,7 @@ func (a *Assistant) CreateShare(ctx *gin.Context) {
 
 	var req CreateShareRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind create share request", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -77,7 +77,7 @@ func (a *Assistant) CreateShare(ctx *gin.Context) {
 
 	getResp, err := a.session.Get(ctx, getReq)
 	if err != nil {
-		slog.Error("session.Get() error", "err", err)
+		slog.Error("failed to get session for sharing", "err", err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "session not found or access denied"})
 		return
 	}
@@ -103,7 +103,7 @@ func (a *Assistant) CreateShare(ctx *gin.Context) {
 	}
 
 	if err := a.db.Create(&sharedConv).Error; err != nil {
-		slog.Error("a.db.Create() error", "err", err)
+		slog.Error("failed to create share record", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create share link"})
 		return
 	}
@@ -133,7 +133,7 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 	// Look up the shared conversation
 	var sharedConv table.SharedConversation
 	if err := a.db.Where("share_id = ?", shareID).First(&sharedConv).Error; err != nil {
-		slog.Error("a.db.Where().First() error", "share_id", shareID, "err", err)
+		slog.Error("failed to find shared conversation", "share_id", shareID, "err", err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "shared conversation not found"})
 		return
 	}
@@ -161,7 +161,7 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 
 	getResp, err := a.session.Get(ctx, getReq)
 	if err != nil {
-		slog.Error("session.Get() error", "err", err)
+		slog.Error("failed to get shared session data", "err", err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "conversation not found"})
 		return
 	}
@@ -173,7 +173,7 @@ func (a *Assistant) GetSharedConversation(ctx *gin.Context) {
 	if err := a.db.Where("session_id = ?", sharedConv.SessionID).First(&meta).Error; err == nil {
 		title = meta.Title
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		slog.Error("a.db.Where().First() session meta error", "session_id", sharedConv.SessionID, "err", err)
+		slog.Error("failed to query session meta for share", "session_id", sharedConv.SessionID, "err", err)
 	}
 
 	// Build message events from session
@@ -212,14 +212,14 @@ func (a *Assistant) DeleteShare(ctx *gin.Context) {
 	// Find the shared conversation and verify ownership
 	var sharedConv table.SharedConversation
 	if err := a.db.Where("share_id = ? AND user_id = ?", shareID, userID).First(&sharedConv).Error; err != nil {
-		slog.Error("a.db.Where().First() error", "share_id", shareID, "user_id", userID, "err", err)
+		slog.Error("failed to find share for deletion", "share_id", shareID, "user_id", userID, "err", err)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "shared conversation not found or access denied"})
 		return
 	}
 
 	// Delete the share
 	if err := a.db.Delete(&sharedConv).Error; err != nil {
-		slog.Error("a.db.Delete() error", "err", err)
+		slog.Error("failed to delete share record", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete share link"})
 		return
 	}
@@ -247,7 +247,7 @@ func (a *Assistant) ListShares(ctx *gin.Context) {
 	}
 
 	if err := query.Order("created_at DESC").Find(&shares).Error; err != nil {
-		slog.Error("query.Find() error", "err", err)
+		slog.Error("failed to query share records", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list share links"})
 		return
 	}

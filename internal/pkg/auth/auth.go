@@ -107,7 +107,7 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 	client := s.oauthConfig.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	if err != nil {
-		slog.Error("client.Get() error", "err", err)
+		slog.Error("failed to fetch user info from google", "err", err)
 		return nil, fmt.Errorf("failed to get user info: %w", err)
 	}
 	defer resp.Body.Close()
@@ -120,7 +120,7 @@ func (s *AuthService) GetGoogleUser(ctx context.Context, token *oauth2.Token) (*
 
 	var user GoogleUser
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
-		slog.Error("json.NewDecoder().Decode() error", "err", err)
+		slog.Error("failed to decode user info response", "err", err)
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
@@ -239,7 +239,7 @@ func (s *AuthService) ValidateToken(tokenString string, expectedType string) (*C
 func GenerateStateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
-		slog.Error("rand.Read() error", "err", err)
+		slog.Error("failed to generate random state token", "err", err)
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil

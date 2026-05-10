@@ -71,7 +71,6 @@ func (s *Scheduler) tick(ctx context.Context) {
 	}
 
 	for _, task := range tasks {
-		task := task // capture loop variable
 
 		// Pre-advance next_run_at (or disable for once-tasks) before
 		// dispatching. This prevents double-dispatch if the task takes
@@ -107,7 +106,7 @@ func (s *Scheduler) advanceNextRunAt(task table.ScheduledTask, now time.Time) er
 	}
 	nextRunAt, err := tools.CalculateNextRunAt(now, input)
 	if err != nil {
-		return fmt.Errorf("CalculateNextRunAt() error: %w", err)
+		return fmt.Errorf("failed to calculate next run time: %w", err)
 	}
 
 	return s.db.Model(&task).Update("next_run_at", nextRunAt).Error
@@ -141,7 +140,7 @@ func (s *Scheduler) dispatch(ctx context.Context, task table.ScheduledTask) erro
 		State:     map[string]any{},
 	}
 	if _, err := s.session.Create(taskCtx, createReq); err != nil {
-		return fmt.Errorf("session.Create() error: %w", err)
+		return fmt.Errorf("failed to create session for scheduled task: %w", err)
 	}
 
 	// Make session_id available in the context so tools that read it

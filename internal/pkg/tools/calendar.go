@@ -79,7 +79,7 @@ type calendarHandler struct {
 func (h *calendarHandler) buildService(ctx context.Context, userID int) (*calendar.Service, error) {
 	var user table.User
 	if err := h.db.WithContext(ctx).Where("id = ?", userID).First(&user).Error; err != nil {
-		slog.Error("db.First() error in calendar tool", "err", err)
+		slog.Error("failed to query user for calendar", "err", err)
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
 
@@ -103,13 +103,13 @@ func (h *calendarHandler) buildService(ctx context.Context, userID int) (*calend
 	}
 	if newToken.RefreshToken != "" && newToken.RefreshToken != user.GoogleOAuthRefreshToken {
 		if updateErr := h.db.Model(&user).Update("google_oauth_refresh_token", newToken.RefreshToken).Error; updateErr != nil {
-			slog.Error("db.Update() failed to persist rotated refresh_token", "err", updateErr)
+			slog.Error("failed to persist rotated refresh token", "err", updateErr)
 		}
 	}
 
 	svc, err := calendar.NewService(ctx, googleoption.WithTokenSource(ts))
 	if err != nil {
-		slog.Error("calendar.NewService() error", "err", err)
+		slog.Error("failed to create calendar service", "err", err)
 		return nil, fmt.Errorf("failed to create calendar service: %w", err)
 	}
 	return svc, nil

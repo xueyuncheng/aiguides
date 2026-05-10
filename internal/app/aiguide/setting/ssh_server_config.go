@@ -65,7 +65,7 @@ func toSSHResponse(cfg table.SSHServerConfig) SSHServerConfigResponse {
 func (s *Setting) CreateSSHServerConfig(c *gin.Context) {
 	var req SSHServerConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.Error("c.ShouldBindJSON() error", "err", err)
+		slog.Error("failed to bind create ssh config request", "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 		return
 	}
@@ -100,7 +100,7 @@ func (s *Setting) CreateSSHServerConfig(c *gin.Context) {
 	}
 
 	if err := s.db.Create(&cfg).Error; err != nil {
-		slog.Error("db.Create() error in CreateSSHServerConfig", "err", err)
+		slog.Error("failed to create ssh server config", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create config: " + err.Error()})
 		return
 	}
@@ -119,7 +119,7 @@ func (s *Setting) ListSSHServerConfigs(c *gin.Context) {
 
 	var configs []table.SSHServerConfig
 	if err := s.db.Where("user_id = ?", userID).Order("is_default DESC, created_at DESC").Find(&configs).Error; err != nil {
-		slog.Error("db.Find() error in ListSSHServerConfigs", "user_id", userID, "err", err)
+		slog.Error("failed to query ssh server configs", "user_id", userID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list configs: " + err.Error()})
 		return
 	}
@@ -143,14 +143,14 @@ func (s *Setting) GetSSHServerConfig(c *gin.Context) {
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		slog.Error("strconv.Atoi() error in GetSSHServerConfig", "id", c.Param("id"), "err", err)
+		slog.Error("failed to parse ssh config id", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
 	var cfg table.SSHServerConfig
 	if err := s.db.Where("id = ? AND user_id = ?", id, userID).First(&cfg).Error; err != nil {
-		slog.Error("db.First() error in GetSSHServerConfig", "config_id", id, "user_id", userID, "err", err)
+		slog.Error("failed to find ssh server config", "config_id", id, "user_id", userID, "err", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
 		return
 	}
@@ -162,7 +162,7 @@ func (s *Setting) GetSSHServerConfig(c *gin.Context) {
 func (s *Setting) UpdateSSHServerConfig(c *gin.Context) {
 	var req SSHServerConfigRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		slog.Error("c.ShouldBindJSON() error in UpdateSSHServerConfig", "err", err)
+		slog.Error("failed to bind update ssh config request", "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request: " + err.Error()})
 		return
 	}
@@ -176,14 +176,14 @@ func (s *Setting) UpdateSSHServerConfig(c *gin.Context) {
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		slog.Error("strconv.Atoi() error in UpdateSSHServerConfig", "id", c.Param("id"), "err", err)
+		slog.Error("failed to parse ssh config id for update", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
 	var cfg table.SSHServerConfig
 	if err := s.db.Where("id = ? AND user_id = ?", id, userID).First(&cfg).Error; err != nil {
-		slog.Error("db.First() error in UpdateSSHServerConfig", "config_id", id, "user_id", userID, "err", err)
+		slog.Error("failed to find ssh config for update", "config_id", id, "user_id", userID, "err", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "config not found"})
 		return
 	}
@@ -193,7 +193,7 @@ func (s *Setting) UpdateSSHServerConfig(c *gin.Context) {
 		if err := s.db.Model(&table.SSHServerConfig{}).
 			Where("user_id = ? AND id != ?", userID, id).
 			Update("is_default", false).Error; err != nil {
-			slog.Error("db.Update() error clearing is_default in UpdateSSHServerConfig", "user_id", userID, "id", id, "err", err)
+			slog.Error("failed to clear default ssh config", "user_id", userID, "id", id, "err", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update default config"})
 			return
 		}
@@ -223,7 +223,7 @@ func (s *Setting) UpdateSSHServerConfig(c *gin.Context) {
 	cfg.IsDefault = req.IsDefault
 
 	if err := s.db.Save(&cfg).Error; err != nil {
-		slog.Error("db.Save() error in UpdateSSHServerConfig", "config_id", cfg.ID, "err", err)
+		slog.Error("failed to save ssh server config", "config_id", cfg.ID, "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update config: " + err.Error()})
 		return
 	}
@@ -242,14 +242,14 @@ func (s *Setting) DeleteSSHServerConfig(c *gin.Context) {
 
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		slog.Error("strconv.Atoi() error in DeleteSSHServerConfig", "id", c.Param("id"), "err", err)
+		slog.Error("failed to parse ssh config id for deletion", "id", c.Param("id"), "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
 		return
 	}
 
 	result := s.db.Where("id = ? AND user_id = ?", id, userID).Delete(&table.SSHServerConfig{})
 	if result.Error != nil {
-		slog.Error("db.Delete() error in DeleteSSHServerConfig", "id", id, "user_id", userID, "err", result.Error)
+		slog.Error("failed to delete ssh server config", "id", id, "user_id", userID, "err", result.Error)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete config: " + result.Error.Error()})
 		return
 	}

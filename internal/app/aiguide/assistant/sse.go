@@ -73,7 +73,7 @@ var imageMimeAliases = map[string]string{
 func (a *Assistant) Chat(ctx *gin.Context) {
 	var req ChatRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind chat request", "err", err)
 		ctx.JSON(400, gin.H{"error": "invalid request"})
 		return
 	}
@@ -91,7 +91,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 
 	parts, err := buildUserMessageParts(ctx, a.db, a.fileStore, userID, sessionID, messageText, req.Images, req.FileNames, true)
 	if err != nil {
-		slog.Error("buildUserMessageParts() error", "err", err)
+		slog.Error("failed to build user message parts", "err", err)
 		ctx.JSON(400, gin.H{"error": err.Error()})
 		return
 	}
@@ -207,7 +207,7 @@ func parseDataURI(dataURI string) ([]byte, string, error) {
 
 	decoded, err := base64.StdEncoding.DecodeString(payload)
 	if err != nil {
-		slog.Error("base64.StdEncoding.DecodeString() error", "err", err)
+		slog.Error("failed to decode base64 data", "err", err)
 		return nil, "", fmt.Errorf("invalid base64 data: %w", err)
 	}
 	if len(decoded) == 0 {
@@ -243,8 +243,8 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) (i
 
 	if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Error("session.Get() error", "err", err)
-			return false, fmt.Errorf("session.Get() error, err = %w", err)
+			slog.Error("failed to get session", "err", err)
+			return false, fmt.Errorf("failed to get session: %w", err)
 		}
 
 		// Session 不存在，创建新的 session
@@ -256,15 +256,15 @@ func (a *Assistant) ensureSession(ctx *gin.Context, userID, sessionID string) (i
 		}
 
 		if _, err := a.session.Create(ctx, sessionCreateReq); err != nil {
-			slog.Error("session.Create() error", "err", err)
-			return false, fmt.Errorf("session.Create() error, err = %w", err)
+			slog.Error("failed to create new session", "err", err)
+			return false, fmt.Errorf("failed to create session: %w", err)
 		}
 
 		// 创建后验证 session 是否成功保存
 		// 这有助于捕捉数据库同步或创建失败的情况
 		if _, err := a.session.Get(ctx, sessionGetReq); err != nil {
-			slog.Error("session.Get() after create error", "err", err, "appName", constant.AppNameAssistant.String(), "userID", userID, "sessionID", sessionID)
-			return false, fmt.Errorf("session.Get() after create error, err = %w", err)
+			slog.Error("failed to verify session after creation", "err", err, "appName", constant.AppNameAssistant.String(), "userID", userID, "sessionID", sessionID)
+			return false, fmt.Errorf("failed to verify session after creation: %w", err)
 		}
 
 		return true, nil
@@ -347,7 +347,7 @@ func (a *Assistant) streamAgentEvents(
 			}
 
 			// 发送错误事件，包含详细的错误信息
-			slog.Error("runner.Run() error", "err", err, "userID", userID, "sessionID", sessionID)
+			slog.Error("failed to run agent", "err", err, "userID", userID, "sessionID", sessionID)
 			errorMsg := err.Error()
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				errorMsg = "Session 不存在或已被删除，请重新创建"
@@ -544,8 +544,8 @@ var memoryTypeLabel = map[constant.MemoryType]string{
 func (a *Assistant) fetchUserMemories(userID int) (string, error) {
 	var memories []table.UserMemory
 	if err := a.db.Where("user_id = ?", userID).Order("importance DESC, updated_at DESC").Find(&memories).Error; err != nil {
-		slog.Error("db.Find() error querying user memories", "err", err, "userID", userID)
-		return "", fmt.Errorf("db.Find() error: %w", err)
+		slog.Error("failed to query user memories", "err", err, "userID", userID)
+		return "", fmt.Errorf("failed to query user memories: %w", err)
 	}
 
 	if len(memories) == 0 {
@@ -560,7 +560,7 @@ func (a *Assistant) fetchUserMemories(userID int) (string, error) {
 		if label == "" {
 			label = string(mem.MemoryType)
 		}
-		sb.WriteString(fmt.Sprintf("- [%s] %s\n", label, mem.Content))
+		fmt.Fprintf(&sb, "- [%s] %s\n", label, mem.Content)
 	}
 	sb.WriteString("</user_context>\n")
 
@@ -588,8 +588,8 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 			return nil
 		}
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		slog.Error("db.First() error", "err", err, "session_id", sessionID)
-		return fmt.Errorf("db.First() error, err = %w", err)
+		slog.Error("failed to query session meta for title", "err", err, "session_id", sessionID)
+		return fmt.Errorf("failed to query session meta for title: %w", err)
 	}
 
 	// 2. 调用 LLM 生成标题
@@ -609,8 +609,8 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	generatedTitle := ""
 	for resp, err := range a.model.GenerateContent(ctx, req, false) {
 		if err != nil {
-			slog.Error("a.model.GenerateContent() error", "err", err)
-			return fmt.Errorf("a.model.GenerateContent() error, err = %w", err)
+			slog.Error("failed to generate title content", "err", err)
+			return fmt.Errorf("failed to generate title content: %w", err)
 		}
 
 		// Check response content
@@ -646,8 +646,8 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 	meta.Title = generatedTitle
 
 	if err := a.db.Save(&meta).Error; err != nil {
-		slog.Error("db.Save() error", "err", err)
-		return fmt.Errorf("db.Save() error, err = %w", err)
+		slog.Error("failed to save session title", "err", err)
+		return fmt.Errorf("failed to save session title: %w", err)
 	}
 
 	return nil

@@ -137,7 +137,7 @@ func generateVideo(ctx context.Context, client *genai.Client, db *gorm.DB, fileS
 
 	operation, err := client.Models.GenerateVideos(ctx, DefaultVideoModel, prompt, nil, genConfig)
 	if err != nil {
-		slog.Error("client.Models.GenerateVideos() error", "err", err)
+		slog.Error("failed to generate video", "err", err)
 		return &VideoGenOutput{
 			Success: false,
 			Error:   fmt.Sprintf("视频生成请求失败: %v", err),
@@ -163,7 +163,7 @@ func generateVideo(ctx context.Context, client *genai.Client, db *gorm.DB, fileS
 
 		operation, err = client.Operations.GetVideosOperation(ctx, operation, nil)
 		if err != nil {
-			slog.Error("client.Operations.GetVideosOperation() error", "err", err)
+			slog.Error("failed to poll video generation status", "err", err)
 			return &VideoGenOutput{
 				Success: false,
 				Error:   fmt.Sprintf("查询视频生成状态失败: %v", err),
@@ -235,7 +235,7 @@ func generateVideo(ctx context.Context, client *genai.Client, db *gorm.DB, fileS
 		}
 
 		if err := db.Create(asset).Error; err != nil {
-			slog.Error("db.Create() FileAsset error", "err", err, "file_name", fileName)
+			slog.Error("failed to create video file asset record", "err", err, "file_name", fileName)
 			continue
 		}
 

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -44,7 +45,7 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 
 	var req EditSessionRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind edit session request", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request", "code": "invalid_edit_payload"})
 		return
 	}
@@ -75,7 +76,7 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 
 	getResp, err := a.session.Get(ctx, getReq)
 	if err != nil {
-		slog.Error("session.Get() error", "err", err, "session_id", sessionID, "user_id", req.UserID)
+		slog.Error("failed to load session for editing", "err", err, "session_id", sessionID, "user_id", req.UserID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load session"})
 		return
 	}
@@ -100,14 +101,14 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 	}
 	createResp, err := a.session.Create(ctx, createReq)
 	if err != nil {
-		slog.Error("session.Create() error", "err", err, "session_id", newSessionID, "user_id", req.UserID)
+		slog.Error("failed to create edited session", "err", err, "session_id", newSessionID, "user_id", req.UserID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create edited session"})
 		return
 	}
 
 	for _, event := range eventsToCopy {
 		if err := a.session.AppendEvent(ctx, createResp.Session, event); err != nil {
-			slog.Error("session.AppendEvent() error", "err", err, "session_id", newSessionID)
+			slog.Error("failed to replay session event", "err", err, "session_id", newSessionID)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to replay session history"})
 			return
 		}
@@ -206,19 +207,15 @@ func cloneContent(content *genai.Content) *genai.Content {
 }
 
 func cloneSessionState(state session.State) map[string]any {
-	clonedState := map[string]any{}
-	for key, value := range state.All() {
-		clonedState[key] = value
-	}
-	return clonedState
+	return maps.Collect(state.All())
 }
 
 func (a *Assistant) createEditedSessionMeta(parentSessionID, newSessionID, messageID string) (string, int, error) {
 	var parentMeta table.SessionMeta
 	if err := a.db.Where("session_id = ?", parentSessionID).First(&parentMeta).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Error("db.First() error", "err", err, "session_id", parentSessionID)
-			return "", 0, fmt.Errorf("db.First() error: %w", err)
+			slog.Error("failed to find session meta", "err", err, "session_id", parentSessionID)
+			return "", 0, fmt.Errorf("failed to find session meta: %w", err)
 		}
 	}
 
@@ -238,16 +235,16 @@ func (a *Assistant) createEditedSessionMeta(parentSessionID, newSessionID, messa
 			Version:   parentVersion,
 		}
 		if err := a.db.Create(&parentMeta).Error; err != nil {
-			slog.Error("db.Create() error", "err", err, "session_id", parentSessionID)
-			return "", 0, fmt.Errorf("db.Create() error: %w", err)
+			slog.Error("failed to create parent session meta", "err", err, "session_id", parentSessionID)
+			return "", 0, fmt.Errorf("failed to create parent session meta: %w", err)
 		}
 	} else if parentMeta.ThreadID == "" || parentMeta.Version == 0 {
 		if err := a.db.Model(&parentMeta).Updates(map[string]any{
 			"thread_id": threadID,
 			"version":   parentVersion,
 		}).Error; err != nil {
-			slog.Error("db.Model().Updates() error", "err", err, "session_id", parentSessionID)
-			return "", 0, fmt.Errorf("db.Model().Updates() error: %w", err)
+			slog.Error("failed to update session meta", "err", err, "session_id", parentSessionID)
+			return "", 0, fmt.Errorf("failed to update session meta: %w", err)
 		}
 	}
 
@@ -262,8 +259,8 @@ func (a *Assistant) createEditedSessionMeta(parentSessionID, newSessionID, messa
 		EditedFromMessageID: messageID,
 	}
 	if err := a.db.Create(&newMeta).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "session_id", newSessionID)
-		return "", 0, fmt.Errorf("db.Create() error: %w", err)
+		slog.Error("failed to create new session meta", "err", err, "session_id", newSessionID)
+		return "", 0, fmt.Errorf("failed to create new session meta: %w", err)
 	}
 
 	return threadID, newVersion, nil

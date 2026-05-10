@@ -31,7 +31,7 @@ func (a *AIGuide) GetCalendarStatus(c *gin.Context) {
 		Where("id = ?", userID).
 		First(&row).Error
 	if err != nil {
-		slog.Error("db.First() error", "err", err)
+		slog.Error("failed to query user calendar status", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to get user"})
 		return
 	}
@@ -51,7 +51,7 @@ func (a *AIGuide) RevokeCalendarAccess(c *gin.Context) {
 	}
 
 	if err := a.db.Model(&table.User{}).Where("id = ?", userID).Update("google_oauth_refresh_token", "").Error; err != nil {
-		slog.Error("db.Update() error", "err", err)
+		slog.Error("failed to revoke calendar access", "err", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to revoke access"})
 		return
 	}

@@ -149,8 +149,8 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser, refreshToken string) (*table.U
 	var u table.User
 	if err := db.Where("google_user_id = ?", user.ID).First(&u).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Error("db.First() error", "err", err)
-			return nil, fmt.Errorf("db.First() error, err = %w", err)
+			slog.Error("failed to find user by google id", "err", err)
+			return nil, fmt.Errorf("failed to find user by google id: %w", err)
 		}
 
 		// Download avatar image
@@ -171,8 +171,8 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser, refreshToken string) (*table.U
 		}
 
 		if err := db.Create(&u).Error; err != nil {
-			slog.Error("db.Create() error", "err", err)
-			return nil, fmt.Errorf("db.Create() error, err = %w", err)
+			slog.Error("failed to create user record", "err", err)
+			return nil, fmt.Errorf("failed to create user record: %w", err)
 		}
 	} else {
 		// Update existing user info with only the fields that may have changed.
@@ -203,8 +203,8 @@ func saveUser(db *gorm.DB, user *auth.GoogleUser, refreshToken string) (*table.U
 		}
 
 		if err := db.Model(&u).Updates(updates).Error; err != nil {
-			slog.Error("db.Model().Updates() error", "err", err)
-			return nil, fmt.Errorf("db.Model().Updates() error: %w", err)
+			slog.Error("failed to update user record", "err", err)
+			return nil, fmt.Errorf("failed to update user record: %w", err)
 		}
 	}
 

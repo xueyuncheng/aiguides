@@ -102,7 +102,7 @@ func NewFileListTool(db *gorm.DB) (tool.Tool, error) {
 
 		var assets []table.FileAsset
 		if err := query.Order("created_at DESC").Limit(limit).Find(&assets).Error; err != nil {
-			slog.Error("query.Find() error", "user_id", userID, "err", err)
+			slog.Error("failed to list file assets", "user_id", userID, "err", err)
 			return nil, fmt.Errorf("failed to list files: %w", err)
 		}
 
@@ -150,7 +150,7 @@ func NewFileGetTool(db *gorm.DB) (tool.Tool, error) {
 
 		var asset table.FileAsset
 		if err := db.Where("id = ? AND user_id = ?", input.FileID, userID).First(&asset).Error; err != nil {
-			slog.Error("db.First() error", "file_id", input.FileID, "user_id", userID, "err", err)
+			slog.Error("failed to query file asset", "file_id", input.FileID, "user_id", userID, "err", err)
 			return nil, fmt.Errorf("failed to get file: %w", err)
 		}
 

@@ -21,8 +21,8 @@ func New(db *gorm.DB) *Migrator {
 func (m *Migrator) Run() error {
 	models := table.GetAllModels()
 	if err := m.db.AutoMigrate(models...); err != nil {
-		slog.Error("m.db.AutoMigrate() error", "err", err)
-		return fmt.Errorf("m.db.AutoMigrate() error, err = %w", err)
+		slog.Error("failed to run database auto migration", "err", err)
+		return fmt.Errorf("failed to run database auto migration: %w", err)
 	}
 	return nil
 }

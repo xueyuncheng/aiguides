@@ -92,7 +92,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	req, err := http.NewRequestWithContext(ctx, "GET", input.URL, nil)
 	if err != nil {
-		slog.Error("http.NewRequestWithContext() error", "url", input.URL, "err", err)
+		slog.Error("failed to create web fetch request", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -103,7 +103,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("http.DefaultClient.Do() error", "url", input.URL, "err", err)
+		slog.Error("failed to fetch web page", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,
@@ -125,7 +125,7 @@ func executeWebFetch(ctx context.Context, input WebFetchInput) (*WebFetchOutput,
 	// 5. 使用 go-readability v2 解析
 	article, err := readability.FromReader(resp.Body, parsedURL)
 	if err != nil {
-		slog.Error("readability.FromReader() error", "url", input.URL, "err", err)
+		slog.Error("failed to parse web page content", "url", input.URL, "err", err)
 		return &WebFetchOutput{
 			Success: false,
 			URL:     input.URL,

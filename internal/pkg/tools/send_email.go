@@ -80,7 +80,7 @@ func sendEmail(ctx context.Context, input SendEmailInput) (*SendEmailOutput, err
 
 	defaultedToSelf, err := populateDefaultRecipient(&validatedInput, emailServerConfig.Username)
 	if err != nil {
-		slog.Error("populateDefaultRecipient() error", "username", emailServerConfig.Username, "err", err)
+		slog.Error("failed to populate default recipient", "username", emailServerConfig.Username, "err", err)
 		return &SendEmailOutput{
 			Success:    false,
 			Error:      fmt.Sprintf("默认收件人无效: %v", err),
@@ -102,12 +102,12 @@ func sendEmail(ctx context.Context, input SendEmailInput) (*SendEmailOutput, err
 
 	message, err := buildEmailMessage(emailServerConfig.Username, fromName, validatedInput, recipients)
 	if err != nil {
-		slog.Error("buildEmailMessage() error", "err", err)
-		return nil, fmt.Errorf("buildEmailMessage() error, err = %w", err)
+		slog.Error("failed to build email message", "err", err)
+		return nil, fmt.Errorf("failed to build email message: %w", err)
 	}
 
 	if err := sendSMTPMessage(emailServerConfig.SMTPServer, emailServerConfig.Username, emailServerConfig.Password, recipients, message); err != nil {
-		slog.Error("sendSMTPMessage() error", "smtp_server", emailServerConfig.SMTPServer, "config_name", emailServerConfig.Name, "err", err)
+		slog.Error("failed to send smtp message", "smtp_server", emailServerConfig.SMTPServer, "config_name", emailServerConfig.Name, "err", err)
 		return &SendEmailOutput{
 			Success:    false,
 			Error:      fmt.Sprintf("发送邮件失败: %v", err),
@@ -227,8 +227,8 @@ func loadEmailServerConfigForSending(ctx context.Context, configName string) (*t
 		query = query.Where("name = ?", configName)
 	}
 	if err := query.Find(&emailServerConfigs).Error; err != nil {
-		slog.Error("query.Find() error", "user_id", userID, "config_name", configName, "err", err)
-		return nil, nil, fmt.Errorf("query.Find() error, err = %w", err)
+		slog.Error("failed to query email server configs for sending", "user_id", userID, "config_name", configName, "err", err)
+		return nil, nil, fmt.Errorf("failed to query email server configs: %w", err)
 	}
 
 	if len(emailServerConfigs) == 0 {
@@ -311,14 +311,14 @@ func sendSMTPMessage(serverAddr, username, password string, recipients []string,
 	if strings.HasSuffix(serverAddr, ":465") {
 		conn, err := tls.Dial("tcp", serverAddr, &tls.Config{ServerName: host})
 		if err != nil {
-			slog.Error("tls.Dial() error", "smtp_server", serverAddr, "err", err)
+			slog.Error("failed to connect to smtp server via tls", "smtp_server", serverAddr, "err", err)
 			return fmt.Errorf("连接 SMTP 服务器失败: %w", err)
 		}
 
 		client, err := smtp.NewClient(conn, host)
 		if err != nil {
 			conn.Close()
-			slog.Error("smtp.NewClient() error", "smtp_server", serverAddr, "err", err)
+			slog.Error("failed to create smtp client", "smtp_server", serverAddr, "err", err)
 			return fmt.Errorf("初始化 SMTP 客户端失败: %w", err)
 		}
 
@@ -327,14 +327,14 @@ func sendSMTPMessage(serverAddr, username, password string, recipients []string,
 
 	client, err := smtp.Dial(serverAddr)
 	if err != nil {
-		slog.Error("smtp.Dial() error", "smtp_server", serverAddr, "err", err)
+		slog.Error("failed to dial smtp server", "smtp_server", serverAddr, "err", err)
 		return fmt.Errorf("连接 SMTP 服务器失败: %w", err)
 	}
 
 	if ok, _ := client.Extension("STARTTLS"); ok {
 		if err := client.StartTLS(&tls.Config{ServerName: host}); err != nil {
 			client.Close()
-			slog.Error("client.StartTLS() error", "smtp_server", serverAddr, "err", err)
+			slog.Error("failed to start tls on smtp connection", "smtp_server", serverAddr, "err", err)
 			return fmt.Errorf("启动 SMTP TLS 失败: %w", err)
 		}
 	}
@@ -347,41 +347,41 @@ func sendSMTPWithClient(client *smtp.Client, host, username, password string, re
 
 	if ok, _ := client.Extension("AUTH"); ok && username != "" {
 		if err := client.Auth(smtp.PlainAuth("", username, password, host)); err != nil {
-			slog.Error("client.Auth() error", "smtp_host", host, "username", username, "err", err)
+			slog.Error("failed to authenticate with smtp server", "smtp_host", host, "username", username, "err", err)
 			return fmt.Errorf("SMTP 认证失败: %w", err)
 		}
 	}
 
 	if err := client.Mail(username); err != nil {
-		slog.Error("client.Mail() error", "from", username, "err", err)
+		slog.Error("failed to set smtp sender", "from", username, "err", err)
 		return fmt.Errorf("设置发件人失败: %w", err)
 	}
 
 	for _, recipient := range recipients {
 		if err := client.Rcpt(recipient); err != nil {
-			slog.Error("client.Rcpt() error", "recipient", recipient, "err", err)
+			slog.Error("failed to add smtp recipient", "recipient", recipient, "err", err)
 			return fmt.Errorf("添加收件人 %s 失败: %w", recipient, err)
 		}
 	}
 
 	writer, err := client.Data()
 	if err != nil {
-		slog.Error("client.Data() error", "err", err)
+		slog.Error("failed to open smtp data stream", "err", err)
 		return fmt.Errorf("创建邮件数据流失败: %w", err)
 	}
 
 	if _, err := writer.Write(message); err != nil {
 		writer.Close()
-		slog.Error("writer.Write() error", "err", err)
+		slog.Error("failed to write email message data", "err", err)
 		return fmt.Errorf("写入邮件内容失败: %w", err)
 	}
 	if err := writer.Close(); err != nil {
-		slog.Error("writer.Close() error", "err", err)
+		slog.Error("failed to close smtp data stream", "err", err)
 		return fmt.Errorf("完成邮件写入失败: %w", err)
 	}
 
 	if err := client.Quit(); err != nil {
-		slog.Error("client.Quit() error", "err", err)
+		slog.Error("failed to quit smtp session", "err", err)
 		return fmt.Errorf("结束 SMTP 会话失败: %w", err)
 	}
 

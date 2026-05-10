@@ -94,14 +94,14 @@ func (a *Assistant) ListMemories(ctx *gin.Context) {
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {
-		slog.Error("query.Count() error", "err", err, "user_id", userID)
+		slog.Error("failed to count memories", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load memories"})
 		return
 	}
 
 	var memories []table.UserMemory
 	if err := query.Order("importance DESC, updated_at DESC, id DESC").Limit(limit).Offset(offset).Find(&memories).Error; err != nil {
-		slog.Error("query.Find() error", "err", err, "user_id", userID)
+		slog.Error("failed to query memories", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load memories"})
 		return
 	}
@@ -129,7 +129,7 @@ func (a *Assistant) CreateMemory(ctx *gin.Context) {
 
 	var req CreateMemoryRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -158,7 +158,7 @@ func (a *Assistant) CreateMemory(ctx *gin.Context) {
 		Importance: importance,
 	}
 	if err := a.db.Create(&memory).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "user_id", userID)
+		slog.Error("failed to create memory", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create memory"})
 		return
 	}
@@ -182,7 +182,7 @@ func (a *Assistant) UpdateMemory(ctx *gin.Context) {
 
 	var req UpdateMemoryRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -198,7 +198,7 @@ func (a *Assistant) UpdateMemory(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "memory not found"})
 			return
 		}
-		slog.Error("db.First() error", "err", err, "user_id", userID, "memory_id", memoryID)
+		slog.Error("failed to find memory", "err", err, "user_id", userID, "memory_id", memoryID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update memory"})
 		return
 	}
@@ -229,7 +229,7 @@ func (a *Assistant) UpdateMemory(ctx *gin.Context) {
 	}
 
 	if err := a.db.Save(&memory).Error; err != nil {
-		slog.Error("db.Save() error", "err", err, "user_id", userID, "memory_id", memoryID)
+		slog.Error("failed to save memory", "err", err, "user_id", userID, "memory_id", memoryID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update memory"})
 		return
 	}
@@ -253,7 +253,7 @@ func (a *Assistant) DeleteMemory(ctx *gin.Context) {
 
 	result := a.db.Where("id = ? AND user_id = ?", memoryID, userID).Delete(&table.UserMemory{})
 	if result.Error != nil {
-		slog.Error("db.Delete() error", "err", result.Error, "user_id", userID, "memory_id", memoryID)
+		slog.Error("failed to delete memory", "err", result.Error, "user_id", userID, "memory_id", memoryID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete memory"})
 		return
 	}
@@ -286,7 +286,7 @@ func (a *Assistant) GetMemorySummary(ctx *gin.Context) {
 
 	var total int64
 	if err := a.db.Model(&table.UserMemory{}).Where("user_id = ?", userID).Count(&total).Error; err != nil {
-		slog.Error("db.Count() error", "err", err, "user_id", userID)
+		slog.Error("failed to count total memories", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load memory summary"})
 		return
 	}
@@ -297,7 +297,7 @@ func (a *Assistant) GetMemorySummary(ctx *gin.Context) {
 		Where("user_id = ?", userID).
 		Group("memory_type").
 		Scan(&rows).Error; err != nil {
-		slog.Error("db.Scan() error", "err", err, "user_id", userID)
+		slog.Error("failed to query memory type counts", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load memory summary"})
 		return
 	}
@@ -310,7 +310,7 @@ func (a *Assistant) GetMemorySummary(ctx *gin.Context) {
 	var lastUpdatedAt *time.Time
 	if err := a.db.Where("user_id = ?", userID).Order("updated_at DESC, id DESC").First(&latestMemory).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Error("db.First() error", "err", err, "user_id", userID)
+			slog.Error("failed to find latest memory", "err", err, "user_id", userID)
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load memory summary"})
 			return
 		}

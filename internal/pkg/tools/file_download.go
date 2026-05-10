@@ -138,14 +138,14 @@ func downloadRemoteFile(ctx context.Context, input FileDownloadInput) ([]byte, s
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, parsedURL.String(), nil)
 	if err != nil {
-		slog.Error("http.NewRequestWithContext() error", "url", parsedURL.String(), "err", err)
+		slog.Error("failed to create download request", "url", parsedURL.String(), "err", err)
 		return nil, "", "", fmt.Errorf("failed to create download request: %w", err)
 	}
 	req.Header.Set("User-Agent", fileDownloadUserAgent)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("http.DefaultClient.Do() error", "url", parsedURL.String(), "err", err)
+		slog.Error("failed to download file", "url", parsedURL.String(), "err", err)
 		return nil, "", "", fmt.Errorf("failed to download file: %w", err)
 	}
 	defer resp.Body.Close()
@@ -164,7 +164,7 @@ func downloadRemoteFile(ctx context.Context, input FileDownloadInput) ([]byte, s
 	limitedReader := io.LimitReader(resp.Body, maxBytes+1)
 	data, err := io.ReadAll(limitedReader)
 	if err != nil {
-		slog.Error("io.ReadAll() error", "url", parsedURL.String(), "err", err)
+		slog.Error("failed to read downloaded file", "url", parsedURL.String(), "err", err)
 		return nil, "", "", fmt.Errorf("failed to read downloaded file: %w", err)
 	}
 	if int64(len(data)) > maxBytes {
