@@ -102,10 +102,10 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 
 	writeCh <- wsServerMessage{Type: serverMsgTypeSetupOK}
 
-	saveTurn, waitSaves := a.startSaveLoop(userID, sessionID)
+	saveTurn, saveImageTurn, waitSaves := a.startSaveLoop(userID, sessionID)
 	defer waitSaves()
 
-	firstErr := a.bridgeVoiceCall(connCtx, connCancel, writeCh, liveSession, conn, saveTurn, userID, sessionID, sessionWriteCh)
+	firstErr := a.bridgeVoiceCall(connCtx, connCancel, writeCh, liveSession, conn, saveTurn, saveImageTurn, userID, sessionID, sessionWriteCh)
 
 	if firstErr != nil {
 		slog.Info("VoiceCall: session ended with error", "reason", firstErr.Error(), "userID", userID)
@@ -186,9 +186,10 @@ type saveRequest struct {
 	text       string
 	audio      [][]byte
 	sampleRate uint32
+	imageParts []*genai.Part
 }
 
-func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(string, string, [][]byte, uint32), wait func()) {
+func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(string, string, [][]byte, uint32), saveImageTurn func(string, []*genai.Part), wait func()) {
 	saveCh := make(chan saveRequest, 16)
 	saveDone := make(chan struct{})
 	var firstUserTranscript string
@@ -197,7 +198,11 @@ func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(s
 	go func() {
 		defer close(saveDone)
 		for req := range saveCh {
-			a.saveVoiceTurn(context.Background(), userID, sessionID, req.role, req.text, req.audio, req.sampleRate)
+			if len(req.imageParts) > 0 {
+				a.saveTextImageTurn(context.Background(), userID, sessionID, req.text, req.imageParts)
+			} else {
+				a.saveVoiceTurn(context.Background(), userID, sessionID, req.role, req.text, req.audio, req.sampleRate)
+			}
 			if req.role != "user" || req.text == "" {
 				continue
 			}
@@ -224,6 +229,11 @@ func (a *Assistant) startSaveLoop(userID int, sessionID string) (saveTurn func(s
 		saveCh <- saveRequest{role: role, text: text, audio: copied, sampleRate: sampleRate}
 	}
 
+	saveImageTurn = func(text string, imageParts []*genai.Part) {
+		slog.Info("saveImageTurn: queued", "textLen", len(text), "imageParts", len(imageParts))
+		saveCh <- saveRequest{role: "user", text: text, imageParts: imageParts}
+	}
+
 	wait = func() {
 		close(saveCh)
 		<-saveDone
@@ -245,6 +255,7 @@ func (a *Assistant) bridgeVoiceCall(
 	liveSession *genai.Session,
 	conn *websocket.Conn,
 	saveTurn func(string, string, [][]byte, uint32),
+	saveImageTurn func(string, []*genai.Part),
 	userID int,
 	sessionID string,
 	sessionWriteCh chan<- func() error,
@@ -273,7 +284,7 @@ func (a *Assistant) bridgeVoiceCall(
 				errCh <- fmt.Errorf("panic in receiveFromClient: %v", r)
 			}
 		}()
-		errCh <- receiveFromClientWithTracking(ctx, conn, liveSession, cancel, tracker, sessionWriteCh)
+		errCh <- receiveFromClientWithTracking(ctx, conn, liveSession, cancel, tracker, saveTurn, saveImageTurn, sessionWriteCh)
 	}()
 
 	firstErr := <-errCh
@@ -430,6 +441,30 @@ func (t *turnTracker) handleInterrupted(saveTurn func(string, string, [][]byte, 
 	writeCh <- wsServerMessage{Type: serverMsgTypeInterrupted}
 }
 
+func (t *turnTracker) finalizePendingTurns(saveTurn func(string, string, [][]byte, uint32)) {
+	t.flushPending(saveTurn)
+	switch t.phase {
+	case phaseUser:
+		if t.userText != "" || len(t.userAudio) > 0 {
+			saveTurn("user", t.userText, t.userAudio, 16000)
+		}
+	case phaseModel:
+		if t.modelText != "" || len(t.modelAudio) > 0 {
+			saveTurn("model", t.modelText, t.modelAudio, 24000)
+		}
+	}
+	t.phase = phaseWaiting
+	t.userAudio = t.userAudio[:0]
+	t.userText = ""
+	t.modelAudio = t.modelAudio[:0]
+	t.modelText = ""
+}
+
+func (t *turnTracker) handleTextInput(text string, saveTurn func(string, string, [][]byte, uint32)) {
+	t.finalizePendingTurns(saveTurn)
+	saveTurn("user", text, nil, 0)
+}
+
 func (t *turnTracker) handleTurnComplete(saveTurn func(string, string, [][]byte, uint32), writeCh chan<- wsServerMessage) {
 	slog.Info("handleTurnComplete", "phase", t.phase, "modelTextLen", len(t.modelText), "modelAudioChunks", len(t.modelAudio))
 	if t.phase == phaseModel && (t.modelText != "" || len(t.modelAudio) > 0) {
@@ -460,7 +495,7 @@ func (t *turnTracker) handleTurnComplete(saveTurn func(string, string, [][]byte,
 	writeCh <- wsServerMessage{Type: serverMsgTypeTurnComplete}
 }
 
-func receiveFromClientWithTracking(ctx context.Context, conn *websocket.Conn, liveSession *genai.Session, cancel context.CancelFunc, tracker *turnTracker, sessionWriteCh chan<- func() error) error {
+func receiveFromClientWithTracking(ctx context.Context, conn *websocket.Conn, liveSession *genai.Session, cancel context.CancelFunc, tracker *turnTracker, saveTurn func(string, string, [][]byte, uint32), saveImageTurn func(string, []*genai.Part), sessionWriteCh chan<- func() error) error {
 	for {
 		_, raw, err := conn.ReadMessage()
 		if err != nil {
@@ -502,14 +537,43 @@ func receiveFromClientWithTracking(ctx context.Context, conn *websocket.Conn, li
 			}
 
 		case clientMsgTypeText:
-			if msg.Data == "" {
+			if msg.Data == "" && len(msg.Images) == 0 {
 				continue
 			}
 			text := msg.Data
+
+			var imageParts []*genai.Part
+			for _, dataURI := range msg.Images {
+				imgBytes, mimeType, err := parseDataURI(dataURI)
+				if err != nil {
+					slog.Warn("receiveFromClient: image parseDataURI error", "err", err)
+					continue
+				}
+				if !strings.HasPrefix(mimeType, "image/") {
+					slog.Warn("receiveFromClient: skipping non-image file", "mimeType", mimeType)
+					continue
+				}
+				imageParts = append(imageParts, genai.NewPartFromBytes(imgBytes, mimeType))
+			}
+
+			if len(imageParts) > 0 {
+				tracker.finalizePendingTurns(saveTurn)
+				saveImageTurn(text, imageParts)
+			} else if text != "" {
+				tracker.handleTextInput(text, saveTurn)
+			} else {
+				continue
+			}
+
+			parts := make([]*genai.Part, 0, 1+len(imageParts))
+			if text != "" {
+				parts = append(parts, genai.NewPartFromText(text))
+			}
+			parts = append(parts, imageParts...)
 			select {
 			case sessionWriteCh <- func() error {
 				return liveSession.SendClientContent(genai.LiveClientContentInput{
-					Turns: []*genai.Content{genai.NewContentFromText(text, genai.RoleUser)},
+					Turns: []*genai.Content{{Role: genai.RoleUser, Parts: parts}},
 				})
 			}:
 			case <-ctx.Done():
@@ -529,8 +593,13 @@ func (a *Assistant) saveVoiceTurn(ctx context.Context, userID int, sessionID, ro
 
 	fileID := a.saveVoiceAudio(ctx, userID, sessionID, role, audioChunks, sampleRate)
 
-	metadataJSON, _ := json.Marshal(voiceAudioMetadata{FileID: fileID})
-	messageText := fmt.Sprintf("%s %s -->\n%s", voiceAudioMetadataPrefix, string(metadataJSON), transcript)
+	var messageText string
+	if len(audioChunks) > 0 {
+		metadataJSON, _ := json.Marshal(voiceAudioMetadata{FileID: fileID})
+		messageText = fmt.Sprintf("%s %s -->\n%s", voiceAudioMetadataPrefix, string(metadataJSON), transcript)
+	} else {
+		messageText = transcript
+	}
 
 	contentRole := genai.RoleUser
 	author := "user"
@@ -564,6 +633,47 @@ func (a *Assistant) saveVoiceTurn(ctx context.Context, userID int, sessionID, ro
 
 	if err := a.session.AppendEvent(ctx, getResp.Session, event); err != nil {
 		slog.Error("saveVoiceTurn: session.AppendEvent() error", "role", role, "err", err)
+	}
+}
+
+func (a *Assistant) saveTextImageTurn(ctx context.Context, userID int, sessionID, text string, imageParts []*genai.Part) {
+	if text == "" && len(imageParts) == 0 {
+		return
+	}
+
+	slog.Info("saveTextImageTurn: starting", "textLen", len(text), "imageParts", len(imageParts), "sessionID", sessionID)
+
+	parts := make([]*genai.Part, 0, 1+len(imageParts))
+	if text != "" {
+		parts = append(parts, genai.NewPartFromText(text))
+	}
+	parts = append(parts, imageParts...)
+
+	userIDStr := strconv.Itoa(userID)
+	getResp, err := a.session.Get(ctx, &adksession.GetRequest{
+		AppName:   constant.AppNameAssistant.String(),
+		UserID:    userIDStr,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		slog.Error("saveTextImageTurn: session.Get() error", "err", err)
+		return
+	}
+
+	event := &adksession.Event{
+		ID:        uuid.NewString(),
+		Timestamp: time.Now(),
+		Author:    "user",
+		LLMResponse: adkmodel.LLMResponse{
+			Content: &genai.Content{
+				Role:  genai.RoleUser,
+				Parts: parts,
+			},
+		},
+	}
+
+	if err := a.session.AppendEvent(ctx, getResp.Session, event); err != nil {
+		slog.Error("saveTextImageTurn: session.AppendEvent() error", "err", err)
 	}
 }
 

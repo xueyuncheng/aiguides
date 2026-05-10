@@ -10,6 +10,7 @@ export interface VoiceMessage {
   audioUrl: string | null;
   transcript: string;
   isComplete: boolean;
+  images?: string[];
 }
 
 interface UseVoiceCallResult {
@@ -17,6 +18,7 @@ interface UseVoiceCallResult {
   voiceMessages: VoiceMessage[];
   startCall: (overrideSessionId?: string) => Promise<void>;
   endCall: () => void;
+  sendText: (text: string, images?: string[]) => void;
   error: string | null;
 }
 
@@ -449,7 +451,26 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     cleanup();
   }, [cleanup, finalizeModelTurn, finalizeUserTurn]);
 
-  return { status, voiceMessages, startCall, endCall, error };
+  const sendText = useCallback((text: string, images?: string[]) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+
+    if (turnPhaseRef.current === 'user') finalizeUserTurn();
+    if (turnPhaseRef.current === 'model') finalizeModelTurn();
+    turnPhaseRef.current = 'waiting';
+
+    setVoiceMessages((prev) => [
+      ...prev,
+      { id: genId(), role: 'user', audioUrl: null, transcript: text, isComplete: true, images },
+    ]);
+
+    const payload: Record<string, unknown> = { type: 'text', data: text };
+    if (images && images.length > 0) {
+      payload.images = images;
+    }
+    wsRef.current.send(JSON.stringify(payload));
+  }, [finalizeModelTurn, finalizeUserTurn]);
+
+  return { status, voiceMessages, startCall, endCall, sendText, error };
 }
 
 function handleInputTranscript(

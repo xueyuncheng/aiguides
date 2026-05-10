@@ -20,8 +20,9 @@ const (
 )
 
 type wsClientMessage struct {
-	Type string `json:"type"`
-	Data string `json:"data,omitempty"`
+	Type   string   `json:"type"`
+	Data   string   `json:"data,omitempty"`
+	Images []string `json:"images,omitempty"`
 }
 
 type wsServerMessage struct {

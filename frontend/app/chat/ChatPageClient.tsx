@@ -126,6 +126,7 @@ export default function ChatPageClient() {
     voiceMessages,
     startCall,
     endCall,
+    sendText: voiceCallSendText,
     error: voiceCallError,
   } = useVoiceCall(sessionId);
 
@@ -176,6 +177,7 @@ export default function ChatPageClient() {
           isStreaming: !vm.isComplete,
           voiceAudioUrl: vm.audioUrl ?? undefined,
           isVoiceMessage: true,
+          images: vm.images,
         });
       }
     }
@@ -294,14 +296,38 @@ export default function ChatPageClient() {
 
   const canSend = actions.canSend(selectedImages);
 
+  const sendTextDuringVoiceCall = useCallback(
+    (e: React.FormEvent | React.KeyboardEvent) => {
+      e.preventDefault();
+      const text = actions.quotedText
+        ? `> ${actions.quotedText.split('\n').join('\n> ')}\n\n${actions.inputValue}`.trim()
+        : actions.inputValue.trim();
+      const imageDataUrls = selectedImages.map((img) => img.dataUrl);
+      if (!text && imageDataUrls.length === 0) return;
+      voiceCallSendText(text, imageDataUrls.length > 0 ? imageDataUrls : undefined);
+      actions.setInputValue('');
+      actions.setQuotedText('');
+      clearImages();
+    },
+    [actions, clearImages, selectedImages, voiceCallSendText]
+  );
+
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => actions.handleSubmit(e, selectedImages),
-    [actions, selectedImages]
+    (e: React.FormEvent) => {
+      if (isVoiceCallActive) return sendTextDuringVoiceCall(e);
+      actions.handleSubmit(e, selectedImages);
+    },
+    [actions, isVoiceCallActive, selectedImages, sendTextDuringVoiceCall]
   );
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => actions.handleKeyDown(e, selectedImages),
-    [actions, selectedImages]
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (isVoiceCallActive && e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+        return sendTextDuringVoiceCall(e);
+      }
+      actions.handleKeyDown(e, selectedImages);
+    },
+    [actions, isVoiceCallActive, selectedImages, sendTextDuringVoiceCall]
   );
 
   const handleSubmitRenameProject = useCallback(
