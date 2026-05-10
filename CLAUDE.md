@@ -8,7 +8,7 @@ AIGuides is a full-stack AI assistant built with Go (Gin + Google ADK/Gemini) ba
 
 **Tech Stack:**
 - Backend: Go 1.26.1, Gin, GORM, SQLite, Google ADK
-- Frontend: Next.js 15, React 19, TypeScript, Tailwind CSS 4
+- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS 4
 - AI: Google Gemini 2.0 + Imagen + Veo 3.1
 
 ## Development Commands
@@ -79,6 +79,10 @@ Key files:
 - `runner.go` — ADK runner initialization
 - `assistant.go` — Assistant struct wiring (main runner, executor runner for scheduled tasks, scheduler)
 - `sse.go` — SSE streaming chat handler with multimodal support
+- `live_api.go` — WebSocket voice call handler using Gemini Live API (bidirectional audio streaming)
+- `live_client.go` — Live API client initialization
+- `live_protocol.go` — WebSocket message types for client/server communication
+- `live_tools.go` — Tool execution bridge for Live API sessions (adapts ADK tools to genai function calls)
 - `tts_api.go` — Streaming TTS endpoint with sentence-level chunking
 - `session.go` — Session CRUD APIs
 - `session_edit.go` — Session message editing (branching)
@@ -101,6 +105,7 @@ Each tool follows the ADK `functiontool` pattern with Input/Output structs and J
 - `task_manager.go` — Task CRUD (list, get, create, update)
 - `scheduled_task.go` — Scheduled task creation
 - `ssh.go` — SSH command execution (list servers, execute)
+- `calendar.go` — Google Calendar management (list/create/update/delete events, requires OAuth)
 - `file_asset.go` / `file_download.go` — File management
 - `pdf.go` — PDF text extraction and document generation
 - `time.go` — Current time utility
@@ -131,6 +136,9 @@ Each tool follows the ADK `functiontool` pattern with Input/Output structs and J
 **SSE Streaming:**
 `sse.go` handles chat requests — validates multipart input (images: 5MB max, 4 max), streams agent responses with tool calls/results, saves messages to DB.
 
+**Voice Call (Live API):**
+WebSocket-based real-time voice using Gemini Live API. Client connects via `GET /api/assistant/live`, backend bridges between the WebSocket and a Gemini Live session. Supports bidirectional audio streaming, input/output transcription, tool execution during calls, and persists voice turns to the session history. Key files: `live_api.go` (handler + bridge loop), `live_protocol.go` (message types), `live_tools.go` (tool adapter), `live_client.go` (client init).
+
 **Database:**
 SQLite with GORM. Models in `table/table.go`; register new models in `GetAllModels()`. Auto-migration on startup via `migration/migration.go`.
 
@@ -151,12 +159,14 @@ YAML config at `cmd/aiguide/aiguide.yaml` (see `cmd/aiguide/aiguide.yaml.example
 Authenticated routes (under `/api`):
 - `POST /api/assistant/chats/:id` — SSE streaming chat
 - `POST /api/assistant/tts/stream` — TTS streaming
+- `GET /api/assistant/live` — WebSocket voice call (Gemini Live API)
 - `/api/assistant/share` — Share management (POST create, GET list, DELETE /:shareId)
 - `/api/assistant/memories` — Memory CRUD (GET list, POST create, GET /summary, PATCH /:memoryId, DELETE /:memoryId)
 - `/api/assistant/scheduled-tasks` — Scheduled tasks (GET list, PATCH /:taskId, DELETE /:taskId)
 - `/api/assistant/projects` — Project management (GET, POST, PATCH /:projectId, DELETE /:projectId)
 - `/api/assistant/files/:fileId/download` — File download
 - `/api/:agentId/sessions` — Session management (GET list, POST create, POST /:sessionId/edit, PATCH /:sessionId/project, GET /:sessionId/history, DELETE /:sessionId)
+- `/api/calendar/status` — Google Calendar OAuth status (GET) and revoke (DELETE)
 - `/api/email_server_configs` — Email server config CRUD
 - `/api/ssh_server_configs` — SSH server config CRUD
 

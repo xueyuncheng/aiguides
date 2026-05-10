@@ -144,18 +144,19 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	}
 
 	assistantConfig := &assistant.Config{
-		Model:               model,
-		DB:                  db,
-		GenaiClient:         genaiClient,
-		MockImageGeneration: config.MockImageGeneration,
-		MockVideoGeneration: config.MockVideoGeneration,
-		FrontendURL:         config.FrontendURL,
-		WebSearchConfig:     webSearchConfig,
-		ExaConfig:           tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
-		APIKey:              config.APIKey,
-		BaseURL:             config.BaseURL,
-		HTTPClient:          httpClient,
-		LiveModel:           config.LiveModel,
+		Model:           model,
+		ModelName:       config.ModelName,
+		DB:              db,
+		GenaiClient:     genaiClient,
+		MockImageGen:    config.MockImageGeneration,
+		MockVideoGen:    config.MockVideoGeneration,
+		FrontendURL:     config.FrontendURL,
+		WebSearchConfig: webSearchConfig,
+		ExaConfig:       tools.ExaConfig{APIKey: config.ExaSearch.APIKey},
+		APIKey:          config.APIKey,
+		BaseURL:         config.BaseURL,
+		HTTPClient:      httpClient,
+		LiveModel:       config.LiveModel,
 	}
 
 	fileStorageDir := config.FileStorageDir

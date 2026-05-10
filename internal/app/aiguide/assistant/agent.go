@@ -4,16 +4,11 @@ import (
 	_ "embed"
 	"fmt"
 	"log/slog"
-	"net/http"
 
-	"aiguide/internal/pkg/storage"
-	"golang.org/x/oauth2"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
-	"google.golang.org/adk/model"
 	"google.golang.org/adk/tool"
 	"google.golang.org/genai"
-	"gorm.io/gorm"
 
 	"aiguide/internal/pkg/tools"
 )
@@ -21,45 +16,37 @@ import (
 //go:embed assistant_agent_prompt.md
 var assistantAgentInstruction string
 
-// AssistantAgentConfig contains configuration for the assistant agent.
-type AssistantAgentConfig struct {
-	Model             model.LLM
-	GenaiClient       *genai.Client
-	DB                *gorm.DB
-	MockImageGen      bool
-	MockVideoGen      bool
-	MockEmailIMAPConn bool
-	WebSearchConfig   tools.WebSearchConfig
-	ExaConfig         tools.ExaConfig
-	FileStore         storage.FileStore
-	PDFWorkDir        string
-	OAuthConfig       *oauth2.Config
-	HTTPClient        *http.Client
-}
-
-// NewAssistantAgent creates the single assistant agent with all tools.
-func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
+// NewAssistantAgent creates the root assistant agent with domain-specific sub-agents.
+func NewAssistantAgent(config *Config) (agent.Agent, error) {
 	if config == nil {
 		slog.Error("config parameter is nil")
 		return nil, fmt.Errorf("config cannot be nil")
 	}
 
-	toolList, err := createAssistantTools(config)
+	allTools, err := createAssistantTools(config)
 	if err != nil {
 		return nil, err
+	}
+
+	partition := partitionTools(allTools)
+
+	subAgents, err := buildSubAgents(partition, config.Model)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build sub-agents: %w", err)
 	}
 
 	agentConfig := llmagent.Config{
 		Name:        "assistant",
 		Model:       config.Model,
-		Description: "AI assistant that answers questions and executes tasks using available tools",
+		Description: "AI assistant that answers questions and delegates to specialized sub-agents",
 		Instruction: assistantAgentInstruction,
 		GenerateContentConfig: &genai.GenerateContentConfig{
 			ThinkingConfig: &genai.ThinkingConfig{
 				IncludeThoughts: true,
 			},
 		},
-		Tools: toolList,
+		Tools:     partition.Common,
+		SubAgents: subAgents,
 	}
 
 	a, err := llmagent.New(agentConfig)
@@ -68,11 +55,11 @@ func NewAssistantAgent(config *AssistantAgentConfig) (agent.Agent, error) {
 		return nil, fmt.Errorf("failed to create assistant agent: %w", err)
 	}
 
-	slog.Info("assistant agent created successfully")
+	slog.Info("assistant agent created with sub-agents", "sub_agent_count", len(subAgents))
 	return a, nil
 }
 
-func createAssistantTools(config *AssistantAgentConfig) ([]tool.Tool, error) {
+func createAssistantTools(config *Config) ([]tool.Tool, error) {
 	// Context
 	currentTimeTool, err := tools.NewCurrentTimeTool()
 	if err != nil {

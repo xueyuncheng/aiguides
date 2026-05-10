@@ -41,7 +41,7 @@ func TestNewSearchAgent(t *testing.T) {
 
 	var _ context.Context = ctx
 
-	agentConfig := &AssistantAgentConfig{
+	agentConfig := &Config{
 		Model:             nil,
 		GenaiClient:       nil,
 		DB:                db,
@@ -74,7 +74,7 @@ func TestNewSearchAgentWithModel(t *testing.T) {
 
 	var _ context.Context = ctx
 
-	agentConfig := &AssistantAgentConfig{
+	agentConfig := &Config{
 		Model:             model.LLM(nil),
 		GenaiClient:       nil,
 		DB:                db,
@@ -112,7 +112,7 @@ func TestAssistantAgentInstructionMentionsFileDownloadTool(t *testing.T) {
 	}
 }
 
-func TestNewAssistantAgentHasNoSubAgents(t *testing.T) {
+func TestNewAssistantAgentHasSubAgents(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{
 		SearXNG: tools.SearXNGConfig{
@@ -120,7 +120,7 @@ func TestNewAssistantAgentHasNoSubAgents(t *testing.T) {
 		},
 	}
 
-	assistantAgent, err := NewAssistantAgent(&AssistantAgentConfig{
+	assistantAgent, err := NewAssistantAgent(&Config{
 		Model:             nil,
 		GenaiClient:       nil,
 		DB:                db,
@@ -134,8 +134,20 @@ func TestNewAssistantAgentHasNoSubAgents(t *testing.T) {
 		t.Fatalf("NewAssistantAgent() error = %v", err)
 	}
 
-	if got := len(assistantAgent.SubAgents()); got != 0 {
-		t.Fatalf("len(SubAgents()) = %d, want 0 (single agent, no sub-agents)", got)
+	got := len(assistantAgent.SubAgents())
+	if got != 6 {
+		t.Fatalf("len(SubAgents()) = %d, want 6", got)
+	}
+
+	expectedNames := []string{"web_agent", "comms_agent", "media_agent", "file_agent", "task_agent", "system_agent"}
+	subAgentNames := make(map[string]bool)
+	for _, sa := range assistantAgent.SubAgents() {
+		subAgentNames[sa.Name()] = true
+	}
+	for _, name := range expectedNames {
+		if !subAgentNames[name] {
+			t.Errorf("sub-agent %q not found", name)
+		}
 	}
 }
 
