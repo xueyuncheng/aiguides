@@ -62,11 +62,58 @@ export async function consumeAssistantStream({
   const decoder = new TextDecoder();
   let buffer = '';
   let currentEventType = 'data';
-  let currentAuthor = '';
-  let assistantContent = '';
-  let assistantThought = '';
-  let assistantImages: string[] = [];
-  let assistantVideos: string[] = [];
+
+  // Per-author state tracking to support parallel agents without interleaving.
+  interface AuthorState {
+    content: string;
+    thought: string;
+    images: string[];
+    videos: string[];
+    messageId: string;
+  }
+  const authorStates = new Map<string, AuthorState>();
+
+  const getOrCreateAuthor = (author: string): AuthorState => {
+    let state = authorStates.get(author);
+    if (state) return state;
+
+    const messageId = `msg-${Date.now()}-${author || 'assistant'}`;
+    state = { content: '', thought: '', images: [], videos: [], messageId };
+    authorStates.set(author, state);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: messageId,
+        role: 'assistant',
+        content: '',
+        thought: '',
+        timestamp: new Date(),
+        author: author || undefined,
+        isStreaming: true,
+        images: [],
+        videos: [],
+      },
+    ]);
+    return state;
+  };
+
+  const updateAuthorMessage = (state: AuthorState) => {
+    setMessages((prev) => {
+      const nextMessages = [...prev];
+      const idx = nextMessages.findLastIndex((m) => m.id === state.messageId);
+      if (idx >= 0) {
+        nextMessages[idx] = {
+          ...nextMessages[idx],
+          content: state.content,
+          thought: state.thought,
+          images: state.images,
+          videos: state.videos,
+          isStreaming: true,
+        };
+      }
+      return nextMessages;
+    });
+  };
 
   const resetEventType = () => {
     currentEventType = 'data';
@@ -230,41 +277,17 @@ export async function consumeAssistantStream({
         }
 
         if (Array.isArray(data.images)) {
-          assistantImages = [...assistantImages, ...data.images.filter((item): item is string => typeof item === 'string')];
-
-          setMessages((prev) => {
-            const nextMessages = [...prev];
-            const lastIndex = nextMessages.length - 1;
-
-            if (lastIndex >= 0 && nextMessages[lastIndex].role === 'assistant') {
-              nextMessages[lastIndex] = {
-                ...nextMessages[lastIndex],
-                images: assistantImages,
-                isStreaming: true,
-              };
-            }
-
-            return nextMessages;
-          });
+          const eventAuthor = typeof data.author === 'string' ? data.author : '';
+          const state = getOrCreateAuthor(eventAuthor);
+          state.images = [...state.images, ...data.images.filter((item): item is string => typeof item === 'string')];
+          updateAuthorMessage(state);
         }
 
         if (Array.isArray(data.videos)) {
-          assistantVideos = [...assistantVideos, ...data.videos.filter((item): item is string => typeof item === 'string')];
-
-          setMessages((prev) => {
-            const nextMessages = [...prev];
-            const lastIndex = nextMessages.length - 1;
-
-            if (lastIndex >= 0 && nextMessages[lastIndex].role === 'assistant') {
-              nextMessages[lastIndex] = {
-                ...nextMessages[lastIndex],
-                videos: assistantVideos,
-                isStreaming: true,
-              };
-            }
-
-            return nextMessages;
-          });
+          const eventAuthor = typeof data.author === 'string' ? data.author : '';
+          const state = getOrCreateAuthor(eventAuthor);
+          state.videos = [...state.videos, ...data.videos.filter((item): item is string => typeof item === 'string')];
+          updateAuthorMessage(state);
         }
 
         if (typeof data.content !== 'string' || data.content.length === 0) {
@@ -272,58 +295,21 @@ export async function consumeAssistantStream({
         }
 
         const isThought = Boolean(data.is_thought);
-        const isCompleteDuplicate = !isThought && data.content === assistantContent;
+        const eventAuthor = typeof data.author === 'string' ? data.author : '';
+        const state = getOrCreateAuthor(eventAuthor);
+
+        const isCompleteDuplicate = !isThought && data.content === state.content;
         if (isCompleteDuplicate) {
           continue;
         }
 
-        if (typeof data.author === 'string' && data.author !== currentAuthor) {
-          currentAuthor = data.author;
-          assistantContent = isThought ? '' : data.content;
-          assistantThought = isThought ? data.content : '';
-          assistantImages = [];
-          assistantVideos = [];
-
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}-${currentAuthor}`,
-              role: 'assistant',
-              content: assistantContent,
-              thought: assistantThought,
-              timestamp: new Date(),
-              author: currentAuthor,
-              isStreaming: true,
-              images: [],
-              videos: [],
-            },
-          ]);
-          continue;
-        }
-
         if (isThought) {
-          assistantThought += data.content;
+          state.thought += data.content;
         } else {
-          assistantContent += data.content;
+          state.content += data.content;
         }
 
-        setMessages((prev) => {
-          const nextMessages = [...prev];
-          const lastIndex = nextMessages.length - 1;
-
-          if (lastIndex >= 0 && nextMessages[lastIndex].role === 'assistant') {
-            nextMessages[lastIndex] = {
-              ...nextMessages[lastIndex],
-              content: assistantContent,
-              thought: assistantThought,
-              images: assistantImages,
-              videos: assistantVideos,
-              isStreaming: true,
-            };
-          }
-
-          return nextMessages;
-        });
+        updateAuthorMessage(state);
       } catch (error) {
         console.warn('JSON parse error:', error);
       }

@@ -59,6 +59,7 @@ type MessageEvent struct {
 	ID               string        `json:"id"`
 	Timestamp        time.Time     `json:"timestamp"`
 	Role             string        `json:"role"` // "user" or "assistant"
+	Author           string        `json:"author,omitempty"`
 	Content          string        `json:"content"`
 	Thought          string        `json:"thought,omitempty"`
 	Images           []string      `json:"images,omitempty"`
@@ -501,6 +502,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 				ID:               event.ID,
 				Timestamp:        event.Timestamp,
 				Role:             role,
+				Author:           event.Author,
 				Content:          content,
 				Thought:          thought,
 				Images:           images,
@@ -520,7 +522,7 @@ func buildMessageEvents(events session.Events, locale string) []MessageEvent {
 				allMessages[messageIndex].Content += message.Content
 				allMessages[messageIndex].Thought += message.Thought
 				allMessages[messageIndex].Images = append(allMessages[messageIndex].Images, message.Images...)
-			allMessages[messageIndex].Videos = append(allMessages[messageIndex].Videos, message.Videos...)
+				allMessages[messageIndex].Videos = append(allMessages[messageIndex].Videos, message.Videos...)
 				allMessages[messageIndex].FileNames = append(allMessages[messageIndex].FileNames, message.FileNames...)
 				allMessages[messageIndex].Files = append(allMessages[messageIndex].Files, message.Files...)
 				toolCallOffset := len(allMessages[messageIndex].ToolCalls)

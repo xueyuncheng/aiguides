@@ -20,9 +20,9 @@ type User struct {
 	GoogleUserID            string `gorm:"column:google_user_id"`
 	GoogleEmail             string `gorm:"column:google_email"`
 	GoogleName              string `gorm:"column:google_name"`
-	Picture                 string `gorm:"column:picture"` // Original URL from Google
-	AvatarData              []byte `gorm:"column:avatar_data"` // Stored avatar image bytes (up to 5MB). NOTE: Storing images in the database increases backup sizes and can impact performance. For large deployments, consider using external storage (e.g., filesystem, S3) and storing only the path here.
-	AvatarMimeType          string `gorm:"column:avatar_mime_type"` // MIME type of the stored avatar (e.g., "image/jpeg", "image/png")
+	Picture                 string `gorm:"column:picture"`                    // Original URL from Google
+	AvatarData              []byte `gorm:"column:avatar_data"`                // Stored avatar image bytes (up to 5MB). NOTE: Storing images in the database increases backup sizes and can impact performance. For large deployments, consider using external storage (e.g., filesystem, S3) and storing only the path here.
+	AvatarMimeType          string `gorm:"column:avatar_mime_type"`           // MIME type of the stored avatar (e.g., "image/jpeg", "image/png")
 	GoogleOAuthRefreshToken string `gorm:"column:google_oauth_refresh_token"` // Google OAuth refresh token for Calendar API access (plain text; encrypt in production)
 }
 
@@ -49,13 +49,13 @@ type Project struct {
 type EmailServerConfig struct {
 	Model
 
-	UserID     int    `gorm:"column:user_id"` // 关联的用户 ID
-	Server     string `gorm:"column:server;not null"` // IMAP 服务器地址，例如: imap.gmail.com:993
-	SMTPServer string `gorm:"column:smtp_server"` // SMTP 服务器地址，例如: smtp.gmail.com:587
-	Username   string `gorm:"column:username;not null"` // 邮箱账号
-	Password   string `gorm:"column:password;not null"` // 邮箱密码或应用专用密码（应加密存储）
-	Mailbox    string `gorm:"column:mailbox"` // 邮箱文件夹名称，默认为 INBOX
-	Name       string `gorm:"column:name"` // 配置名称，用于用户识别多个邮箱
+	UserID     int    `gorm:"column:user_id"`                  // 关联的用户 ID
+	Server     string `gorm:"column:server;not null"`          // IMAP 服务器地址，例如: imap.gmail.com:993
+	SMTPServer string `gorm:"column:smtp_server"`              // SMTP 服务器地址，例如: smtp.gmail.com:587
+	Username   string `gorm:"column:username;not null"`        // 邮箱账号
+	Password   string `gorm:"column:password;not null"`        // 邮箱密码或应用专用密码（应加密存储）
+	Mailbox    string `gorm:"column:mailbox"`                  // 邮箱文件夹名称，默认为 INBOX
+	Name       string `gorm:"column:name"`                     // 配置名称，用于用户识别多个邮箱
 	IsDefault  bool   `gorm:"column:is_default;default:false"` // 是否为默认邮箱
 }
 
@@ -71,27 +71,27 @@ const (
 type SSHServerConfig struct {
 	Model
 
-	UserID     int           `gorm:"column:user_id;not null;index"`                // Associated user ID
-	Name       string        `gorm:"column:name;not null"`                         // Display name to identify the server
-	Host       string        `gorm:"column:host;not null"`                         // Hostname or IP, e.g. 192.168.1.10
-	Port       int           `gorm:"column:port;not null;default:22"`              // SSH port, default 22
-	Username   string        `gorm:"column:username;not null"`                     // SSH login username
-	AuthMethod SSHAuthMethod `gorm:"column:auth_method;not null;default:'password'"` // "password" or "key"
-	Password   string        `gorm:"column:password;not null;default:''"`          // Used when AuthMethod == "password" (plain text; encrypt in production)
+	UserID     int           `gorm:"column:user_id;not null;index"`                    // Associated user ID
+	Name       string        `gorm:"column:name;not null"`                             // Display name to identify the server
+	Host       string        `gorm:"column:host;not null"`                             // Hostname or IP, e.g. 192.168.1.10
+	Port       int           `gorm:"column:port;not null;default:22"`                  // SSH port, default 22
+	Username   string        `gorm:"column:username;not null"`                         // SSH login username
+	AuthMethod SSHAuthMethod `gorm:"column:auth_method;not null;default:'password'"`   // "password" or "key"
+	Password   string        `gorm:"column:password;not null;default:''"`              // Used when AuthMethod == "password" (plain text; encrypt in production)
 	PrivateKey string        `gorm:"column:private_key;not null;default:'';type:text"` // PEM-encoded private key; used when AuthMethod == "key"
-	Passphrase string        `gorm:"column:passphrase;not null;default:''"`        // Optional passphrase for encrypted private keys
-	IsDefault  bool          `gorm:"column:is_default;default:false"`              // Whether this is the user's default SSH server
+	Passphrase string        `gorm:"column:passphrase;not null;default:''"`            // Optional passphrase for encrypted private keys
+	IsDefault  bool          `gorm:"column:is_default;default:false"`                  // Whether this is the user's default SSH server
 }
 
 // UserMemory 用户记忆，用于跨会话记住用户特征
 type UserMemory struct {
 	Model
 
-	UserID     int                 `gorm:"column:user_id;not null;index"`      // 关联的用户 ID
-	MemoryType constant.MemoryType `gorm:"column:memory_type;not null;index"`  // 记忆类型：fact(事实), preference(偏好), context(上下文)
-	Content    string              `gorm:"column:content;not null;type:text"`  // 记忆内容
-	Importance int                 `gorm:"column:importance;default:5"`        // 重要性（1-10），用于后续优先级排序
-	Metadata   string              `gorm:"column:metadata;type:text"`          // 额外的元数据（JSON格式）
+	UserID     int                 `gorm:"column:user_id;not null;index"`     // 关联的用户 ID
+	MemoryType constant.MemoryType `gorm:"column:memory_type;not null;index"` // 记忆类型：fact(事实), preference(偏好), context(上下文)
+	Content    string              `gorm:"column:content;not null;type:text"` // 记忆内容
+	Importance int                 `gorm:"column:importance;default:5"`       // 重要性（1-10），用于后续优先级排序
+	Metadata   string              `gorm:"column:metadata;type:text"`         // 额外的元数据（JSON格式）
 }
 
 // Task represents a subtask in a plan

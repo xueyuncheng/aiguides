@@ -135,11 +135,11 @@ func TestNewAssistantAgentHasSubAgents(t *testing.T) {
 	}
 
 	got := len(assistantAgent.SubAgents())
-	if got != 6 {
-		t.Fatalf("len(SubAgents()) = %d, want 6", got)
+	if got != 7 {
+		t.Fatalf("len(SubAgents()) = %d, want 7", got)
 	}
 
-	expectedNames := []string{"web_agent", "comms_agent", "media_agent", "file_agent", "task_agent", "system_agent"}
+	expectedNames := []string{"web_agent", "comms_agent", "media_agent", "file_agent", "task_agent", "system_agent", "deep_research_agent"}
 	subAgentNames := make(map[string]bool)
 	for _, sa := range assistantAgent.SubAgents() {
 		subAgentNames[sa.Name()] = true

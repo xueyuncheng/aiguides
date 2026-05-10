@@ -14,6 +14,7 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/adk v1.2.0
+	google.golang.org/api v0.277.0
 	google.golang.org/genai v1.54.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/driver/sqlite v1.6.0
@@ -39,7 +40,7 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.5.0 // indirect
 	go.opentelemetry.io/otel/log v0.16.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	google.golang.org/api v0.277.0 // indirect
+	golang.org/x/sync v0.20.0 // indirect
 	modernc.org/libc v1.22.5 // indirect
 	modernc.org/mathutil v1.5.0 // indirect
 	modernc.org/memory v1.5.0 // indirect
