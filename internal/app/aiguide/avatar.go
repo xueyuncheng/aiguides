@@ -39,14 +39,14 @@ func (a *AIGuide) GetAvatar(c *gin.Context) {
 	userIDStr := c.Param("userId")
 	userID, err := strconv.Atoi(userIDStr)
 	if err != nil {
-		slog.Error("strconv.Atoi() error", "err", err)
+		slog.Error("failed to parse user id", "err", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid user id"})
 		return
 	}
 
 	var user table.User
 	if err := a.db.Where("id = ?", userID).First(&user).Error; err != nil {
-		slog.Error("db.First() error", "err", err)
+		slog.Error("failed to find user for avatar", "err", err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
 		return
 	}
@@ -93,7 +93,7 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	// Validate URL scheme to prevent SSRF attacks
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
-		slog.Error("url.Parse() error", "url", urlStr, "err", err)
+		slog.Error("failed to parse avatar url", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("invalid URL: %w", err)
 	}
 	if parsedURL.Scheme != "https" {
@@ -108,7 +108,7 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, urlStr, nil)
 	if err != nil {
-		slog.Error("http.NewRequestWithContext() error", "url", urlStr, "err", err)
+		slog.Error("failed to create avatar download request", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("failed to create request: %w", err)
 	}
 
@@ -116,7 +116,7 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	client := http.DefaultClient
 	resp, err := client.Do(req)
 	if err != nil {
-		slog.Error("http.DefaultClient.Do() error", "url", urlStr, "err", err)
+		slog.Error("failed to download avatar", "url", urlStr, "err", err)
 		return nil, "", fmt.Errorf("failed to download avatar: %w", err)
 	}
 	defer resp.Body.Close()
@@ -156,7 +156,7 @@ func downloadAvatar(urlStr string) ([]byte, string, error) {
 	// Limit reading to MaxAvatarSizeBytes+1 to detect oversized responses
 	limitedReader := io.LimitReader(resp.Body, MaxAvatarSizeBytes+1)
 	if _, err := io.Copy(&buf, limitedReader); err != nil {
-		slog.Error("io.Copy() error", "err", err)
+		slog.Error("failed to read avatar response body", "err", err)
 		return nil, "", fmt.Errorf("failed to read avatar data: %w", err)
 	}
 

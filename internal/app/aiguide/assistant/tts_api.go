@@ -45,7 +45,7 @@ func (a *Assistant) TextToSpeechStream(ctx *gin.Context) {
 	// 1. Authenticate
 	userID, ok := getContextUserID(ctx)
 	if !ok || userID <= 0 {
-		slog.Error("TextToSpeechStream: invalid or missing user_id in context")
+		slog.Error("invalid or missing user_id in context")
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
@@ -53,7 +53,7 @@ func (a *Assistant) TextToSpeechStream(ctx *gin.Context) {
 	// 2. Parse and validate request
 	var req TTSRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("TextToSpeechStream: ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
@@ -103,7 +103,7 @@ func (a *Assistant) TextToSpeechStream(ctx *gin.Context) {
 
 		wavData, err := a.generateTTSChunk(ctx, chunk, req.VoiceName)
 		if err != nil {
-			slog.Error("TextToSpeechStream: generateTTSChunk error", "chunk", i, "err", err)
+			slog.Error("generateTTSChunk error", "chunk", i, "err", err)
 			ctx.SSEvent("error", gin.H{"error": fmt.Sprintf("failed to generate chunk %d: %s", i, err.Error())})
 			ctx.Writer.Flush()
 			return
@@ -150,7 +150,7 @@ func (a *Assistant) generateTTSChunk(ctx *gin.Context, text, voiceName string) (
 		},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("genaiClient.Models.GenerateContent() error: %w", err)
+		return nil, fmt.Errorf("failed to generate TTS content: %w", err)
 	}
 
 	if len(ttsResp.Candidates) == 0 || ttsResp.Candidates[0].Content == nil {
@@ -252,7 +252,7 @@ func pcmToWAV(raw []byte, mimeType string) []byte {
 	sampleRate := uint32(24000)
 	numChannels := uint16(1)
 
-	for _, param := range strings.Split(mimeType, ";") {
+	for param := range strings.SplitSeq(mimeType, ";") {
 		param = strings.TrimSpace(param)
 		if v, ok := strings.CutPrefix(param, "rate="); ok {
 			if n, err := strconv.ParseUint(strings.TrimSpace(v), 10, 32); err == nil {

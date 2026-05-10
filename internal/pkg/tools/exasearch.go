@@ -180,7 +180,7 @@ func searchExaWithURL(ctx context.Context, query string, numResults int, include
 
 	bodyBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		slog.Error("json.Marshal() error", "err", err)
+		slog.Error("failed to marshal exa request body", "err", err)
 		return nil, fmt.Errorf("序列化请求体失败: %w", err)
 	}
 
@@ -190,7 +190,7 @@ func searchExaWithURL(ctx context.Context, query string, numResults int, include
 	// 创建 HTTP 请求
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, apiURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		slog.Error("http.NewRequestWithContext() error", "url", apiURL, "err", err)
+		slog.Error("failed to create exa search request", "url", apiURL, "err", err)
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 
@@ -201,7 +201,7 @@ func searchExaWithURL(ctx context.Context, query string, numResults int, include
 	// 发送请求
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("http.DefaultClient.Do() error", "url", apiURL, "err", err)
+		slog.Error("failed to send exa search request", "url", apiURL, "err", err)
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
 	defer resp.Body.Close()
@@ -209,7 +209,7 @@ func searchExaWithURL(ctx context.Context, query string, numResults int, include
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("io.ReadAll() error", "err", err)
+		slog.Error("failed to read exa search response", "err", err)
 		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
@@ -222,7 +222,7 @@ func searchExaWithURL(ctx context.Context, query string, numResults int, include
 	// 解析 JSON 响应
 	var exaResp exaResponse
 	if err := json.Unmarshal(body, &exaResp); err != nil {
-		slog.Error("json.Unmarshal() error", "err", err)
+		slog.Error("failed to parse exa search response", "err", err)
 		return nil, fmt.Errorf("解析 JSON 失败: %w", err)
 	}
 

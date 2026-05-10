@@ -187,12 +187,13 @@ Follow [Effective Go](https://go.dev/doc/effective_go) and [Google Go Style Guid
 - **At error propagation** (internal calls): DO NOT log — just `fmt.Errorf("...: %w", err)`
 - Log once at the source; never log the same error multiple times
 - Exception: GORM database errors should always log at source
+- **Log message style:** lowercase, no trailing punctuation, describe what happened (not which function failed). Never put function names in the message — use structured attrs for context.
 
 ```go
 // At source:
 resp, err := http.DefaultClient.Do(req)
 if err != nil {
-    slog.Error("http.DefaultClient.Do() error", "url", url, "err", err)
+    slog.Error("failed to fetch page", "url", url, "err", err)
     return nil, fmt.Errorf("请求失败: %w", err)
 }
 

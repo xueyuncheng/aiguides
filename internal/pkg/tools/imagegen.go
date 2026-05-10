@@ -227,13 +227,13 @@ func generateMockImages(numberOfImages int32, aspectRatio string) (*ImageGenOutp
 		// 将图片转换为 base64
 		buf := new(bytes.Buffer)
 		if err := png.Encode(buf, img); err != nil {
-			slog.Error("png.Encode() error", "err", err)
+			slog.Error("failed to encode mock image as png", "err", err)
 			continue
 		}
 
 		data, err := os.ReadFile("/Users/yuncheng/Documents/github/aiguides/cmd/aiguide/image1.png")
 		if err != nil {
-			slog.Error("os.ReadFile() error", "err", err)
+			slog.Error("failed to read mock image file", "err", err)
 			continue
 		}
 

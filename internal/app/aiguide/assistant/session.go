@@ -127,7 +127,7 @@ func (a *Assistant) ListSessions(ctx *gin.Context) {
 
 	listResp, err := a.session.List(ctx, listReq)
 	if err != nil {
-		slog.Error("session.List() error", "err", err)
+		slog.Error("failed to list sessions", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -289,7 +289,7 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 
 	getResp, err := a.session.Get(ctx, getReq)
 	if err != nil {
-		slog.Error("session.Get() error", "err", err)
+		slog.Error("failed to get session history", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -642,7 +642,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 
 	var req CreateSessionRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind create session request", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -667,7 +667,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 	}
 
 	if _, err := a.session.Create(ctx, createReq); err != nil {
-		slog.Error("session.Create() error", "err", err)
+		slog.Error("failed to create session", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -713,7 +713,7 @@ func (a *Assistant) DeleteSession(ctx *gin.Context) {
 	}
 
 	if err := a.session.Delete(ctx, deleteReq); err != nil {
-		slog.Error("session.Delete() error", "err", err)
+		slog.Error("failed to delete session", "err", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -731,7 +731,7 @@ func randomString(length int) string {
 	bytes := make([]byte, length/2+1) // hex encoding doubles the length
 	if _, err := rand.Read(bytes); err != nil {
 		// 降级到基于时间的方法（不应该发生）
-		slog.Error("crypto/rand.Read() failed", "err", err)
+		slog.Error("failed to generate random bytes", "err", err)
 		return time.Now().Format("150405999999")[:length]
 	}
 	return hex.EncodeToString(bytes)[:length]

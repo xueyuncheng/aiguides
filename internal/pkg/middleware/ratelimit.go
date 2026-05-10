@@ -43,7 +43,7 @@ func RateLimiter(rdb *redis.Client, cfg *RateLimiterConfig) gin.HandlerFunc {
 		}
 		res, err := limiter.Allow(c.Request.Context(), key, limit)
 		if err != nil {
-			slog.Error("rate limiter Allow() error", "key", key, "err", err)
+			slog.Error("failed to check rate limit", "key", key, "err", err)
 			// Redis 不可用时放行请求，避免影响正常服务
 			c.Next()
 			return

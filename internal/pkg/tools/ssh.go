@@ -75,13 +75,13 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 
 	tx, ok := middleware.GetTx(ctx)
 	if !ok {
-		slog.Error("middleware.GetTx() failed in executeSSHCommand")
+		slog.Error("failed to get database context for ssh", "err", "middleware.GetTx() returned false")
 		return &SSHExecuteOutput{Success: false, Error: "internal error: database context unavailable"}, nil
 	}
 
 	userID, ok := middleware.GetUserID(ctx)
 	if !ok {
-		slog.Error("middleware.GetUserID() failed in executeSSHCommand")
+		slog.Error("failed to get user context for ssh", "err", "middleware.GetUserID() returned false")
 		return &SSHExecuteOutput{Success: false, Error: "internal error: user context unavailable"}, nil
 	}
 
@@ -90,7 +90,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 	if input.ServerName != "" {
 		if err := tx.Where("user_id = ? AND name = ?", userID, input.ServerName).
 			First(&serverCfg).Error; err != nil {
-			slog.Error("db.First() error in executeSSHCommand", "user_id", userID, "server_name", input.ServerName, "err", err)
+			slog.Error("failed to query ssh server config by name", "user_id", userID, "server_name", input.ServerName, "err", err)
 			return &SSHExecuteOutput{
 				Success:     false,
 				Error:       fmt.Sprintf("SSH server config %q not found. Please add it at /settings/ssh-servers.", input.ServerName),
@@ -102,7 +102,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 		if err := tx.Where("user_id = ?", userID).
 			Order("is_default DESC, created_at DESC").
 			First(&serverCfg).Error; err != nil {
-			slog.Error("db.First() error finding default SSH config", "user_id", userID, "err", err)
+			slog.Error("failed to query default ssh server config", "user_id", userID, "err", err)
 			return &SSHExecuteOutput{
 				Success:     false,
 				Error:       "No SSH server config found. Please add one at /settings/ssh-servers.",
@@ -113,7 +113,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 
 	authMethods, err := buildAuthMethods(serverCfg)
 	if err != nil {
-		slog.Error("buildAuthMethods() error", "host", serverCfg.Host, "err", err)
+		slog.Error("failed to build ssh auth methods", "host", serverCfg.Host, "err", err)
 		return &SSHExecuteOutput{
 			Success: false,
 			Host:    fmt.Sprintf("%s:%d", serverCfg.Host, serverCfg.Port),
@@ -127,7 +127,7 @@ func executeSSHCommand(ctx context.Context, input SSHExecuteInput) (*SSHExecuteO
 
 	output, err := runSSHCommand(ctx, host, serverCfg.Username, authMethods, input.Command)
 	if err != nil {
-		slog.Error("runSSHCommand() error", "host", host, "err", err)
+		slog.Error("failed to run ssh command", "host", host, "err", err)
 		return &SSHExecuteOutput{
 			Success: false,
 			Host:    host,
@@ -298,13 +298,13 @@ func NewSSHListServersTool() (tool.Tool, error) {
 	handler := func(ctx tool.Context, _ SSHListServersInput) (*SSHListServersOutput, error) {
 		tx, ok := middleware.GetTx(ctx)
 		if !ok {
-			slog.Error("middleware.GetTx() failed in ssh_list_servers")
+			slog.Error("failed to get database context for ssh list servers")
 			return &SSHListServersOutput{}, nil
 		}
 
 		userID, ok := middleware.GetUserID(ctx)
 		if !ok {
-			slog.Error("middleware.GetUserID() failed in ssh_list_servers")
+			slog.Error("failed to get user context for ssh list servers")
 			return &SSHListServersOutput{}, nil
 		}
 
@@ -312,7 +312,7 @@ func NewSSHListServersTool() (tool.Tool, error) {
 		if err := tx.Where("user_id = ?", userID).
 			Order("is_default DESC, created_at DESC").
 			Find(&configs).Error; err != nil {
-			slog.Error("db.Find() error in ssh_list_servers", "user_id", userID, "err", err)
+			slog.Error("failed to query ssh server configs", "user_id", userID, "err", err)
 			return &SSHListServersOutput{}, nil
 		}
 

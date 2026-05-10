@@ -162,7 +162,7 @@ func SaveChatAudioAsset(ctx context.Context, db *gorm.DB, fileStore storage.File
 	}
 
 	if err := db.Create(asset).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "file_name", fileName)
+		slog.Error("failed to create audio file asset record", "err", err, "file_name", fileName)
 		return nil, fmt.Errorf("failed to persist uploaded audio asset: %w", err)
 	}
 
@@ -184,8 +184,8 @@ func newAudioToolService(db *gorm.DB, fileStore storage.FileStore, genaiClient *
 	}
 	root := filepath.Join(filepath.Clean(workDir), "audio")
 	if err := os.MkdirAll(root, 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "work_dir", root, "err", err)
-		return nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create audio work directory", "work_dir", root, "err", err)
+		return nil, fmt.Errorf("failed to create audio work directory: %w", err)
 	}
 
 	return &AudioToolService{
@@ -222,7 +222,7 @@ func (s *AudioToolService) transcribe(ctx context.Context, input AudioTranscribe
 		Prompt:    strings.TrimSpace(input.Prompt),
 	}
 	if err := s.db.Create(job).Error; err != nil {
-		slog.Error("db.Create() error", "file_id", input.FileID, "err", err)
+		slog.Error("failed to create audio job", "file_id", input.FileID, "err", err)
 		return nil, fmt.Errorf("failed to create audio job: %w", err)
 	}
 
@@ -265,7 +265,7 @@ func (s *AudioToolService) transcribe(ctx context.Context, input AudioTranscribe
 		"duration_ms": durationMs,
 		"chunk_count": len(windows),
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", job.ID, "err", err)
+		slog.Error("failed to update audio job metadata", "job_id", job.ID, "err", err)
 		s.failJob(job.ID, err)
 		return nil, fmt.Errorf("failed to update audio job metadata: %w", err)
 	}
@@ -326,7 +326,7 @@ func (s *AudioToolService) transcribe(ctx context.Context, input AudioTranscribe
 		"completed_at":     time.Now(),
 		"error_message":    "",
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", job.ID, "err", err)
+		slog.Error("failed to complete audio job", "job_id", job.ID, "err", err)
 		return nil, fmt.Errorf("failed to complete audio job: %w", err)
 	}
 
@@ -349,7 +349,7 @@ func (s *AudioToolService) transcribeChunk(ctx context.Context, path string, win
 		DisplayName: filepath.Base(path),
 	})
 	if err != nil {
-		slog.Error("Files.UploadFromPath() error", "path", path, "err", err)
+		slog.Error("failed to upload audio chunk", "path", path, "err", err)
 		return "", fmt.Errorf("failed to upload audio chunk: %w", err)
 	}
 	defer func() {
@@ -373,7 +373,7 @@ func (s *AudioToolService) transcribeChunk(ctx context.Context, path string, win
 
 	resp, err := s.genaiClient.Models.GenerateContent(ctx, defaultAudioModel, contents, nil)
 	if err != nil {
-		slog.Error("Models.GenerateContent() error", "path", path, "err", err)
+		slog.Error("failed to transcribe audio chunk", "path", path, "err", err)
 		return "", fmt.Errorf("failed to transcribe audio chunk: %w", err)
 	}
 
@@ -389,7 +389,7 @@ func (s *AudioToolService) waitForUploadedFile(ctx context.Context, fileName str
 	for {
 		file, err := s.genaiClient.Files.Get(ctx, fileName, nil)
 		if err != nil {
-			slog.Error("Files.Get() error", "file_name", fileName, "err", err)
+			slog.Error("failed to inspect uploaded audio file", "file_name", fileName, "err", err)
 			return nil, fmt.Errorf("failed to inspect uploaded audio file: %w", err)
 		}
 		switch file.State {
@@ -425,7 +425,7 @@ func (s *AudioToolService) persistChunkSuccess(jobID int, window audioChunkWindo
 		TranscriptChars: len(transcript),
 	}
 	if err := s.db.Create(row).Error; err != nil {
-		slog.Error("db.Create() error", "job_id", jobID, "chunk_index", window.index, "err", err)
+		slog.Error("failed to persist audio chunk transcript", "job_id", jobID, "chunk_index", window.index, "err", err)
 		return fmt.Errorf("failed to persist audio chunk transcript: %w", err)
 	}
 	return nil
@@ -469,7 +469,7 @@ func (s *AudioToolService) requireContext(ctx context.Context) (int, string, err
 func (s *AudioToolService) loadAudioAsset(userID, fileID int) (*table.FileAsset, error) {
 	var asset table.FileAsset
 	if err := s.db.Where("id = ? AND user_id = ?", fileID, userID).First(&asset).Error; err != nil {
-		slog.Error("db.First() error", "file_id", fileID, "user_id", userID, "err", err)
+		slog.Error("failed to query audio file asset", "file_id", fileID, "user_id", userID, "err", err)
 		return nil, fmt.Errorf("failed to load file asset: %w", err)
 	}
 	if !IsSupportedAudioMimeType(asset.MimeType) {
@@ -489,7 +489,7 @@ func (s *AudioToolService) markJobRunning(jobID int) error {
 		"status":     constant.AudioJobStatusRunning,
 		"started_at": now,
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", jobID, "err", err)
+		slog.Error("failed to mark audio job running", "job_id", jobID, "err", err)
 		return fmt.Errorf("failed to mark audio job running: %w", err)
 	}
 	return nil
@@ -505,15 +505,15 @@ func (s *AudioToolService) failJob(jobID int, cause error) {
 		"error_message": cause.Error(),
 		"completed_at":  now,
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", jobID, "err", err)
+		slog.Error("failed to mark audio job as failed", "job_id", jobID, "err", err)
 	}
 }
 
 func (s *AudioToolService) createWorkspace(userID int, sessionID string, jobID int) (string, func(), error) {
 	workspace := filepath.Join(s.workDir, fmt.Sprintf("%d", userID), sessionID, fmt.Sprintf("%d-%s", jobID, uuid.NewString()))
 	if err := os.MkdirAll(workspace, 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "workspace", workspace, "err", err)
-		return "", nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create audio workspace", "workspace", workspace, "err", err)
+		return "", nil, fmt.Errorf("failed to create audio workspace: %w", err)
 	}
 
 	cleanup := func() {
@@ -534,18 +534,18 @@ func (s *AudioToolService) materializeAsset(ctx context.Context, asset *table.Fi
 
 	file, err := os.Create(destination)
 	if err != nil {
-		slog.Error("os.Create() error", "path", destination, "err", err)
-		return fmt.Errorf("os.Create() error: %w", err)
+		slog.Error("failed to create file for audio asset", "path", destination, "err", err)
+		return fmt.Errorf("failed to create file for audio asset: %w", err)
 	}
 
 	if _, err := io.Copy(file, rc); err != nil {
 		file.Close()
-		slog.Error("io.Copy() error", "path", destination, "err", err)
-		return fmt.Errorf("io.Copy() error: %w", err)
+		slog.Error("failed to write audio asset data", "path", destination, "err", err)
+		return fmt.Errorf("failed to write audio asset data: %w", err)
 	}
 	if err := file.Close(); err != nil {
-		slog.Error("file.Close() error", "path", destination, "err", err)
-		return fmt.Errorf("file.Close() error: %w", err)
+		slog.Error("failed to close audio asset file", "path", destination, "err", err)
+		return fmt.Errorf("failed to close audio asset file: %w", err)
 	}
 
 	return nil
@@ -688,7 +688,7 @@ func probeAudioDuration(path string) (int64, error) {
 	}
 	durationSeconds, err := strconv.ParseFloat(strings.TrimSpace(string(output)), 64)
 	if err != nil {
-		slog.Error("strconv.ParseFloat() error", "output", strings.TrimSpace(string(output)), "err", err)
+		slog.Error("failed to parse audio duration", "output", strings.TrimSpace(string(output)), "err", err)
 		return 0, fmt.Errorf("invalid ffprobe duration output: %w", err)
 	}
 	return int64(durationSeconds * 1000), nil

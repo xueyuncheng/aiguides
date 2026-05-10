@@ -309,7 +309,7 @@ func (h *memoryHandler) deleteMemory(input *MemoryInput, userID int) (*MemoryOut
 func SerializeMemoryOutput(output *MemoryOutput) string {
 	data, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
-		slog.Error("json.MarshalIndent() error", "err", err)
+		slog.Error("failed to serialize memory output", "err", err)
 		return fmt.Sprintf("error serializing output: %v", err)
 	}
 

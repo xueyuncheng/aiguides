@@ -34,7 +34,7 @@ func (a *Assistant) ListProjects(ctx *gin.Context) {
 
 	var projects []table.Project
 	if err := a.db.Where("user_id = ?", userID).Order("updated_at DESC, id DESC").Find(&projects).Error; err != nil {
-		slog.Error("db.Find() error", "err", err, "user_id", userID)
+		slog.Error("failed to query projects", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load projects"})
 		return
 	}
@@ -64,7 +64,7 @@ func (a *Assistant) CreateProject(ctx *gin.Context) {
 
 	var req CreateProjectRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -80,7 +80,7 @@ func (a *Assistant) CreateProject(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, ProjectInfo{ID: existing.ID, Name: existing.Name})
 		return
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		slog.Error("db.First() error", "err", err, "user_id", userID, "project_name", projectName)
+		slog.Error("failed to check existing project", "err", err, "user_id", userID, "project_name", projectName)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create project"})
 		return
 	}
@@ -90,7 +90,7 @@ func (a *Assistant) CreateProject(ctx *gin.Context) {
 		Name:   projectName,
 	}
 	if err := a.db.Create(&project).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "user_id", userID, "project_name", projectName)
+		slog.Error("failed to create project", "err", err, "user_id", userID, "project_name", projectName)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create project"})
 		return
 	}
@@ -131,18 +131,18 @@ func (a *Assistant) deleteProject(userID, projectID int) error {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				return errProjectNotFound
 			}
-			slog.Error("tx.First() error", "err", err, "user_id", userID, "project_id", projectID)
-			return fmt.Errorf("tx.First() error: %w", err)
+			slog.Error("failed to find project for deletion", "err", err, "user_id", userID, "project_id", projectID)
+			return fmt.Errorf("failed to find project for deletion: %w", err)
 		}
 
 		if err := tx.Model(&table.SessionMeta{}).Where("project_id = ?", projectID).Update("project_id", 0).Error; err != nil {
-			slog.Error("tx.Model().Update() error", "err", err, "project_id", projectID)
-			return fmt.Errorf("tx.Model().Update() error: %w", err)
+			slog.Error("failed to unlink sessions from project", "err", err, "project_id", projectID)
+			return fmt.Errorf("failed to unlink sessions: %w", err)
 		}
 
 		if err := tx.Delete(&project).Error; err != nil {
-			slog.Error("tx.Delete() error", "err", err, "user_id", userID, "project_id", projectID)
-			return fmt.Errorf("tx.Delete() error: %w", err)
+			slog.Error("failed to delete project", "err", err, "user_id", userID, "project_id", projectID)
+			return fmt.Errorf("failed to delete project: %w", err)
 		}
 
 		return nil
@@ -169,7 +169,7 @@ func (a *Assistant) UpdateProject(ctx *gin.Context) {
 
 	var req UpdateProjectRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -199,8 +199,8 @@ func (a *Assistant) updateProjectName(userID, projectID int, projectName string)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, errProjectNotFound
 		}
-		slog.Error("db.First() error", "err", err, "user_id", userID, "project_id", projectID)
-		return nil, fmt.Errorf("db.First() error: %w", err)
+		slog.Error("failed to find project", "err", err, "user_id", userID, "project_id", projectID)
+		return nil, fmt.Errorf("failed to find project: %w", err)
 	}
 
 	var existing table.Project
@@ -208,14 +208,14 @@ func (a *Assistant) updateProjectName(userID, projectID int, projectName string)
 		project = existing
 		return &project, nil
 	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
-		slog.Error("db.First() error", "err", err, "user_id", userID, "project_name", projectName, "project_id", projectID)
-		return nil, fmt.Errorf("db.First() error: %w", err)
+		slog.Error("failed to check duplicate project name", "err", err, "user_id", userID, "project_name", projectName, "project_id", projectID)
+		return nil, fmt.Errorf("failed to check duplicate project name: %w", err)
 	}
 
 	project.Name = projectName
 	if err := a.db.Save(&project).Error; err != nil {
-		slog.Error("db.Save() error", "err", err, "user_id", userID, "project_id", projectID, "project_name", projectName)
-		return nil, fmt.Errorf("db.Save() error: %w", err)
+		slog.Error("failed to save project", "err", err, "user_id", userID, "project_id", projectID, "project_name", projectName)
+		return nil, fmt.Errorf("failed to save project: %w", err)
 	}
 
 	return &project, nil
@@ -238,7 +238,7 @@ func (a *Assistant) UpdateSessionProject(ctx *gin.Context) {
 
 	var req UpdateSessionProjectRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -258,7 +258,7 @@ func (a *Assistant) UpdateSessionProject(ctx *gin.Context) {
 		SessionID: sessionID,
 	}
 	if _, err := a.session.Get(ctx, getReq); err != nil {
-		slog.Error("session.Get() error", "err", err, "session_id", sessionID, "user_id", userID)
+		slog.Error("failed to get session", "err", err, "session_id", sessionID, "user_id", userID)
 		ctx.JSON(http.StatusNotFound, gin.H{"error": "session not found"})
 		return
 	}
@@ -284,8 +284,8 @@ func (a *Assistant) ensureProjectOwnership(userID int, projectID int) error {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errProjectNotFound
 		}
-		slog.Error("db.First() error", "err", err, "user_id", userID, "project_id", projectID)
-		return fmt.Errorf("db.First() error: %w", err)
+		slog.Error("failed to verify project ownership", "err", err, "user_id", userID, "project_id", projectID)
+		return fmt.Errorf("failed to verify project ownership: %w", err)
 	}
 
 	return nil
@@ -295,8 +295,8 @@ func (a *Assistant) upsertSessionProjectMeta(sessionID string, projectID int) er
 	var meta table.SessionMeta
 	if err := a.db.Where("session_id = ?", sessionID).First(&meta).Error; err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			slog.Error("db.First() error", "err", err, "session_id", sessionID)
-			return fmt.Errorf("db.First() error: %w", err)
+			slog.Error("failed to find session meta", "err", err, "session_id", sessionID)
+			return fmt.Errorf("failed to find session meta: %w", err)
 		}
 
 		meta = table.SessionMeta{
@@ -306,8 +306,8 @@ func (a *Assistant) upsertSessionProjectMeta(sessionID string, projectID int) er
 			Version:   1,
 		}
 		if err := a.db.Create(&meta).Error; err != nil {
-			slog.Error("db.Create() error", "err", err, "session_id", sessionID)
-			return fmt.Errorf("db.Create() error: %w", err)
+			slog.Error("failed to create session meta", "err", err, "session_id", sessionID)
+			return fmt.Errorf("failed to create session meta: %w", err)
 		}
 		return nil
 	}
@@ -323,8 +323,8 @@ func (a *Assistant) upsertSessionProjectMeta(sessionID string, projectID int) er
 	}
 
 	if err := a.db.Model(&meta).Updates(updates).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "err", err, "session_id", sessionID)
-		return fmt.Errorf("db.Model().Updates() error: %w", err)
+		slog.Error("failed to update session meta", "err", err, "session_id", sessionID)
+		return fmt.Errorf("failed to update session meta: %w", err)
 	}
 
 	return nil

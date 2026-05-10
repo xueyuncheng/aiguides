@@ -88,7 +88,7 @@ func appendUserUploadPart(
 
 	parsedUserID, err := strconv.Atoi(userID)
 	if err != nil {
-		slog.Error("strconv.Atoi() error", "user_id", userID, "err", err)
+		slog.Error("failed to parse user id", "user_id", userID, "err", err)
 		return nil, fmt.Errorf("invalid user_id: %w", err)
 	}
 

@@ -91,7 +91,7 @@ func NewScheduledTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 		}
 
 		if err := db.Create(scheduledTask).Error; err != nil {
-			slog.Error("db.Create() error", "err", err)
+			slog.Error("failed to create scheduled task", "err", err)
 			return nil, fmt.Errorf("failed to create scheduled task: %w", err)
 		}
 
@@ -134,7 +134,7 @@ func NewScheduledTaskListTool(db *gorm.DB) (tool.Tool, error) {
 
 		var tasks []table.ScheduledTask
 		if err := query.Order("next_run_at ASC").Find(&tasks).Error; err != nil {
-			slog.Error("query.Find() error", "err", err)
+			slog.Error("failed to list scheduled tasks", "err", err)
 			return nil, fmt.Errorf("failed to list scheduled tasks: %w", err)
 		}
 
@@ -195,7 +195,7 @@ func normalizeScheduledTaskInput(input ScheduledTaskCreateInput) (ScheduledTaskC
 func CalculateNextRunAt(now time.Time, input ScheduledTaskCreateInput) (time.Time, error) {
 	location, err := time.LoadLocation(input.Timezone)
 	if err != nil {
-		return time.Time{}, fmt.Errorf("time.LoadLocation() error, err = %w", err)
+		return time.Time{}, fmt.Errorf("failed to load timezone: %w", err)
 	}
 	nowInLocation := now.In(location)
 

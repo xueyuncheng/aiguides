@@ -171,7 +171,7 @@ func wsWriter(conn *websocket.Conn, writeCh <-chan wsServerMessage, cancel conte
 	}
 }
 
-func sessionWriter(liveSession *genai.Session, writeCh <-chan func() error, cancel context.CancelFunc) {
+func sessionWriter(_ *genai.Session, writeCh <-chan func() error, cancel context.CancelFunc) {
 	for fn := range writeCh {
 		if err := fn(); err != nil {
 			slog.Error("VoiceCall: liveSession write error", "err", err)
@@ -615,7 +615,7 @@ func (a *Assistant) saveVoiceTurn(ctx context.Context, userID int, sessionID, ro
 		SessionID: sessionID,
 	})
 	if err != nil {
-		slog.Error("saveVoiceTurn: session.Get() error", "err", err)
+		slog.Error("failed to get session", "err", err, "op", "saveVoiceTurn")
 		return
 	}
 
@@ -632,7 +632,7 @@ func (a *Assistant) saveVoiceTurn(ctx context.Context, userID int, sessionID, ro
 	}
 
 	if err := a.session.AppendEvent(ctx, getResp.Session, event); err != nil {
-		slog.Error("saveVoiceTurn: session.AppendEvent() error", "role", role, "err", err)
+		slog.Error("failed to append event", "role", role, "err", err, "op", "saveVoiceTurn")
 	}
 }
 
@@ -656,7 +656,7 @@ func (a *Assistant) saveTextImageTurn(ctx context.Context, userID int, sessionID
 		SessionID: sessionID,
 	})
 	if err != nil {
-		slog.Error("saveTextImageTurn: session.Get() error", "err", err)
+		slog.Error("failed to get session", "err", err, "op", "saveTextImageTurn")
 		return
 	}
 
@@ -673,7 +673,7 @@ func (a *Assistant) saveTextImageTurn(ctx context.Context, userID int, sessionID
 	}
 
 	if err := a.session.AppendEvent(ctx, getResp.Session, event); err != nil {
-		slog.Error("saveTextImageTurn: session.AppendEvent() error", "err", err)
+		slog.Error("failed to append event", "err", err, "op", "saveTextImageTurn")
 	}
 }
 

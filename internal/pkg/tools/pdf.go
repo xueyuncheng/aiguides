@@ -128,8 +128,8 @@ func newPDFToolService(db *gorm.DB, fileStore storage.FileStore, workDir string)
 		return nil, fmt.Errorf("pdf work directory is required")
 	}
 	if err := os.MkdirAll(workDir, 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "work_dir", workDir, "err", err)
-		return nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create pdf work directory", "work_dir", workDir, "err", err)
+		return nil, fmt.Errorf("failed to create pdf work directory: %w", err)
 	}
 
 	return &PDFToolService{
@@ -291,7 +291,7 @@ func (s *PDFToolService) requireContext(ctx context.Context) (int, string, error
 func (s *PDFToolService) loadPDFAsset(userID, fileID int) (*table.FileAsset, error) {
 	var asset table.FileAsset
 	if err := s.db.Where("id = ? AND user_id = ?", fileID, userID).First(&asset).Error; err != nil {
-		slog.Error("db.First() error", "file_id", fileID, "user_id", userID, "err", err)
+		slog.Error("failed to query pdf file asset", "file_id", fileID, "user_id", userID, "err", err)
 		return nil, fmt.Errorf("failed to load file asset: %w", err)
 	}
 	if asset.MimeType != "application/pdf" {
@@ -308,8 +308,8 @@ func (s *PDFToolService) loadPDFAsset(userID, fileID int) (*table.FileAsset, err
 func (s *PDFToolService) createJob(userID int, sessionID string, jobType constant.PDFJobType, params map[string]any) (*table.PDFJob, error) {
 	paramsJSON, err := json.Marshal(params)
 	if err != nil {
-		slog.Error("json.Marshal() error", "err", err)
-		return nil, fmt.Errorf("json.Marshal() error: %w", err)
+		slog.Error("failed to marshal pdf job params", "err", err)
+		return nil, fmt.Errorf("failed to marshal pdf job params: %w", err)
 	}
 
 	job := &table.PDFJob{
@@ -321,7 +321,7 @@ func (s *PDFToolService) createJob(userID int, sessionID string, jobType constan
 	}
 
 	if err := s.db.Create(job).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "job_type", jobType)
+		slog.Error("failed to create pdf job", "err", err, "job_type", jobType)
 		return nil, fmt.Errorf("failed to create pdf job: %w", err)
 	}
 
@@ -334,7 +334,7 @@ func (s *PDFToolService) markJobRunning(jobID int) error {
 		"status":     constant.PDFJobStatusRunning,
 		"started_at": now,
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", jobID, "err", err)
+		slog.Error("failed to mark pdf job running", "job_id", jobID, "err", err)
 		return fmt.Errorf("failed to mark pdf job running: %w", err)
 	}
 	return nil
@@ -352,7 +352,7 @@ func (s *PDFToolService) completeJob(jobID int, summary string, outputFileID int
 	}
 
 	if err := s.db.Model(&table.PDFJob{}).Where("id = ?", jobID).Updates(updates).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", jobID, "err", err)
+		slog.Error("failed to complete pdf job", "job_id", jobID, "err", err)
 		return fmt.Errorf("failed to complete pdf job: %w", err)
 	}
 	return nil
@@ -368,15 +368,15 @@ func (s *PDFToolService) failJob(jobID int, cause error) {
 		"error_message": cause.Error(),
 		"completed_at":  now,
 	}).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "job_id", jobID, "err", err)
+		slog.Error("failed to mark pdf job as failed", "job_id", jobID, "err", err)
 	}
 }
 
 func (s *PDFToolService) createWorkspace(userID int, sessionID string, jobID int) (string, func(), error) {
 	workspace := filepath.Join(s.workDir, fmt.Sprintf("%d", userID), sessionID, fmt.Sprintf("%d-%s", jobID, uuid.NewString()))
 	if err := os.MkdirAll(workspace, 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "workspace", workspace, "err", err)
-		return "", nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create pdf workspace", "workspace", workspace, "err", err)
+		return "", nil, fmt.Errorf("failed to create pdf workspace: %w", err)
 	}
 
 	cleanup := func() {
@@ -397,18 +397,18 @@ func (s *PDFToolService) materializeAsset(ctx context.Context, asset *table.File
 
 	file, err := os.Create(destination)
 	if err != nil {
-		slog.Error("os.Create() error", "path", destination, "err", err)
-		return fmt.Errorf("os.Create() error: %w", err)
+		slog.Error("failed to create file for pdf asset", "path", destination, "err", err)
+		return fmt.Errorf("failed to create file for pdf asset: %w", err)
 	}
 
 	if _, err := io.Copy(file, rc); err != nil {
 		file.Close()
-		slog.Error("io.Copy() error", "path", destination, "err", err)
-		return fmt.Errorf("io.Copy() error: %w", err)
+		slog.Error("failed to write pdf asset data", "path", destination, "err", err)
+		return fmt.Errorf("failed to write pdf asset data: %w", err)
 	}
 	if err := file.Close(); err != nil {
-		slog.Error("file.Close() error", "path", destination, "err", err)
-		return fmt.Errorf("file.Close() error: %w", err)
+		slog.Error("failed to close pdf asset file", "path", destination, "err", err)
+		return fmt.Errorf("failed to close pdf asset file: %w", err)
 	}
 
 	return nil
@@ -439,7 +439,7 @@ func (s *PDFToolService) saveGeneratedAsset(ctx context.Context, userID int, ses
 	}
 
 	if err := s.db.Create(asset).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "file_name", fileName)
+		slog.Error("failed to create generated pdf file asset", "err", err, "file_name", fileName)
 		return nil, fmt.Errorf("failed to persist file asset: %w", err)
 	}
 
@@ -449,8 +449,8 @@ func (s *PDFToolService) saveGeneratedAsset(ctx context.Context, userID int, ses
 func extractPDFPageTexts(path string) ([]PDFPageText, int, error) {
 	file, reader, err := pdf.Open(path)
 	if err != nil {
-		slog.Error("pdf.Open() error", "path", path, "err", err)
-		return nil, 0, fmt.Errorf("pdf.Open() error: %w", err)
+		slog.Error("failed to open pdf file", "path", path, "err", err)
+		return nil, 0, fmt.Errorf("failed to open pdf file: %w", err)
 	}
 	defer file.Close()
 
@@ -470,8 +470,8 @@ func extractPDFPageTexts(path string) ([]PDFPageText, int, error) {
 		}
 		text, err := page.GetPlainText(fonts)
 		if err != nil {
-			slog.Error("page.GetPlainText() error", "path", path, "page_number", pageNumber, "err", err)
-			return nil, 0, fmt.Errorf("page.GetPlainText() error: %w", err)
+			slog.Error("failed to extract text from pdf page", "path", path, "page_number", pageNumber, "err", err)
+			return nil, 0, fmt.Errorf("failed to extract text from pdf page: %w", err)
 		}
 		pages = append(pages, PDFPageText{
 			PageNumber: pageNumber,
@@ -517,13 +517,13 @@ func generatePDFDocument(path, title, metadataTitle string, paragraphs []string)
 		fontFamily = "AIGuidesUnicode"
 		fontBytes, err := os.ReadFile(fontPath)
 		if err != nil {
-			slog.Error("os.ReadFile() error", "font_path", fontPath, "err", err)
-			return fmt.Errorf("os.ReadFile() error: %w", err)
+			slog.Error("failed to read font file", "font_path", fontPath, "err", err)
+			return fmt.Errorf("failed to read font file: %w", err)
 		}
 		pdfDoc.AddUTF8FontFromBytes(fontFamily, "", fontBytes)
 		if pdfDoc.Error() != nil {
-			slog.Error("pdfDoc.AddUTF8FontFromBytes() error", "font_path", fontPath, "err", pdfDoc.Error())
-			return fmt.Errorf("pdfDoc.AddUTF8FontFromBytes() error: %w", pdfDoc.Error())
+			slog.Error("failed to add utf8 font to pdf", "font_path", fontPath, "err", pdfDoc.Error())
+			return fmt.Errorf("failed to add utf8 font to pdf: %w", pdfDoc.Error())
 		}
 	} else if containsNonASCII(allText) {
 		slog.Error("no utf8 font available for pdf generation")
@@ -545,8 +545,8 @@ func generatePDFDocument(path, title, metadataTitle string, paragraphs []string)
 	}
 
 	if err := pdfDoc.OutputFileAndClose(path); err != nil {
-		slog.Error("pdfDoc.OutputFileAndClose() error", "path", path, "err", err)
-		return fmt.Errorf("pdfDoc.OutputFileAndClose() error: %w", err)
+		slog.Error("failed to write pdf output file", "path", path, "err", err)
+		return fmt.Errorf("failed to write pdf output file: %w", err)
 	}
 
 	return nil
@@ -634,7 +634,7 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 	}
 
 	if err := db.Create(asset).Error; err != nil {
-		slog.Error("db.Create() error", "err", err, "file_name", fileName)
+		slog.Error("failed to create uploaded pdf file asset", "err", err, "file_name", fileName)
 		return nil, fmt.Errorf("failed to persist uploaded pdf asset: %w", err)
 	}
 
@@ -646,7 +646,7 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 			"text_chars":  0,
 			"text_error":  err.Error(),
 		}).Error; updateErr != nil {
-			slog.Error("db.Model().Updates() error", "file_id", asset.ID, "err", updateErr)
+			slog.Error("failed to update pdf text extraction status", "file_id", asset.ID, "err", updateErr)
 		}
 		asset.TextStatus = constant.PDFTextExtractStatusFailed
 		asset.TextError = err.Error()
@@ -674,7 +674,7 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 
 	if len(pageRows) > 0 {
 		if err := db.Create(&pageRows).Error; err != nil {
-			slog.Error("db.Create() error", "file_id", asset.ID, "err", err)
+			slog.Error("failed to persist extracted pdf text pages", "file_id", asset.ID, "err", err)
 			return nil, fmt.Errorf("failed to persist extracted pdf text: %w", err)
 		}
 	}
@@ -686,7 +686,7 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 		"text_error":  "",
 	}
 	if err := db.Model(&table.FileAsset{}).Where("id = ?", asset.ID).Updates(updates).Error; err != nil {
-		slog.Error("db.Model().Updates() error", "file_id", asset.ID, "err", err)
+		slog.Error("failed to update pdf text extraction metadata", "file_id", asset.ID, "err", err)
 		return nil, fmt.Errorf("failed to update extracted pdf metadata: %w", err)
 	}
 
@@ -707,8 +707,8 @@ func SaveChatPDFAsset(ctx context.Context, db *gorm.DB, fileStore storage.FileSt
 func extractPDFBytesToPageTexts(data []byte) ([]PDFPageText, int, error) {
 	file, err := os.CreateTemp("", "aiguides-upload-*.pdf")
 	if err != nil {
-		slog.Error("os.CreateTemp() error", "err", err)
-		return nil, 0, fmt.Errorf("os.CreateTemp() error: %w", err)
+		slog.Error("failed to create temp file for pdf", "err", err)
+		return nil, 0, fmt.Errorf("failed to create temp file for pdf: %w", err)
 	}
 	path := file.Name()
 	defer func() {
@@ -719,12 +719,12 @@ func extractPDFBytesToPageTexts(data []byte) ([]PDFPageText, int, error) {
 
 	if _, err := file.Write(data); err != nil {
 		file.Close()
-		slog.Error("file.Write() error", "path", path, "err", err)
-		return nil, 0, fmt.Errorf("file.Write() error: %w", err)
+		slog.Error("failed to write pdf data to temp file", "path", path, "err", err)
+		return nil, 0, fmt.Errorf("failed to write pdf data to temp file: %w", err)
 	}
 	if err := file.Close(); err != nil {
-		slog.Error("file.Close() error", "path", path, "err", err)
-		return nil, 0, fmt.Errorf("file.Close() error: %w", err)
+		slog.Error("failed to close temp pdf file", "path", path, "err", err)
+		return nil, 0, fmt.Errorf("failed to close temp pdf file: %w", err)
 	}
 
 	return extractPDFPageTexts(path)

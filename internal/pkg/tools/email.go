@@ -119,8 +119,8 @@ func querySingleServer(ctx context.Context, input EmailQueryInput) (*EmailQueryO
 
 	// 查找用户的邮件服务器配置
 	if err := tx.Where("user_id = ?", userID).Order("is_default DESC, created_at DESC").Find(&emailServerConfigs).Error; err != nil {
-		slog.Error("tx.Find() error", "err", err)
-		return nil, fmt.Errorf("tx.Find() error, err = %w", err)
+		slog.Error("failed to query email server configs", "err", err)
+		return nil, fmt.Errorf("failed to query email server configs: %w", err)
 	}
 
 	if len(emailServerConfigs) == 0 {
@@ -240,13 +240,13 @@ func connectToIMAP(server, username, password string) (*imapclient.Client, error
 
 	client, err := imapclient.DialTLS(server, options)
 	if err != nil {
-		slog.Error("imapclient.DialTLS() error", "err", err)
+		slog.Error("failed to connect to imap server", "err", err)
 		return nil, fmt.Errorf("连接 IMAP 服务器失败: %w", err)
 	}
 
 	if err := client.Login(username, password).Wait(); err != nil {
 		client.Close()
-		slog.Error("client.Login() error", "err", err)
+		slog.Error("failed to authenticate with imap server", "err", err)
 		return nil, fmt.Errorf("IMAP 登录失败: %w", err)
 	}
 

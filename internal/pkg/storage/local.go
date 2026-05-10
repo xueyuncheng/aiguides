@@ -26,8 +26,8 @@ func NewLocalFileStore(rootDir string) (*LocalFileStore, error) {
 
 	cleanRoot := filepath.Clean(rootDir)
 	if err := os.MkdirAll(cleanRoot, 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "root_dir", cleanRoot, "err", err)
-		return nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create root directory", "root_dir", cleanRoot, "err", err)
+		return nil, fmt.Errorf("failed to create root directory: %w", err)
 	}
 
 	return &LocalFileStore{rootDir: cleanRoot}, nil
@@ -51,8 +51,8 @@ func (s *LocalFileStore) Save(ctx context.Context, input SaveInput) (*FileMeta, 
 	absPath := filepath.Join(s.rootDir, relPath)
 
 	if err := os.MkdirAll(filepath.Dir(absPath), 0755); err != nil {
-		slog.Error("os.MkdirAll() error", "path", absPath, "err", err)
-		return nil, fmt.Errorf("os.MkdirAll() error: %w", err)
+		slog.Error("failed to create directory for file", "path", absPath, "err", err)
+		return nil, fmt.Errorf("failed to create directory for file: %w", err)
 	}
 
 	var sizeBytes int64
@@ -64,8 +64,8 @@ func (s *LocalFileStore) Save(ctx context.Context, input SaveInput) (*FileMeta, 
 		}
 		stat, err := os.Stat(absPath)
 		if err != nil {
-			slog.Error("os.Stat() error", "path", absPath, "err", err)
-			return nil, fmt.Errorf("os.Stat() error: %w", err)
+			slog.Error("failed to stat file", "path", absPath, "err", err)
+			return nil, fmt.Errorf("failed to stat file: %w", err)
 		}
 		sizeBytes = stat.Size()
 		if shaValue == "" {
@@ -83,8 +83,8 @@ func (s *LocalFileStore) Save(ctx context.Context, input SaveInput) (*FileMeta, 
 
 		file, err := os.Create(absPath)
 		if err != nil {
-			slog.Error("os.Create() error", "path", absPath, "err", err)
-			return nil, fmt.Errorf("os.Create() error: %w", err)
+			slog.Error("failed to create file", "path", absPath, "err", err)
+			return nil, fmt.Errorf("failed to create file: %w", err)
 		}
 
 		hasher := sha256.New()
@@ -92,12 +92,12 @@ func (s *LocalFileStore) Save(ctx context.Context, input SaveInput) (*FileMeta, 
 		copied, copyErr := io.Copy(writer, input.Content)
 		closeErr := file.Close()
 		if copyErr != nil {
-			slog.Error("io.Copy() error", "path", absPath, "err", copyErr)
-			return nil, fmt.Errorf("io.Copy() error: %w", copyErr)
+			slog.Error("failed to write file content", "path", absPath, "err", copyErr)
+			return nil, fmt.Errorf("failed to write file content: %w", copyErr)
 		}
 		if closeErr != nil {
-			slog.Error("file.Close() error", "path", absPath, "err", closeErr)
-			return nil, fmt.Errorf("file.Close() error: %w", closeErr)
+			slog.Error("failed to close file after writing", "path", absPath, "err", closeErr)
+			return nil, fmt.Errorf("failed to close file after writing: %w", closeErr)
 		}
 
 		sizeBytes = copied
@@ -123,8 +123,8 @@ func (s *LocalFileStore) Open(ctx context.Context, storagePath string) (io.ReadC
 
 	file, err := os.Open(absPath)
 	if err != nil {
-		slog.Error("os.Open() error", "path", absPath, "err", err)
-		return nil, fmt.Errorf("os.Open() error: %w", err)
+		slog.Error("failed to open file", "path", absPath, "err", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
 
 	return file, nil
@@ -139,8 +139,8 @@ func (s *LocalFileStore) Delete(ctx context.Context, storagePath string) error {
 	}
 
 	if err := os.Remove(absPath); err != nil && !os.IsNotExist(err) {
-		slog.Error("os.Remove() error", "path", absPath, "err", err)
-		return fmt.Errorf("os.Remove() error: %w", err)
+		slog.Error("failed to remove file", "path", absPath, "err", err)
+		return fmt.Errorf("failed to remove file: %w", err)
 	}
 
 	return nil
@@ -156,8 +156,8 @@ func (s *LocalFileStore) Stat(ctx context.Context, storagePath string) (*FileMet
 
 	stat, err := os.Stat(absPath)
 	if err != nil {
-		slog.Error("os.Stat() error", "path", absPath, "err", err)
-		return nil, fmt.Errorf("os.Stat() error: %w", err)
+		slog.Error("failed to stat file", "path", absPath, "err", err)
+		return nil, fmt.Errorf("failed to stat file: %w", err)
 	}
 
 	shaValue, err := computeFileSHA256(absPath)
@@ -187,8 +187,8 @@ func (s *LocalFileStore) resolve(storagePath string) (string, error) {
 	absPath := filepath.Join(s.rootDir, cleanPath)
 	rel, err := filepath.Rel(s.rootDir, absPath)
 	if err != nil {
-		slog.Error("filepath.Rel() error", "path", absPath, "err", err)
-		return "", fmt.Errorf("filepath.Rel() error: %w", err)
+		slog.Error("failed to resolve relative path", "path", absPath, "err", err)
+		return "", fmt.Errorf("failed to resolve relative path: %w", err)
 	}
 	if strings.HasPrefix(rel, "..") {
 		slog.Error("storage path escapes root", "storage_path", storagePath)
@@ -208,26 +208,26 @@ func sanitizeFileName(name string) string {
 func copyFile(dstPath, srcPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		slog.Error("os.Open() error", "path", srcPath, "err", err)
-		return fmt.Errorf("os.Open() error: %w", err)
+		slog.Error("failed to open source file", "path", srcPath, "err", err)
+		return fmt.Errorf("failed to open source file: %w", err)
 	}
 	defer src.Close()
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		slog.Error("os.Create() error", "path", dstPath, "err", err)
-		return fmt.Errorf("os.Create() error: %w", err)
+		slog.Error("failed to create destination file", "path", dstPath, "err", err)
+		return fmt.Errorf("failed to create destination file: %w", err)
 	}
 
 	if _, err := io.Copy(dst, src); err != nil {
 		dst.Close()
-		slog.Error("io.Copy() error", "src", srcPath, "dst", dstPath, "err", err)
-		return fmt.Errorf("io.Copy() error: %w", err)
+		slog.Error("failed to copy file data", "src", srcPath, "dst", dstPath, "err", err)
+		return fmt.Errorf("failed to copy file data: %w", err)
 	}
 
 	if err := dst.Close(); err != nil {
-		slog.Error("dst.Close() error", "path", dstPath, "err", err)
-		return fmt.Errorf("dst.Close() error: %w", err)
+		slog.Error("failed to close destination file", "path", dstPath, "err", err)
+		return fmt.Errorf("failed to close destination file: %w", err)
 	}
 
 	return nil
@@ -236,15 +236,15 @@ func copyFile(dstPath, srcPath string) error {
 func computeFileSHA256(path string) (string, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		slog.Error("os.Open() error", "path", path, "err", err)
-		return "", fmt.Errorf("os.Open() error: %w", err)
+		slog.Error("failed to open file for hashing", "path", path, "err", err)
+		return "", fmt.Errorf("failed to open file for hashing: %w", err)
 	}
 	defer file.Close()
 
 	hasher := sha256.New()
 	if _, err := io.Copy(hasher, file); err != nil {
-		slog.Error("io.Copy() error", "path", path, "err", err)
-		return "", fmt.Errorf("io.Copy() error: %w", err)
+		slog.Error("failed to read file for hashing", "path", path, "err", err)
+		return "", fmt.Errorf("failed to read file for hashing: %w", err)
 	}
 
 	return hex.EncodeToString(hasher.Sum(nil)), nil

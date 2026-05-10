@@ -93,13 +93,13 @@ func New(config *Config) (*Assistant, error) {
 	}
 	session, err := database.NewSessionService(config.DB.Dialector, gormConfig)
 	if err != nil {
-		slog.Error("database.NewSessionService() error", "err", err)
-		return nil, fmt.Errorf("database.NewSessionService() error, err = %w", err)
+		slog.Error("failed to create session service", "err", err)
+		return nil, fmt.Errorf("failed to create session service: %w", err)
 	}
 
 	if err := database.AutoMigrate(session); err != nil {
-		slog.Error("database.AutoMigrate() error", "err", err)
-		return nil, fmt.Errorf("database.AutoMigrate() error, err = %w", err)
+		slog.Error("failed to auto-migrate session database", "err", err)
+		return nil, fmt.Errorf("failed to auto-migrate session database: %w", err)
 	}
 
 	assistant := &Assistant{
@@ -125,7 +125,7 @@ func New(config *Config) (*Assistant, error) {
 
 	allTools, err := createAssistantTools(config)
 	if err != nil {
-		return nil, fmt.Errorf("createAssistantTools() for live: %w", err)
+		return nil, fmt.Errorf("failed to create assistant tools: %w", err)
 	}
 	// Exclude tools that return large binary payloads (images/video) — the Live API
 	// has a strict message size limit and voice sessions are audio-only anyway.
@@ -138,13 +138,13 @@ func New(config *Config) (*Assistant, error) {
 
 	runner, err := assistant.createRunner()
 	if err != nil {
-		return nil, fmt.Errorf("assistant.createRunner() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create runner: %w", err)
 	}
 	assistant.runner = runner
 
 	executorRunner, err := assistant.createExecutorRunner()
 	if err != nil {
-		return nil, fmt.Errorf("assistant.createExecutorRunner() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create executor runner: %w", err)
 	}
 	assistant.executorRunner = executorRunner
 	assistant.scheduler = newScheduler(config.DB, executorRunner, session)

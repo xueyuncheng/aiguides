@@ -153,7 +153,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 创建 HTTP 请求
 	req, err := http.NewRequestWithContext(ctx, "GET", fullURL, nil)
 	if err != nil {
-		slog.Error("http.NewRequestWithContext() error", "url", fullURL, "err", err)
+		slog.Error("failed to create web search request", "url", fullURL, "err", err)
 		return nil, fmt.Errorf("创建请求失败: %w", err)
 	}
 
@@ -163,7 +163,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 发送请求
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		slog.Error("http.DefaultClient.Do() error", "url", fullURL, "err", err)
+		slog.Error("failed to send web search request", "url", fullURL, "err", err)
 		return nil, fmt.Errorf("请求失败: %w", err)
 	}
 	defer resp.Body.Close()
@@ -171,7 +171,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 读取响应
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		slog.Error("io.ReadAll() error", "err", err)
+		slog.Error("failed to read web search response", "err", err)
 		return nil, fmt.Errorf("读取响应失败: %w", err)
 	}
 
@@ -184,7 +184,7 @@ func searchSearXNG(ctx context.Context, instanceURL, query string, numResults in
 	// 解析 JSON 响应
 	var searxResp SearXNGResponse
 	if err := json.Unmarshal(body, &searxResp); err != nil {
-		slog.Error("json.Unmarshal() error", "err", err)
+		slog.Error("failed to parse web search response", "err", err)
 		return nil, fmt.Errorf("解析 JSON 失败: %w", err)
 	}
 

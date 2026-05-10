@@ -30,23 +30,23 @@ func main() {
 func run(ctx context.Context, file string) error {
 	data, err := os.ReadFile(file)
 	if err != nil {
-		slog.Error("os.ReadFile() error", "err", err)
-		return fmt.Errorf("os.ReadFile() error, err = %w", err)
+		slog.Error("failed to read config file", "err", err)
+		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
 	config := &aiguide.Config{}
 	if err := yaml.Unmarshal(data, config); err != nil {
-		slog.Error("yaml.Unmarshal() error", "err", err)
-		return fmt.Errorf("yaml.Unmarshal() error, err = %w", err)
+		slog.Error("failed to parse config yaml", "err", err)
+		return fmt.Errorf("failed to parse config yaml: %w", err)
 	}
 
 	guide, err := aiguide.New(ctx, config)
 	if err != nil {
-		return fmt.Errorf("aiguide.New() error, err = %w", err)
+		return fmt.Errorf("failed to initialize application: %w", err)
 	}
 
 	if err := guide.Run(ctx); err != nil {
-		return fmt.Errorf("guide.Run() error, err = %w", err)
+		return fmt.Errorf("failed to run application: %w", err)
 	}
 
 	return nil

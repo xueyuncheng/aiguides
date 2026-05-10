@@ -50,7 +50,7 @@ func (a *Assistant) ListScheduledTasks(ctx *gin.Context) {
 
 	var tasks []table.ScheduledTask
 	if err := a.db.Where("user_id = ?", userID).Order("created_at DESC").Find(&tasks).Error; err != nil {
-		slog.Error("db.Find() error", "err", err, "user_id", userID)
+		slog.Error("failed to query scheduled tasks", "err", err, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load scheduled tasks"})
 		return
 	}
@@ -82,7 +82,7 @@ func (a *Assistant) DeleteScheduledTask(ctx *gin.Context) {
 
 	result := a.db.Where("id = ? AND user_id = ?", taskID, userID).Delete(&table.ScheduledTask{})
 	if result.Error != nil {
-		slog.Error("db.Delete() error", "err", result.Error, "user_id", userID, "task_id", taskID)
+		slog.Error("failed to delete scheduled task", "err", result.Error, "user_id", userID, "task_id", taskID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete scheduled task"})
 		return
 	}
@@ -110,7 +110,7 @@ func (a *Assistant) UpdateScheduledTask(ctx *gin.Context) {
 
 	var req UpdateScheduledTaskRequest
 	if err := ctx.BindJSON(&req); err != nil {
-		slog.Error("ctx.BindJSON() error", "err", err)
+		slog.Error("failed to bind request body", "err", err)
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
 		return
 	}
@@ -126,14 +126,14 @@ func (a *Assistant) UpdateScheduledTask(ctx *gin.Context) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "scheduled task not found"})
 			return
 		}
-		slog.Error("db.First() error", "err", err, "user_id", userID, "task_id", taskID)
+		slog.Error("failed to find scheduled task", "err", err, "user_id", userID, "task_id", taskID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load scheduled task"})
 		return
 	}
 
 	task.Enabled = *req.Enabled
 	if err := a.db.Save(&task).Error; err != nil {
-		slog.Error("db.Save() error", "err", err, "user_id", userID, "task_id", taskID)
+		slog.Error("failed to save scheduled task", "err", err, "user_id", userID, "task_id", taskID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update scheduled task"})
 		return
 	}

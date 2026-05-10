@@ -68,18 +68,18 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 
 	operation := func() error {
 		if err := rdb.Ping(ctx).Err(); err != nil {
-			slog.Error("rdb.Ping() error", "err", err)
-			return fmt.Errorf("rdb.Ping() error, err = %w", err)
+			slog.Error("failed to ping redis", "err", err)
+			return fmt.Errorf("failed to ping redis: %w", err)
 		}
 
 		return nil
 	}
 
 	if err := backoff.Retry(operation, bo); err != nil {
-		slog.Error("backoff.Retry() error", "err", err)
+		slog.Error("failed to connect to redis after retries", "err", err)
 
 		rdb.Close()
-		return nil, fmt.Errorf("backoff.Retry() error, err = %w", err)
+		return nil, fmt.Errorf("failed to connect to redis after retries: %w", err)
 	}
 
 	return &Client{inner: rdb}, nil

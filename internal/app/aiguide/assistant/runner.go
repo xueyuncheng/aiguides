@@ -33,7 +33,7 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 
 	assistantAgent, err := NewAssistantAgent(cfg)
 	if err != nil {
-		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create assistant agent: %w", err)
 	}
 
 	runnerConfig := runner.Config{
@@ -43,8 +43,8 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 	}
 	r, err := runner.New(runnerConfig)
 	if err != nil {
-		slog.Error("runner.New() error", "err", err)
-		return nil, fmt.Errorf("runner.New() error, err = %w", err)
+		slog.Error("failed to create runner", "err", err)
+		return nil, fmt.Errorf("failed to create runner: %w", err)
 	}
 
 	return r, nil
@@ -55,7 +55,7 @@ func (a *Assistant) createRunner() (*runner.Runner, error) {
 func (a *Assistant) createExecutorRunner() (*runner.Runner, error) {
 	assistantAgent, err := NewAssistantAgent(a.baseAgentConfig())
 	if err != nil {
-		return nil, fmt.Errorf("NewAssistantAgent() error, err = %w", err)
+		return nil, fmt.Errorf("failed to create assistant agent for executor: %w", err)
 	}
 
 	runnerConfig := runner.Config{
@@ -65,8 +65,8 @@ func (a *Assistant) createExecutorRunner() (*runner.Runner, error) {
 	}
 	r, err := runner.New(runnerConfig)
 	if err != nil {
-		slog.Error("runner.New() error for executor runner", "err", err)
-		return nil, fmt.Errorf("runner.New() error, err = %w", err)
+		slog.Error("failed to create executor runner", "err", err)
+		return nil, fmt.Errorf("failed to create executor runner: %w", err)
 	}
 
 	return r, nil
