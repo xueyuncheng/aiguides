@@ -263,7 +263,7 @@ export function ChatPageLayout({
   };
 
   return (
-    <div className="flex h-screen bg-background font-sans text-foreground overflow-hidden">
+    <div className="flex h-dvh bg-background font-sans text-foreground overflow-hidden">
       <SessionSidebar
         sessions={sessions}
         projects={projects}
