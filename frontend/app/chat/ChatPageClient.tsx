@@ -127,6 +127,7 @@ export default function ChatPageClient() {
     startCall,
     endCall,
     sendText: voiceCallSendText,
+    clearVoiceMessages,
     error: voiceCallError,
   } = useVoiceCall(sessionId);
 
@@ -145,9 +146,11 @@ export default function ChatPageClient() {
     const prev = prevVoiceCallStatusRef.current;
     prevVoiceCallStatusRef.current = voiceCallStatus;
     if (prev === 'connected' && voiceCallStatus === 'idle' && sessionId) {
-      loadSessionHistory(sessionId, true);
+      loadSessionHistory(sessionId, true).then(() => {
+        clearVoiceMessages();
+      });
     }
-  }, [voiceCallStatus, sessionId, loadSessionHistory]);
+  }, [voiceCallStatus, sessionId, loadSessionHistory, clearVoiceMessages]);
 
   const handleVoiceCallToggle = useCallback(() => {
     if (isVoiceCallActive) {

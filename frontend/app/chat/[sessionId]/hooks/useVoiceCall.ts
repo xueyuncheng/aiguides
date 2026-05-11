@@ -19,6 +19,7 @@ interface UseVoiceCallResult {
   startCall: (overrideSessionId?: string) => Promise<void>;
   endCall: () => void;
   sendText: (text: string, images?: string[]) => void;
+  clearVoiceMessages: () => void;
   error: string | null;
 }
 
@@ -130,6 +131,59 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
   const isToolCallActiveRef = useRef(false);
   const toolCallTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const connectingAudioCtxRef = useRef<AudioContext | null>(null);
+  const isConnectingSoundActiveRef = useRef(false);
+  const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const startConnectingSound = useCallback(() => {
+    if (isConnectingSoundActiveRef.current) return;
+    const ctx = new AudioContext();
+    connectingAudioCtxRef.current = ctx;
+    isConnectingSoundActiveRef.current = true;
+
+    const notes = [392, 440, 494, 440];
+    const noteDuration = 0.35;
+    const noteGap = 0.4;
+    const totalDuration = notes.length * noteGap;
+    const loopGap = 0.5;
+
+    const playLoop = () => {
+      if (!isConnectingSoundActiveRef.current) return;
+      const now = ctx.currentTime;
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, 0);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const start = now + i * noteGap;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.12, start + 0.05);
+        gain.gain.setValueAtTime(0.12, start + noteDuration * 0.6);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + noteDuration);
+        osc.start(start);
+        osc.stop(start + noteDuration);
+      });
+      connectingTimerRef.current = setTimeout(() => {
+        connectingTimerRef.current = null;
+        playLoop();
+      }, (totalDuration + loopGap) * 1000);
+    };
+
+    playLoop();
+  }, []);
+
+  const stopConnectingSound = useCallback(() => {
+    isConnectingSoundActiveRef.current = false;
+    if (connectingTimerRef.current !== null) {
+      clearTimeout(connectingTimerRef.current);
+      connectingTimerRef.current = null;
+    }
+    connectingAudioCtxRef.current?.close();
+    connectingAudioCtxRef.current = null;
+  }, []);
+
   const startToolCallSound = useCallback(() => {
     if (isToolCallActiveRef.current) return;
     const ctx = new AudioContext();
@@ -215,6 +269,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     nextPlayTimeRef.current = 0;
 
     stopToolCallSound();
+    stopConnectingSound();
 
     turnPhaseRef.current = 'waiting';
     userAudioChunksRef.current = [];
@@ -222,9 +277,8 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     currentUserMsgIdRef.current = null;
     currentModelMsgIdRef.current = null;
 
-    setVoiceMessages([]);
     setStatus('idle');
-  }, [stopToolCallSound]);
+  }, [stopToolCallSound, stopConnectingSound]);
 
   useEffect(() => () => cleanup(), [cleanup]);
 
@@ -332,6 +386,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
 
     switch (msg.type) {
       case 'setup_ok':
+        stopConnectingSound();
         startCapture(stream, ws);
         setStatus('connected');
         break;
@@ -394,13 +449,14 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
         break;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cleanup, finalizeModelTurn, finalizeUserTurn, playPCMChunk, resetPlayback, startCapture, startToolCallSound, stopToolCallSound]);
+  }, [cleanup, finalizeModelTurn, finalizeUserTurn, playPCMChunk, resetPlayback, startCapture, startToolCallSound, stopConnectingSound, stopToolCallSound]);
 
   const startCall = useCallback(async (overrideSessionId?: string) => {
     if (status !== 'idle') return;
     setError(null);
     setVoiceMessages([]);
     setStatus('connecting');
+    startConnectingSound();
 
     let stream: MediaStream;
     try {
@@ -438,7 +494,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     ws.onclose = () => {
       cleanup();
     };
-  }, [cleanup, handleWsMessage, sessionId, startCapture, status]);
+  }, [cleanup, handleWsMessage, sessionId, startCapture, startConnectingSound, status]);
 
   const endCall = useCallback(() => {
     if (userAudioChunksRef.current.length > 0 || currentUserMsgIdRef.current) {
@@ -471,7 +527,11 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
     wsRef.current.send(JSON.stringify(payload));
   }, [finalizeModelTurn, finalizeUserTurn]);
 
-  return { status, voiceMessages, startCall, endCall, sendText, error };
+  const clearVoiceMessages = useCallback(() => {
+    setVoiceMessages([]);
+  }, []);
+
+  return { status, voiceMessages, startCall, endCall, sendText, clearVoiceMessages, error };
 }
 
 function handleInputTranscript(
