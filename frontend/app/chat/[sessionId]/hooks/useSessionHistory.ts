@@ -70,16 +70,23 @@ export function useSessionHistory({
     autoLoadedSessionIdRef.current = targetSessionId;
     const requestId = ++historyRequestIdRef.current;
 
-    if (updateUrl && targetSessionId !== sessionId) {
+    const isSameSession = targetSessionId === sessionId;
+
+    if (updateUrl && !isSameSession) {
       pendingSessionIdRef.current = targetSessionId;
       window.history.pushState(null, '', getChatPath(targetSessionId));
       setSessionId(targetSessionId);
+      resetSessionView(true);
     } else {
       pendingSessionIdRef.current = null;
+      if (!isSameSession) {
+        resetSessionView(true);
+      }
     }
 
-    resetSessionView(true);
-    setIsLoadingHistory(true);
+    if (!isSameSession) {
+      setIsLoadingHistory(true);
+    }
 
     try {
       const response = await authenticatedFetch(
@@ -106,10 +113,12 @@ export function useSessionHistory({
       }
 
       setIsLoadingHistory(false);
-      scrollResetTimeoutRef.current = setTimeout(() => {
-        setShouldScrollInstantly(false);
-        scrollResetTimeoutRef.current = null;
-      }, SCROLL_RESET_DELAY);
+      if (!isSameSession) {
+        scrollResetTimeoutRef.current = setTimeout(() => {
+          setShouldScrollInstantly(false);
+          scrollResetTimeoutRef.current = null;
+        }, SCROLL_RESET_DELAY);
+      }
     }
   }, [agentId, authenticatedFetch, resetSessionView, sessionId, setSessionId, userId]);
 

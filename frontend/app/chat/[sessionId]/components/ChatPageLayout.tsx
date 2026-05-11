@@ -324,7 +324,7 @@ export function ChatPageLayout({
               </div>
             </div>
             {(voiceCallStatus === 'connecting' || voiceCallStatus === 'connected' || voiceCallError) && (
-              <div className="w-full md:pl-[260px] flex justify-center px-3 sm:px-4 md:px-6">
+              <div className="absolute bottom-12 left-0 w-full md:pl-[260px] flex justify-center z-10">
                 {voiceCallStatus === 'connecting' ? (
                   <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                     <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
