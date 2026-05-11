@@ -332,6 +332,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
 
     switch (msg.type) {
       case 'setup_ok':
+        startCapture(stream, ws);
         setStatus('connected');
         break;
 
@@ -426,7 +427,7 @@ export function useVoiceCall(sessionId?: string): UseVoiceCallResult {
 
     ws.onmessage = (ev) => handleWsMessage(ev, stream, ws);
 
-    ws.onopen = () => startCapture(stream, ws);
+    ws.onopen = () => {};
 
     ws.onerror = () => {
       setError('WebSocket connection error');
