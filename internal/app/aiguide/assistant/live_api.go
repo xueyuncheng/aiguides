@@ -142,6 +142,12 @@ func (a *Assistant) connectLiveSession(ctx context.Context, userID int, historyC
 				},
 			},
 		},
+		RealtimeInputConfig: &genai.RealtimeInputConfig{
+			AutomaticActivityDetection: &genai.AutomaticActivityDetection{
+				StartOfSpeechSensitivity: genai.StartSensitivityLow,
+				EndOfSpeechSensitivity:   genai.EndSensitivityHigh,
+			},
+		},
 		InputAudioTranscription:  &genai.AudioTranscriptionConfig{},
 		OutputAudioTranscription: &genai.AudioTranscriptionConfig{},
 		SystemInstruction: &genai.Content{
