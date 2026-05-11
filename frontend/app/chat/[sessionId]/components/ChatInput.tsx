@@ -30,6 +30,7 @@ interface ChatInputProps {
   onVoiceToggle?: () => void;
   voiceError?: string | null;
   isVoiceCallActive?: boolean;
+  isVoiceCallConnecting?: boolean;
   onVoiceCallToggle?: () => void;
   voiceCallError?: string | null;
 }
@@ -59,6 +60,7 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
   onVoiceToggle,
   voiceError,
   isVoiceCallActive = false,
+  isVoiceCallConnecting = false,
   onVoiceCallToggle,
   voiceCallError,
 }, textareaRef) => {
@@ -190,9 +192,11 @@ const ChatInputComponent = forwardRef<HTMLTextAreaElement, ChatInputProps>(({
                 disabled={isLoading || isLoadingHistory}
                 className={cn(
                   "h-8 w-8 sm:h-7 sm:w-7 rounded-full transition-all duration-200",
-                  isVoiceCallActive
-                    ? "bg-green-500 text-white hover:bg-green-600 shadow-md"
-                    : "text-muted-foreground hover:text-foreground"
+                  isVoiceCallConnecting
+                    ? "bg-green-500/60 text-white animate-pulse shadow-md"
+                    : isVoiceCallActive
+                      ? "bg-green-500 text-white hover:bg-green-600 shadow-md"
+                      : "text-muted-foreground hover:text-foreground"
                 )}
                 title={isVoiceCallActive ? "结束语音通话" : "语音通话"}
                 aria-label={isVoiceCallActive ? "结束语音通话" : "语音通话"}

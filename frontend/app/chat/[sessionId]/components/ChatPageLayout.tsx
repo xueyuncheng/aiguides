@@ -257,6 +257,7 @@ export function ChatPageLayout({
     onVoiceToggle,
     voiceError,
     isVoiceCallActive,
+    isVoiceCallConnecting: voiceCallStatus === 'connecting',
     onVoiceCallToggle,
     voiceCallError,
   };
@@ -322,9 +323,14 @@ export function ChatPageLayout({
                 </div>
               </div>
             </div>
-            {(voiceCallStatus === 'connected' || voiceCallError) && (
+            {(voiceCallStatus === 'connecting' || voiceCallStatus === 'connected' || voiceCallError) && (
               <div className="w-full md:pl-[260px] flex justify-center px-3 sm:px-4 md:px-6">
-                {voiceCallStatus === 'connected' ? (
+                {voiceCallStatus === 'connecting' ? (
+                  <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                    <span className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
+                    <span>Connecting...</span>
+                  </div>
+                ) : voiceCallStatus === 'connected' ? (
                   <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
                     <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                     <span>Stream is live</span>
