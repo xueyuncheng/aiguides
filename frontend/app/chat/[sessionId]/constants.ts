@@ -38,12 +38,3 @@ export const MIN_SCROLL_DISTANCE = 100; // 像素
 export const SCROLL_DEBOUNCE_DELAY = 50; // 毫秒
 export const FEEDBACK_TIMEOUT_MS = 2000; // 毫秒
 export const COMPOSER_MESSAGE_GAP = 32; // 像素
-
-// Deep research pipeline agent names (must match backend agent names in deep_research_agent.go)
-export const DEEP_RESEARCH_AGENTS = new Set([
-  'research_planner',
-  'researcher_breadth',
-  'researcher_depth',
-  'researcher_verify',
-  'report_writer',
-]);
