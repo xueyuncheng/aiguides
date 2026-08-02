@@ -112,6 +112,26 @@ func TestAssistantAgentInstructionMentionsFileDownloadTool(t *testing.T) {
 	}
 }
 
+func TestResponseInstructionsDefineMarkdownTableRules(t *testing.T) {
+	prompts := map[string]string{
+		"assistant":     assistantAgentInstruction,
+		"report writer": reportWriterInstruction,
+	}
+	requiredRules := []string{
+		"GitHub Flavored Markdown",
+		"每个单元格必须在源码中保持单行",
+		"不要在单元格中使用 `<br>`",
+	}
+
+	for name, prompt := range prompts {
+		for _, rule := range requiredRules {
+			if !strings.Contains(prompt, rule) {
+				t.Errorf("%s instruction missing Markdown rule %q", name, rule)
+			}
+		}
+	}
+}
+
 func TestNewAssistantAgentHasSubAgents(t *testing.T) {
 	db := setupTestDB(t)
 	webSearchConfig := tools.WebSearchConfig{
