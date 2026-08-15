@@ -115,7 +115,7 @@ describe('useScrollManager', () => {
         }),
       {
         initialProps: {
-          messages: [],
+          messages: [] as Message[],
           isLoading: false,
           isStreamingResponse: false,
         },

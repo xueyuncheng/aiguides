@@ -20,8 +20,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/ledongthuc/pdf"
 	"github.com/phpdave11/gofpdf"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 )
 
@@ -85,7 +86,7 @@ func NewPDFExtractTextTool(db *gorm.DB, fileStore storage.FileStore, workDir str
 		Description: "Extract plain text from a PDF file that belongs to the current user.",
 	}
 
-	handler := func(ctx tool.Context, input PDFExtractTextInput) (*PDFExtractTextOutput, error) {
+	handler := func(ctx agent.Context, input PDFExtractTextInput) (*PDFExtractTextOutput, error) {
 		return service.extractText(ctx, input)
 	}
 
@@ -103,7 +104,7 @@ func NewPDFGenerateDocumentTool(db *gorm.DB, fileStore storage.FileStore, workDi
 		Description: "Generate a simple PDF document from a title and paragraphs, then save it as a user-owned file.",
 	}
 
-	handler := func(ctx tool.Context, input PDFGenerateDocumentInput) (*PDFGenerateDocumentOutput, error) {
+	handler := func(ctx agent.Context, input PDFGenerateDocumentInput) (*PDFGenerateDocumentOutput, error) {
 		return service.generateDocument(ctx, input)
 	}
 

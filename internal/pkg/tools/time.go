@@ -5,11 +5,12 @@ package tools
 
 import (
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"log/slog"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 // CurrentTimeInput defines the input for the current_time tool
@@ -48,7 +49,7 @@ func NewCurrentTimeTool() (tool.Tool, error) {
 This tool gives you the exact current datetime so you can make informed decisions about whether to use web search for time-sensitive queries.`,
 	}
 
-	handler := func(ctx tool.Context, input CurrentTimeInput) (*CurrentTimeOutput, error) {
+	handler := func(ctx agent.Context, input CurrentTimeInput) (*CurrentTimeOutput, error) {
 		// Get current time
 		now := time.Now()
 

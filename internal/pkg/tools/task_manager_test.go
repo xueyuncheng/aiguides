@@ -5,11 +5,10 @@ import (
 	"iter"
 	"testing"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/memory"
-	adksession "google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/toolconfirmation"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/memory"
+	adksession "google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -22,15 +21,15 @@ func TestFinishPlanningReturnsCompleted(t *testing.T) {
 	}
 
 	runnableTool, ok := finishPlanningTool.(interface {
-		Run(tool.Context, any) (map[string]any, error)
+		Run(agent.Context, any) (map[string]any, error)
 	})
 	if !ok {
 		t.Fatal("finish_planning tool does not implement Run")
 	}
 
 	toolCtx := &fakeToolContext{
-		Context: context.Background(),
-		actions: &adksession.EventActions{},
+		StrictContextMock: agent.NewStrictContextMock(context.Background()),
+		actions:           &adksession.EventActions{},
 	}
 
 	result, err := runnableTool.Run(toolCtx, map[string]any{
@@ -51,7 +50,7 @@ func TestFinishPlanningReturnsCompleted(t *testing.T) {
 }
 
 type fakeToolContext struct {
-	context.Context
+	agent.StrictContextMock
 	actions *adksession.EventActions
 }
 

@@ -4,11 +4,12 @@ import (
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/middleware"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"log/slog"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +36,7 @@ func NewScheduledTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "创建定时任务。支持每天/每周/一次性执行。适用于'每天早上8点发送市场快讯到邮箱'这类需求。重要：once 类型的 run_at 必须是未来的 RFC3339 时间；如不确定当前时间，请先调用 current_time 工具。",
 	}
 
-	handler := func(ctx tool.Context, input ScheduledTaskCreateInput) (*ScheduledTaskCreateOutput, error) {
+	handler := func(ctx agent.Context, input ScheduledTaskCreateInput) (*ScheduledTaskCreateOutput, error) {
 		userID, ok := middleware.GetUserID(ctx)
 		if !ok {
 			slog.Error("user_id not found in context")
@@ -120,7 +121,7 @@ func NewScheduledTaskListTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "查看当前用户的定时任务列表。",
 	}
 
-	handler := func(ctx tool.Context, input ScheduledTaskListInput) (*ScheduledTaskListOutput, error) {
+	handler := func(ctx agent.Context, input ScheduledTaskListInput) (*ScheduledTaskListOutput, error) {
 		userID, ok := middleware.GetUserID(ctx)
 		if !ok {
 			slog.Error("user_id not found in context")

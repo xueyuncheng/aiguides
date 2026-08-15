@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"google.golang.org/adk/runner"
+	"google.golang.org/adk/v2/runner"
 )
 
 // baseAgentConfig builds a Config from the assistant's fields for agent creation.

@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v5"
 	goredis "github.com/redis/go-redis/v9"
 )
 
@@ -64,18 +64,16 @@ func New(ctx context.Context, cfg Config) (*Client, error) {
 		Password: cfg.Password,
 	})
 
-	bo := backoff.WithContext(backoff.NewExponentialBackOff(), ctx)
-
-	operation := func() error {
+	operation := func() (struct{}, error) {
 		if err := rdb.Ping(ctx).Err(); err != nil {
 			slog.Error("failed to ping redis", "err", err)
-			return fmt.Errorf("failed to ping redis: %w", err)
+			return struct{}{}, fmt.Errorf("failed to ping redis: %w", err)
 		}
 
-		return nil
+		return struct{}{}, nil
 	}
 
-	if err := backoff.Retry(operation, bo); err != nil {
+	if _, err := backoff.Retry(ctx, operation); err != nil {
 		slog.Error("failed to connect to redis after retries", "err", err)
 
 		rdb.Close()

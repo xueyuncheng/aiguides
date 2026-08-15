@@ -17,7 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
-	"google.golang.org/adk/model/gemini"
+	"google.golang.org/adk/v2/model/gemini"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"

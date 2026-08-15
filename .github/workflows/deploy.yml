@@ -13,10 +13,10 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build backend image
         run: docker build -f deployments/docker/Dockerfile.backend -t aiguide-backend:latest .
@@ -60,4 +60,3 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             make restart
           EOF
-

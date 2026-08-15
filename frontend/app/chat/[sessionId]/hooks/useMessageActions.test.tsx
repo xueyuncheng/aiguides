@@ -39,7 +39,7 @@ describe('useMessageActions', () => {
           isComposing: false,
           keyCode: 229,
         },
-      } as React.KeyboardEvent<HTMLTextAreaElement>, []);
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>, []);
     });
 
     expect(preventDefault).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('useMessageActions', () => {
           isComposing: false,
           keyCode: 13,
         },
-      } as React.KeyboardEvent<HTMLTextAreaElement>, []);
+      } as unknown as React.KeyboardEvent<HTMLTextAreaElement>, []);
     });
 
     expect(preventDefault).toHaveBeenCalledTimes(1);

@@ -5,14 +5,15 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"image"
 	"image/color"
 	"image/png"
 	"log/slog"
 	"os"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 )
 
@@ -54,7 +55,7 @@ func NewImageGenTool(client *genai.Client, mockMode bool) (tool.Tool, error) {
 		Description: "生成 AI 图片。根据用户的文字描述生成相应的图片。支持指定图片数量（1-4张）、宽高比（1:1, 3:4, 4:3, 9:16, 16:9）等参数。",
 	}
 
-	handler := func(ctx tool.Context, input ImageGenInput) (*ImageGenOutput, error) {
+	handler := func(ctx agent.Context, input ImageGenInput) (*ImageGenOutput, error) {
 		return generateImage(ctx, client, input, mockMode)
 	}
 

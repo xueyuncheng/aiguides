@@ -12,9 +12,10 @@ import (
 	"aiguide/internal/pkg/storage"
 
 	"aiguide/internal/app/aiguide/table"
+	"google.golang.org/adk/v2/agent"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 )
@@ -65,7 +66,7 @@ func NewVideoGenTool(client *genai.Client, db *gorm.DB, fileStore storage.FileSt
 		Description: "生成 AI 视频。根据用户的文字描述生成相应的视频。支持指定宽高比（16:9, 9:16）、分辨率（720p, 1080p）、时长（4/6/8秒）等参数。视频生成需要较长时间（约30秒到数分钟），请耐心等待。",
 	}
 
-	handler := func(ctx tool.Context, input VideoGenInput) (*VideoGenOutput, error) {
+	handler := func(ctx agent.Context, input VideoGenInput) (*VideoGenOutput, error) {
 		return generateVideo(ctx, client, db, fileStore, input, mockMode)
 	}
 
