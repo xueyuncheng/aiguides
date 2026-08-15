@@ -14,8 +14,9 @@ import (
 
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 // EmailQueryInput 定义邮件查询工具的输入参数
@@ -56,7 +57,7 @@ func NewEmailQueryTool() (tool.Tool, error) {
 		Description: "查询邮箱中的邮件。支持通过 IMAP 协议连接邮件服务器，查询指定邮箱文件夹中的邮件列表。可以查询所有邮件或仅查询未读邮件，并可限制返回的邮件数量。",
 	}
 
-	handler := func(ctx tool.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
+	handler := func(ctx agent.Context, input EmailQueryInput) (*EmailQueryOutput, error) {
 		return queryEmails(ctx, input)
 	}
 

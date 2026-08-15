@@ -5,12 +5,13 @@ import (
 	"aiguide/internal/pkg/constant"
 	"aiguide/internal/pkg/middleware"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"log/slog"
 	"path/filepath"
 	"strings"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 )
 
@@ -72,7 +73,7 @@ func NewFileListTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "List files owned by the current user, including uploaded PDFs and generated documents.",
 	}
 
-	handler := func(ctx tool.Context, input FileListInput) (*FileListOutput, error) {
+	handler := func(ctx agent.Context, input FileListInput) (*FileListOutput, error) {
 		userID, ok := middleware.GetUserID(ctx)
 		if !ok || userID <= 0 {
 			slog.Error("user_id not found in context")
@@ -141,7 +142,7 @@ func NewFileGetTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "Get metadata and download information for a specific file owned by the current user.",
 	}
 
-	handler := func(ctx tool.Context, input FileGetInput) (*FileGetOutput, error) {
+	handler := func(ctx agent.Context, input FileGetInput) (*FileGetOutput, error) {
 		userID, ok := middleware.GetUserID(ctx)
 		if !ok || userID <= 0 {
 			slog.Error("user_id not found in context")

@@ -19,8 +19,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/genai"
 	"gorm.io/gorm"
 )
@@ -115,7 +116,7 @@ func NewAudioTranscribeTool(db *gorm.DB, fileStore storage.FileStore, genaiClien
 		Description: "Transcribe a user-owned audio file to plain text. Long audio is chunked automatically.",
 	}
 
-	handler := func(ctx tool.Context, input AudioTranscribeInput) (*AudioTranscribeOutput, error) {
+	handler := func(ctx agent.Context, input AudioTranscribeInput) (*AudioTranscribeOutput, error) {
 		return service.transcribe(ctx, input)
 	}
 

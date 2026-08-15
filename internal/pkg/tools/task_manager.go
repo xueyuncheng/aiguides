@@ -6,10 +6,11 @@ package tools
 import (
 	"encoding/json"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"log/slog"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 
 	"aiguide/internal/app/aiguide/table"
@@ -35,7 +36,7 @@ func NewTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "Create a new subtask in the current plan. Use this to break down complex work into manageable pieces.",
 	}
 
-	handler := func(ctx tool.Context, input TaskCreateInput) (*TaskCreateOutput, error) {
+	handler := func(ctx agent.Context, input TaskCreateInput) (*TaskCreateOutput, error) {
 		// 从上下文获取 session_id
 		sessionID, ok := ctx.Value("session_id").(string)
 		if !ok || sessionID == "" {
@@ -97,7 +98,7 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "Update the status of a task. Use when starting (in_progress), completing (completed), or marking as failed (failed).",
 	}
 
-	handler := func(ctx tool.Context, input TaskUpdateInput) (*TaskUpdateOutput, error) {
+	handler := func(ctx agent.Context, input TaskUpdateInput) (*TaskUpdateOutput, error) {
 		updates := map[string]any{}
 
 		if input.Status != "" {
@@ -160,7 +161,7 @@ func NewTaskListTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "List all tasks in the current session. Optionally filter by status to see pending, in-progress, completed, or failed tasks.",
 	}
 
-	handler := func(ctx tool.Context, input TaskListInput) (*TaskListOutput, error) {
+	handler := func(ctx agent.Context, input TaskListInput) (*TaskListOutput, error) {
 		sessionID, ok := ctx.Value("session_id").(string)
 		if !ok || sessionID == "" {
 			slog.Error("session_id not found in context")
@@ -202,7 +203,7 @@ func NewTaskGetTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "Get detailed information about a specific task, including its description, status, dependencies, and results.",
 	}
 
-	handler := func(ctx tool.Context, input TaskGetInput) (*TaskGetOutput, error) {
+	handler := func(ctx agent.Context, input TaskGetInput) (*TaskGetOutput, error) {
 		var task table.Task
 		if err := db.Where("id = ?", input.TaskID).First(&task).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
@@ -236,7 +237,7 @@ func NewFinishPlanningTool() (tool.Tool, error) {
 		Description: "Signal that planning is complete. Use this after you've created all necessary tasks.",
 	}
 
-	handler := func(ctx tool.Context, input FinishPlanningInput) (*FinishPlanningOutput, error) {
+	handler := func(ctx agent.Context, input FinishPlanningInput) (*FinishPlanningOutput, error) {
 		slog.Info("planning finished", "summary", input.Summary, "task_count", input.TaskCount)
 		return &FinishPlanningOutput{
 			Status:  "completed",

@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"golang.org/x/oauth2"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 	googleoption "google.golang.org/api/option"
@@ -349,7 +350,7 @@ func NewCalendarTool(db *gorm.DB, oauthConfig *oauth2.Config, httpClient *http.C
 
 	h := &calendarHandler{db: db, oauthConfig: oauthConfig, httpClient: httpClient}
 
-	return functiontool.New(cfg, func(ctx tool.Context, input CalendarInput) (*CalendarOutput, error) {
+	return functiontool.New(cfg, func(ctx agent.Context, input CalendarInput) (*CalendarOutput, error) {
 		return h.handle(ctx, input)
 	})
 }

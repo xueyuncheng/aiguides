@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"google.golang.org/adk/session"
+	"google.golang.org/adk/v2/session"
 	"gorm.io/gorm"
 )
 

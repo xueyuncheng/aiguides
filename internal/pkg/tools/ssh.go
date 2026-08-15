@@ -11,8 +11,9 @@ import (
 	"aiguide/internal/pkg/middleware"
 
 	gossh "golang.org/x/crypto/ssh"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -54,7 +55,7 @@ func NewSSHExecuteTool() (tool.Tool, error) {
 			"Returns stdout, stderr, and the exit code of the command.",
 	}
 
-	handler := func(ctx tool.Context, input SSHExecuteInput) (*SSHExecuteOutput, error) {
+	handler := func(ctx agent.Context, input SSHExecuteInput) (*SSHExecuteOutput, error) {
 		return executeSSHCommand(ctx, input)
 	}
 
@@ -295,7 +296,7 @@ func NewSSHListServersTool() (tool.Tool, error) {
 			"Use this before ssh_execute to discover available server names.",
 	}
 
-	handler := func(ctx tool.Context, _ SSHListServersInput) (*SSHListServersOutput, error) {
+	handler := func(ctx agent.Context, _ SSHListServersInput) (*SSHListServersOutput, error) {
 		tx, ok := middleware.GetTx(ctx)
 		if !ok {
 			slog.Error("failed to get database context for ssh list servers")

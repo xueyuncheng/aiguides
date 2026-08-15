@@ -6,6 +6,7 @@ import (
 	"aiguide/internal/pkg/storage"
 	"context"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"io"
 	"log/slog"
 	"mime"
@@ -15,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 )
 
@@ -58,7 +59,7 @@ func NewFileDownloadTool(db *gorm.DB, fileStore storage.FileStore) (tool.Tool, e
 		Description: "Download a remote PDF or audio file into the current user's file library and return its file_id.",
 	}
 
-	handler := func(ctx tool.Context, input FileDownloadInput) (*FileDownloadOutput, error) {
+	handler := func(ctx agent.Context, input FileDownloadInput) (*FileDownloadOutput, error) {
 		return executeFileDownload(ctx, db, fileStore, input)
 	}
 

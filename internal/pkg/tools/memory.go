@@ -7,10 +7,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"log/slog"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 	"gorm.io/gorm"
 )
 
@@ -61,7 +62,7 @@ func NewMemoryTool(db *gorm.DB) (tool.Tool, error) {
 		Description: "管理用户记忆的工具。可以保存、检索、更新和删除用户的记忆信息。记忆会跨会话保持，让AI能够记住用户的特征、偏好和上下文。",
 	}
 
-	handlerFunc := func(ctx tool.Context, input *MemoryInput) (*MemoryOutput, error) {
+	handlerFunc := func(ctx agent.Context, input *MemoryInput) (*MemoryOutput, error) {
 		return handler.handleMemory(ctx, input)
 	}
 

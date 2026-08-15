@@ -14,9 +14,10 @@ import (
 
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/middleware"
+	"google.golang.org/adk/v2/agent"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const emailServerConfigURL = "http://localhost:3000/settings/email-server-configs"
@@ -48,7 +49,7 @@ func NewSendEmailTool() (tool.Tool, error) {
 		Description: "发送邮件。使用用户已配置的 SMTP 服务器向一个或多个收件人发送纯文本或 HTML 邮件。适合草拟后正式发出通知、回复或汇报。",
 	}
 
-	handler := func(ctx tool.Context, input SendEmailInput) (*SendEmailOutput, error) {
+	handler := func(ctx agent.Context, input SendEmailInput) (*SendEmailOutput, error) {
 		return sendEmail(ctx, input)
 	}
 

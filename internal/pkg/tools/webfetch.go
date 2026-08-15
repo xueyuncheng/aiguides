@@ -10,8 +10,9 @@ import (
 	"time"
 
 	readability "codeberg.org/readeck/go-readability/v2"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const (
@@ -57,7 +58,7 @@ func NewWebFetchTool() (tool.Tool, error) {
 		Description: "获取网页的完整内容和元数据。当 web_search 返回的链接需要详细阅读时使用此工具。可以提取文章标题、作者、正文、发布时间等信息。",
 	}
 
-	handler := func(ctx tool.Context, input WebFetchInput) (*WebFetchOutput, error) {
+	handler := func(ctx agent.Context, input WebFetchInput) (*WebFetchOutput, error) {
 		return executeWebFetch(ctx, input)
 	}
 

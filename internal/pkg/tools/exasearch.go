@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 const exaAPIURL = "https://api.exa.ai/search"
@@ -99,7 +100,7 @@ func NewExaSearchTool(config ExaConfig) (tool.Tool, error) {
 		Description: "使用 Exa 神经网络搜索引擎进行深度语义搜索。适合需要深度理解、寻找高质量参考资料、学术内容或需要直接获取网页正文供 AI 阅读的任务。与 web_search 互补：web_search 适合实时事实性查询，exa_search 适合深度语义理解。",
 	}
 
-	handler := func(ctx tool.Context, input ExaSearchInput) (*ExaSearchOutput, error) {
+	handler := func(ctx agent.Context, input ExaSearchInput) (*ExaSearchOutput, error) {
 		return executeExaSearch(ctx, input, config)
 	}
 

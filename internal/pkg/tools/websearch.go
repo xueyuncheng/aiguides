@@ -4,14 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"google.golang.org/adk/v2/agent"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"time"
 
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/functiontool"
 )
 
 // WebSearchInput 定义网页搜索的输入参数
@@ -84,7 +85,7 @@ func NewWebSearchTool(config WebSearchConfig) (tool.Tool, error) {
 		Description: "搜索互联网上的实时信息。当用户询问需要最新信息、实时数据、当前事件、新闻、统计数据或任何你不确定答案的问题时使用此工具。",
 	}
 
-	handler := func(ctx tool.Context, input WebSearchInput) (*WebSearchOutput, error) {
+	handler := func(ctx agent.Context, input WebSearchInput) (*WebSearchOutput, error) {
 		return executeWebSearch(ctx, input, config)
 	}
 

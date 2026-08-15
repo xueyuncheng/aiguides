@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"log/slog"
 
-	"google.golang.org/adk/agent"
-	"google.golang.org/adk/memory"
-	"google.golang.org/adk/session"
-	"google.golang.org/adk/tool"
-	"google.golang.org/adk/tool/toolconfirmation"
+	"google.golang.org/adk/v2/agent"
+	"google.golang.org/adk/v2/memory"
+	"google.golang.org/adk/v2/session"
+	"google.golang.org/adk/v2/tool"
+	"google.golang.org/adk/v2/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
 
@@ -24,7 +24,7 @@ const maxLiveToolResponseBytes = 30 * 1024
 type localRunnableTool interface {
 	tool.Tool
 	Declaration() *genai.FunctionDeclaration
-	Run(ctx tool.Context, args any) (map[string]any, error)
+	Run(ctx agent.Context, args any) (map[string]any, error)
 }
 
 // liveToolRegistry maps function name → runnable tool for Live API execution.
@@ -66,7 +66,9 @@ func executeLiveTool(ctx context.Context, registry liveToolRegistry, call *genai
 	}
 
 	slog.Info("executeLiveTool", "tool", call.Name)
-	result, err := rt.Run(&liveToolContext{Context: ctx}, call.Args)
+	result, err := rt.Run(&liveToolContext{
+		StrictContextMock: agent.NewStrictContextMock(ctx),
+	}, call.Args)
 	if err != nil {
 		slog.Error("executeLiveTool: failed", "tool", call.Name, "err", err)
 		return &genai.FunctionResponse{
@@ -93,11 +95,11 @@ func executeLiveTool(ctx context.Context, registry liveToolRegistry, call *genai
 	}
 }
 
-// liveToolContext is a minimal tool.Context for executing tools outside the ADK agent framework.
+// liveToolContext is a minimal agent.Context for executing tools outside the ADK agent framework.
 // Our tools only read context values (user ID, session ID) via context.Context — all ADK-specific
 // methods are stubbed with safe zero values.
 type liveToolContext struct {
-	context.Context
+	agent.StrictContextMock
 }
 
 func (c *liveToolContext) UserContent() *genai.Content          { return nil }
