@@ -22,7 +22,6 @@ import (
 
 // EditSessionRequest 定义编辑会话消息的请求结构
 type EditSessionRequest struct {
-	UserID     int      `json:"user_id" binding:"required"`
 	MessageID  string   `json:"message_id" binding:"required"`
 	NewContent string   `json:"new_content"`
 	Images     []string `json:"images,omitempty"`
@@ -42,6 +41,11 @@ type EditSessionResponse struct {
 func (a *Assistant) EditSession(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
+	userID, ok := getContextUserID(ctx)
+	if !ok || userID <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	var req EditSessionRequest
 	if err := ctx.BindJSON(&req); err != nil {
@@ -62,7 +66,8 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 		return
 	}
 
-	_, err := buildUserMessageParts(ctx, a.db, a.fileStore, strconv.Itoa(req.UserID), sessionID, trimmedContent, req.Images, req.FileNames, false)
+	userIDStr := strconv.Itoa(userID)
+	_, err := buildUserMessageParts(ctx, a.db, a.fileStore, userIDStr, sessionID, trimmedContent, req.Images, req.FileNames, false)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error(), "code": "invalid_edit_payload"})
 		return
@@ -70,13 +75,13 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 
 	getReq := &session.GetRequest{
 		AppName:   agentID,
-		UserID:    strconv.Itoa(req.UserID),
+		UserID:    userIDStr,
 		SessionID: sessionID,
 	}
 
 	getResp, err := a.session.Get(ctx, getReq)
 	if err != nil {
-		slog.Error("failed to load session for editing", "err", err, "session_id", sessionID, "user_id", req.UserID)
+		slog.Error("failed to load session for editing", "err", err, "session_id", sessionID, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load session"})
 		return
 	}
@@ -95,13 +100,13 @@ func (a *Assistant) EditSession(ctx *gin.Context) {
 	state := cloneSessionState(getResp.Session.State())
 	createReq := &session.CreateRequest{
 		AppName:   agentID,
-		UserID:    strconv.Itoa(req.UserID),
+		UserID:    userIDStr,
 		SessionID: newSessionID,
 		State:     state,
 	}
 	createResp, err := a.session.Create(ctx, createReq)
 	if err != nil {
-		slog.Error("failed to create edited session", "err", err, "session_id", newSessionID, "user_id", req.UserID)
+		slog.Error("failed to create edited session", "err", err, "session_id", newSessionID, "user_id", userID)
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create edited session"})
 		return
 	}

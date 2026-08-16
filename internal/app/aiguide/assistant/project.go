@@ -337,5 +337,5 @@ func getContextUserID(ctx *gin.Context) (int, bool) {
 	}
 
 	userID, ok := userIDValue.(int)
-	return userID, ok
+	return userID, ok && userID > 0
 }

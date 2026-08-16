@@ -36,6 +36,11 @@ func Auth(db *gorm.DB, authService *auth.AuthService) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		if claims.UserID <= 0 {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token subject"})
+			c.Abort()
+			return
+		}
 
 		// 将用户信息存储到上下文中
 		c.Set(constant.ContextKeyUserID, claims.UserID)             // Internal database user ID

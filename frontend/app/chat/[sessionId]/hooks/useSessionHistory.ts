@@ -90,7 +90,7 @@ export function useSessionHistory({
 
     try {
       const response = await authenticatedFetch(
-        `/api/${agentId}/sessions/${targetSessionId}/history?user_id=${userId}&limit=${MESSAGES_PER_PAGE}&offset=0`
+        `/api/${agentId}/sessions/${targetSessionId}/history?limit=${MESSAGES_PER_PAGE}&offset=0`
       );
 
       if (!response.ok) {
@@ -137,7 +137,7 @@ export function useSessionHistory({
     try {
       const currentOffset = messages.length;
       const response = await authenticatedFetch(
-        `/api/${agentId}/sessions/${sessionId}/history?user_id=${userId}&limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`
+        `/api/${agentId}/sessions/${sessionId}/history?limit=${MESSAGES_PER_PAGE}&offset=${currentOffset}`
       );
 
       if (!response.ok) {

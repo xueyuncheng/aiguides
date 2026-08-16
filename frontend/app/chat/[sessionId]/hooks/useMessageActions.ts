@@ -155,7 +155,6 @@ export function useMessageActions({
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
             body: JSON.stringify({
-              user_id: userId,
               message_id: message.id,
               new_content: trimmedEditedText,
               images: message.images || [],

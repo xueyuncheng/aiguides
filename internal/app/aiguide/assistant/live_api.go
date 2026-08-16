@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -30,12 +31,29 @@ const (
 	phaseModel   = "model"
 )
 
-var wsUpgrader = websocket.Upgrader{
-	ReadBufferSize:  4096,
-	WriteBufferSize: 4096,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+func newWebSocketUpgrader(frontendURL string) websocket.Upgrader {
+	allowedOrigin := strings.TrimRight(frontendURL, "/")
+	return websocket.Upgrader{
+		ReadBufferSize:  4096,
+		WriteBufferSize: 4096,
+		CheckOrigin: func(r *http.Request) bool {
+			origin := r.Header.Get("Origin")
+			if origin == "" {
+				return true
+			}
+			if allowedOrigin != "" {
+				return origin == allowedOrigin
+			}
+
+			// When no frontend URL is configured, only allow the API host itself.
+			scheme := "http"
+			if r.TLS != nil {
+				scheme = "https"
+			}
+			fallback, err := url.Parse(scheme + "://" + r.Host)
+			return err == nil && origin == fallback.String()
+		},
+	}
 }
 
 type turnTracker struct {
@@ -64,7 +82,8 @@ func (a *Assistant) VoiceCall(ctx *gin.Context) {
 		return
 	}
 
-	conn, err := wsUpgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	upgrader := newWebSocketUpgrader(a.frontendURL)
+	conn, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
 	if err != nil {
 		slog.Error("VoiceCall: WebSocket upgrade failed", "err", err, "userID", userID)
 		return

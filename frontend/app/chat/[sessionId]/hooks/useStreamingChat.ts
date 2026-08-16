@@ -128,7 +128,6 @@ export function useStreamingChat({
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          user_id: userId,
           session_id: resolvedSessionId,
           message: requestMessage,
           images: imageData,

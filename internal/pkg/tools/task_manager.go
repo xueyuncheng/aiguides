@@ -15,6 +15,7 @@ import (
 
 	"aiguide/internal/app/aiguide/table"
 	"aiguide/internal/pkg/constant"
+	"aiguide/internal/pkg/middleware"
 )
 
 // TaskCreate - 创建新任务
@@ -37,11 +38,9 @@ func NewTaskCreateTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	handler := func(ctx agent.Context, input TaskCreateInput) (*TaskCreateOutput, error) {
-		// 从上下文获取 session_id
-		sessionID, ok := ctx.Value("session_id").(string)
-		if !ok || sessionID == "" {
-			slog.Error("session_id not found in context")
-			return nil, fmt.Errorf("session_id not found in context")
+		_, sessionID, err := taskContext(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		// 验证优先级
@@ -99,6 +98,10 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	handler := func(ctx agent.Context, input TaskUpdateInput) (*TaskUpdateOutput, error) {
+		_, sessionID, err := taskContext(ctx)
+		if err != nil {
+			return nil, err
+		}
 		updates := map[string]any{}
 
 		if input.Status != "" {
@@ -125,7 +128,9 @@ func NewTaskUpdateTool(db *gorm.DB) (tool.Tool, error) {
 			return nil, fmt.Errorf("no updates provided")
 		}
 
-		result := db.Model(&table.Task{}).Where("id = ?", input.TaskID).Updates(updates)
+		result := db.Model(&table.Task{}).
+			Where("id = ? AND session_id = ?", input.TaskID, sessionID).
+			Updates(updates)
 		if result.Error != nil {
 			slog.Error("task_update failed", "err", result.Error)
 			return nil, fmt.Errorf("failed to update task: %w", result.Error)
@@ -162,10 +167,9 @@ func NewTaskListTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	handler := func(ctx agent.Context, input TaskListInput) (*TaskListOutput, error) {
-		sessionID, ok := ctx.Value("session_id").(string)
-		if !ok || sessionID == "" {
-			slog.Error("session_id not found in context")
-			return nil, fmt.Errorf("session_id not found in context")
+		_, sessionID, err := taskContext(ctx)
+		if err != nil {
+			return nil, err
 		}
 
 		query := db.Where("session_id = ?", sessionID)
@@ -204,8 +208,12 @@ func NewTaskGetTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	handler := func(ctx agent.Context, input TaskGetInput) (*TaskGetOutput, error) {
+		_, sessionID, err := taskContext(ctx)
+		if err != nil {
+			return nil, err
+		}
 		var task table.Task
-		if err := db.Where("id = ?", input.TaskID).First(&task).Error; err != nil {
+		if err := db.Where("id = ? AND session_id = ?", input.TaskID, sessionID).First(&task).Error; err != nil {
 			if err == gorm.ErrRecordNotFound {
 				slog.Error("task not found", "task_id", input.TaskID)
 				return nil, fmt.Errorf("task not found: %d", input.TaskID)
@@ -218,6 +226,20 @@ func NewTaskGetTool(db *gorm.DB) (tool.Tool, error) {
 	}
 
 	return functiontool.New(config, handler)
+}
+
+func taskContext(ctx agent.Context) (int, string, error) {
+	userID, ok := middleware.GetUserID(ctx)
+	if !ok || userID <= 0 {
+		return 0, "", fmt.Errorf("user_id not found in context")
+	}
+
+	sessionID, ok := ctx.Value(constant.ContextKeySessionID).(string)
+	if !ok || sessionID == "" {
+		return 0, "", fmt.Errorf("session_id not found in context")
+	}
+
+	return userID, sessionID, nil
 }
 
 // FinishPlanning - Planner Agent 用于标记规划完成
