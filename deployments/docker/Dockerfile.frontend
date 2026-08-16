@@ -1,22 +1,22 @@
 # 依赖安装阶段
-FROM node:26-alpine AS deps
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
 # 安装 pnpm
-RUN npm install -g pnpm@11.21.0
+RUN npm install -g pnpm@10.34.4
 
 # 复制 package 文件
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # 构建阶段
-FROM node:26-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 # 安装 pnpm
-RUN npm install -g pnpm@11.21.0
+RUN npm install -g pnpm@10.34.4
 
 # 复制依赖
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,8 +25,16 @@ COPY frontend/ ./
 # 构建应用
 RUN pnpm build
 
+# Next.js standalone tracing currently omits the ESM entrypoints from @swc/helpers.
+# Copy them into the traced dependency tree so Node can resolve the package exports.
+RUN set -eux; \
+    swc_helpers_dir="$(find node_modules/.pnpm -mindepth 1 -maxdepth 1 -type d -name '@swc+helpers@*' -print -quit)"; \
+    standalone_helpers_dir=".next/standalone/node_modules/.pnpm/$(basename "$swc_helpers_dir")/node_modules/@swc/helpers"; \
+    mkdir -p "$standalone_helpers_dir"; \
+    cp -R "$swc_helpers_dir/node_modules/@swc/helpers/esm" "$standalone_helpers_dir/"
+
 # 运行阶段
-FROM node:26-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
