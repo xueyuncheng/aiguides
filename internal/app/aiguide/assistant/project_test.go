@@ -289,10 +289,11 @@ func TestListSessionsIncludesProjectInfo(t *testing.T) {
 		t.Fatalf("failed to create session meta: %v", err)
 	}
 
-	router := gin.New()
-	router.GET("/api/:agentId/sessions", assistant.ListSessions)
+	router := newProjectTestRouter(assistant, func(router *gin.Engine) {
+		router.GET("/api/:agentId/sessions", assistant.ListSessions)
+	})
 
-	req := httptest.NewRequest(http.MethodGet, "/api/assistant/sessions?user_id=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/assistant/sessions?user_id=2", nil)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 
@@ -312,6 +313,21 @@ func TestListSessionsIncludesProjectInfo(t *testing.T) {
 	}
 	if sessions[0].ProjectName != project.Name {
 		t.Fatalf("expected project name %q, got %q", project.Name, sessions[0].ProjectName)
+	}
+}
+
+func TestListSessionsRequiresAuthenticatedUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	assistant := setupProjectTestAssistant(t)
+	router := gin.New()
+	router.GET("/api/:agentId/sessions", assistant.ListSessions)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/assistant/sessions?user_id=1", nil)
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	if resp.Code != http.StatusUnauthorized {
+		t.Fatalf("expected status %d, got %d, body=%s", http.StatusUnauthorized, resp.Code, resp.Body.String())
 	}
 }
 

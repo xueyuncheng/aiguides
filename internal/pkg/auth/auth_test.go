@@ -56,6 +56,11 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 	if claims.TokenType != "access" {
 		t.Errorf("Expected TokenType 'access', got %s", claims.TokenType)
 	}
+
+	remaining := time.Until(claims.ExpiresAt.Time)
+	if remaining <= 14*time.Minute || remaining > 15*time.Minute {
+		t.Errorf("Expected access token to expire in about 15 minutes, got %s", remaining)
+	}
 }
 
 func TestGenerateAndValidateRefreshToken(t *testing.T) {

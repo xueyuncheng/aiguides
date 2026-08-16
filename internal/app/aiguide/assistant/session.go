@@ -91,7 +91,6 @@ type toolCallLocation struct {
 
 // CreateSessionRequest 定义创建会话的请求结构
 type CreateSessionRequest struct {
-	UserID    int `json:"user_id" binding:"required"`
 	ProjectID int `json:"project_id"`
 }
 
@@ -102,23 +101,15 @@ type CreateSessionResponse struct {
 }
 
 // ListSessions 处理获取会话列表的请求
-// GET /api/:agentId/sessions?user_id=xxx
+// GET /api/:agentId/sessions
 func (a *Assistant) ListSessions(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
-	userIDStr := ctx.Query("user_id")
-
-	if userIDStr == "" {
-		slog.Error("user_id is required")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+	userIDInt, ok := getContextUserID(ctx)
+	if !ok || userIDInt <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-
-	userIDInt, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-		return
-	}
+	userIDStr := strconv.Itoa(userIDInt)
 
 	listReq := &session.ListRequest{
 		AppName: agentID,
@@ -270,14 +261,16 @@ func shouldReplaceSessionMeta(existing, candidate struct {
 }
 
 // GetSessionHistory 处理获取会话历史的请求
-// GET /api/:agentId/sessions/:sessionId/history?user_id=xxx&limit=50&offset=0
+// GET /api/:agentId/sessions/:sessionId/history?limit=50&offset=0
 func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
-	userIDStr, userIDInt, ok := parseUserID(ctx)
-	if !ok {
+	userIDInt, ok := getContextUserID(ctx)
+	if !ok || userIDInt <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
+	userIDStr := strconv.Itoa(userIDInt)
 
 	limit, offset := parsePagination(ctx)
 
@@ -327,24 +320,6 @@ func (a *Assistant) GetSessionHistory(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, response)
-}
-
-func parseUserID(ctx *gin.Context) (string, int, bool) {
-	userIDStr := ctx.Query("user_id")
-	if userIDStr == "" {
-		slog.Error("user_id is required")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
-		return "", 0, false
-	}
-
-	userIDInt, err := strconv.Atoi(userIDStr)
-	if err != nil {
-		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-		return "", 0, false
-	}
-
-	return userIDStr, userIDInt, true
 }
 
 func parsePagination(ctx *gin.Context) (int, int) {
@@ -639,6 +614,11 @@ func paginateMessages(allMessages []MessageEvent, limit, offset int) ([]MessageE
 // POST /api/:agentId/sessions
 func (a *Assistant) CreateSession(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
+	userID, ok := getContextUserID(ctx)
+	if !ok || userID <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
 
 	var req CreateSessionRequest
 	if err := ctx.BindJSON(&req); err != nil {
@@ -647,7 +627,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 		return
 	}
 
-	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
+	if err := a.ensureProjectOwnership(userID, req.ProjectID); err != nil {
 		if errors.Is(err, errProjectNotFound) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid project_id"})
 			return
@@ -661,7 +641,7 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 
 	createReq := &session.CreateRequest{
 		AppName:   agentID,
-		UserID:    strconv.Itoa(req.UserID),
+		UserID:    strconv.Itoa(userID),
 		SessionID: sessionID,
 		State:     map[string]any{},
 	}
@@ -688,23 +668,16 @@ func (a *Assistant) CreateSession(ctx *gin.Context) {
 }
 
 // DeleteSession 处理删除会话的请求
-// DELETE /api/:agentId/sessions/:sessionId?user_id=xxx
+// DELETE /api/:agentId/sessions/:sessionId
 func (a *Assistant) DeleteSession(ctx *gin.Context) {
 	agentID := ctx.Param("agentId")
 	sessionID := ctx.Param("sessionId")
-	userIDStr := ctx.Query("user_id")
-
-	if userIDStr == "" {
-		slog.Error("user_id is required")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+	userID, ok := getContextUserID(ctx)
+	if !ok || userID <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 		return
 	}
-
-	if _, err := strconv.Atoi(userIDStr); err != nil {
-		slog.Error("invalid user_id", "user_id", userIDStr, "err", err)
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "invalid user_id"})
-		return
-	}
+	userIDStr := strconv.Itoa(userID)
 
 	deleteReq := &session.DeleteRequest{
 		AppName:   agentID,

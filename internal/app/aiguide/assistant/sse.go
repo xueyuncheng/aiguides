@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,6 @@ import (
 
 // ChatRequest 定义通用的聊天请求结构
 type ChatRequest struct {
-	UserID    int      `json:"user_id"`
 	SessionID string   `json:"session_id"`
 	Message   string   `json:"message"`
 	Images    []string `json:"images,omitempty"`
@@ -71,6 +71,12 @@ var imageMimeAliases = map[string]string{
 // appName: 应用名称（如 "travel", "email" 等）
 // runnerName: runner 的名称（用于从 runnerMap 中获取）
 func (a *Assistant) Chat(ctx *gin.Context) {
+	userIDValue, ok := getContextUserID(ctx)
+	if !ok || userIDValue <= 0 {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
 	var req ChatRequest
 	if err := ctx.BindJSON(&req); err != nil {
 		slog.Error("failed to bind chat request", "err", err)
@@ -78,7 +84,7 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 		return
 	}
 
-	userID := strconv.Itoa(req.UserID)
+	userID := strconv.Itoa(userIDValue)
 	sessionID := req.SessionID
 	// Only trim leading and trailing newlines, preserving internal line breaks
 	messageText := strings.Trim(req.Message, "\n\r")
@@ -111,15 +117,15 @@ func (a *Assistant) Chat(ctx *gin.Context) {
 
 	// 新会话时自动注入用户记忆上下文
 	if isNewSession {
-		if memoryContext, err := a.fetchUserMemories(req.UserID); err != nil {
-			slog.Warn("fetchUserMemories failed, skipping memory injection", "err", err, "userID", req.UserID)
+		if memoryContext, err := a.fetchUserMemories(userIDValue); err != nil {
+			slog.Warn("fetchUserMemories failed, skipping memory injection", "err", err, "userID", userIDValue)
 		} else if memoryContext != "" {
 			parts = prependMemoryContext(parts, memoryContext)
 			message = genai.NewContentFromParts(parts, genai.RoleUser)
 		}
 	}
 
-	if err := a.ensureProjectOwnership(req.UserID, req.ProjectID); err != nil {
+	if err := a.ensureProjectOwnership(userIDValue, req.ProjectID); err != nil {
 		if errors.Is(err, errProjectNotFound) {
 			ctx.JSON(400, gin.H{"error": "invalid project_id"})
 			return
@@ -278,7 +284,10 @@ func (a *Assistant) setupSSEResponse(ctx *gin.Context) {
 	ctx.Writer.Header().Set("Content-Type", "text/event-stream")
 	ctx.Writer.Header().Set("Cache-Control", "no-cache")
 	ctx.Writer.Header().Set("Connection", "keep-alive")
-	ctx.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+	if origin := ctx.GetHeader("Origin"); origin != "" && origin == strings.TrimRight(a.frontendURL, "/") {
+		ctx.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		ctx.Writer.Header().Set("Vary", "Origin")
+	}
 	ctx.Writer.Header().Set("Content-Encoding", "none")
 
 	// 强制把响应头发送给客户端，建立连接
@@ -657,10 +666,10 @@ func (a *Assistant) generateTitle(ctx context.Context, sessionID, firstMessage s
 // output should be streamed as "thought" (collapsed in the UI). Only the
 // report_writer's text is treated as regular visible content.
 var researchIntermediateAgents = map[string]bool{
-	"research_planner":    true,
-	"researcher_breadth":  true,
-	"researcher_depth":    true,
-	"researcher_verify":   true,
+	"research_planner":   true,
+	"researcher_breadth": true,
+	"researcher_depth":   true,
+	"researcher_verify":  true,
 }
 
 func isResearchIntermediateAgent(author string) bool {

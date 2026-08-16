@@ -48,7 +48,7 @@ export function useSessionsList({
         setIsSessionsLoading(true);
       }
 
-      const response = await authenticatedFetch(`/api/${agentId}/sessions?user_id=${userId}`);
+      const response = await authenticatedFetch(`/api/${agentId}/sessions`);
       if (!response.ok) {
         return undefined;
       }
@@ -79,7 +79,7 @@ export function useSessionsList({
 
   const handleDeleteSession = useCallback(async (sessionIdToDelete: string) => {
     try {
-      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionIdToDelete}?user_id=${userId}`, {
+      const response = await authenticatedFetch(`/api/${agentId}/sessions/${sessionIdToDelete}`, {
         method: 'DELETE',
       });
 

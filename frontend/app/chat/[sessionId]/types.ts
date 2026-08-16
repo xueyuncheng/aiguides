@@ -58,7 +58,6 @@ export interface AgentInfo {
 }
 
 export interface ChatRequest {
-  user_id: number;
   session_id: string;
   message: string;
   images: string[];
