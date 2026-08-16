@@ -1,22 +1,22 @@
 # 依赖安装阶段
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 WORKDIR /app
 
 # 安装 pnpm
-RUN npm install -g pnpm@10.34.4
+RUN npm install -g pnpm@11.22.0
 
 # 复制 package 文件
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # 构建阶段
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
 # 安装 pnpm
-RUN npm install -g pnpm@10.34.4
+RUN npm install -g pnpm@11.22.0
 
 # 复制依赖
 COPY --from=deps /app/node_modules ./node_modules
@@ -34,7 +34,7 @@ RUN set -eux; \
     cp -R "$swc_helpers_dir/node_modules/@swc/helpers/esm" "$standalone_helpers_dir/"
 
 # 运行阶段
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
