@@ -9,36 +9,9 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Copy, Check } from 'lucide-react';
 import { cn } from '@/app/lib/utils';
-import SvgBlock from './SvgBlock';
-
-type CodeElementProps = React.PropsWithChildren<{ className?: string }>;
 
 function getCodeLanguage(className?: string): string | undefined {
   return /language-([^\s]+)/.exec(className || '')?.[1]?.toLowerCase();
-}
-
-function isSvgLanguage(language?: string): boolean {
-  return language === 'svg' || language === 'xml' || language === 'html' || language === 'svg+xml';
-}
-
-function looksLikeSvgMarkup(code: string): boolean {
-  const normalizedCode = code.trimStart().toLowerCase();
-  return normalizedCode.startsWith('<svg') || normalizedCode.startsWith('<?xml');
-}
-
-function getCodeChild(children: React.ReactNode): React.ReactElement<CodeElementProps> | null {
-  if (!React.isValidElement(children)) {
-    return null;
-  }
-
-  return children as React.ReactElement<CodeElementProps>;
-}
-
-function isSvgCodeElement(element: React.ReactElement<CodeElementProps> | null): boolean {
-  const language = getCodeLanguage(element?.props.className);
-  const codeString = React.Children.toArray(element?.props.children).join('').replace(/\n$/, '');
-
-  return language === 'svg' || (isSvgLanguage(language) && looksLikeSvgMarkup(codeString));
 }
 
 // Markdown plugins
@@ -48,19 +21,11 @@ export const markdownRemarkPlugins: PluggableList = [remarkGfm, remarkBreaks, re
 
 const currencyPattern = /(?<!\\)\$(\d+(?:,\d{3})*(?:\.\d+)?)(?=$|[\s),?!:;%\]]|\.(?!\d))/g;
 export const fencedCodeBlockPattern = /(```[\s\S]*?```)/g;
-const rawSvgPattern = /(?:<\?xml[\s\S]*?\?>\s*)?(?:<!DOCTYPE[\s\S]*?>\s*)?<svg\b[\s\S]*?<\/svg>/gi;
-
 function transformOutsideCodeFences(content: string, transform: (segment: string) => string): string {
   return content
     .split(fencedCodeBlockPattern)
     .map((segment, index) => (index % 2 === 1 ? segment : transform(segment)))
     .join('');
-}
-
-function normalizeRawSvgBlocks(content: string): string {
-  return transformOutsideCodeFences(content, (segment) => (
-    segment.replace(rawSvgPattern, (svg) => `\n\`\`\`svg\n${svg.trim()}\n\`\`\`\n`)
-  ));
 }
 
 /**
@@ -69,7 +34,7 @@ function normalizeRawSvgBlocks(content: string): string {
  * e.g. "$100" -> "\$100", but "$2^{30} \approx 10^9$" remains unchanged.
  */
 export function preprocessMarkdown(content: string): string {
-  return transformOutsideCodeFences(normalizeRawSvgBlocks(content), (segment) => (
+  return transformOutsideCodeFences(content, (segment) => (
     segment
       .replace(currencyPattern, (_, amount: string) => `\\$${amount}`)
   ));
@@ -204,23 +169,11 @@ export const markdownComponents: Components = {
     />
   ),
   pre: ({ children, ...props }) => {
-    const codeChild = getCodeChild(children);
-
-    if (isSvgCodeElement(codeChild)) {
-      return <>{children}</>;
-    }
-
     return <pre {...props}>{children}</pre>;
   },
   code: ({ className, children, ...props }) => {
     const language = getCodeLanguage(className);
-    const codeString = String(children).replace(/\n$/, '');
-    const isSvgBlock = language === 'svg' || (isSvgLanguage(language) && looksLikeSvgMarkup(codeString));
     const isInline = !language;
-
-    if (isSvgBlock) {
-      return <SvgBlock>{children}</SvgBlock>;
-    }
 
     if (isInline) {
       return (
