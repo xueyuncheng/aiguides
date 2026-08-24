@@ -3,6 +3,8 @@
 __debug_*
 /aiguide
 *.db
+*.db-shm
+*.db-wal
 *.png
 .claude/
 cmd/aiguide/data/
