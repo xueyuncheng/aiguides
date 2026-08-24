@@ -3,8 +3,8 @@ import ReactMarkdown from 'react-markdown';
 import { describe, expect, it } from 'vitest';
 import { markdownComponents, markdownRehypePlugins, markdownRemarkPlugins, preprocessMarkdown } from './markdown';
 
-describe('markdown SVG rendering', () => {
-  it('renders svg preview from a full assistant response', () => {
+describe('markdown code rendering', () => {
+  it('renders SVG code as code instead of a preview', () => {
     const svgBlock = [
       '```svg',
       '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 200">',
@@ -44,12 +44,8 @@ describe('markdown SVG rendering', () => {
       </ReactMarkdown>
     );
 
-    const svg = container.querySelector('svg title')?.closest('svg');
-
-    expect(svg).not.toBeNull();
-    expect(svg?.getAttribute('width')).toBe('500');
-    expect(svg?.getAttribute('height')).toBe('200');
-    expect(container.innerHTML).not.toContain('<pre><div');
+    expect(container.querySelector('svg title')).toBeNull();
+    expect(container.textContent).toContain('<svg');
     expect(container.textContent).toContain('这个 SVG 代码完全符合你的需求');
   });
 });
