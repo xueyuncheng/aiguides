@@ -182,6 +182,14 @@ export function useFileUpload() {
     const items = event.clipboardData?.items;
     if (!items || items.length === 0) return;
 
+    // Spreadsheet and document apps can expose both a text representation and
+    // a rendered image. Keep the text representation so the textarea receives
+    // tables and other copied content through the browser's default paste path.
+    const hasTextRepresentation = Array.from(items).some(
+      (item) => item.type.toLowerCase().startsWith('text/')
+    );
+    if (hasTextRepresentation) return;
+
     const files: File[] = [];
     for (const item of Array.from(items)) {
       if (item.type.startsWith('image/')) {
