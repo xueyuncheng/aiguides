@@ -52,8 +52,9 @@ type Config struct {
 }
 
 // WebSearch Web 搜索 YAML 配置（用于解析配置文件）
-// 用户只需配置 instance_url，其他参数使用默认值
+// 默认使用 SearXNG，也可显式选择 Parallel Search MCP
 type WebSearch struct {
+	Provider    string `yaml:"provider"`
 	InstanceURL string `yaml:"instance_url"`
 }
 
@@ -139,6 +140,7 @@ func New(ctx context.Context, config *Config) (*AIGuide, error) {
 	// 转换 WebSearch 配置为 tools.WebSearchConfig
 	// 默认值（语言、超时等）已在 websearch.go 中硬编码
 	webSearchConfig := tools.WebSearchConfig{
+		Provider: config.WebSearch.Provider,
 		SearXNG: tools.SearXNGConfig{
 			InstanceURL: config.WebSearch.InstanceURL,
 		},

@@ -47,6 +47,12 @@ gin_port: 8080
 # - 保护好 Client Secret 和 JWT Secret，不要提交到版本控制系统
 
 # 实时信息查询配置（可选）
+# provider 默认是 searxng。使用免费、无需账号或 API Key 的 Parallel Search MCP：
+# web_search:
+#   provider: "parallel"
+# 不设置 provider 时保持现有 SearXNG 配置；Parallel 不会在失败后切换提供商。
+# 使用说明：https://docs.parallel.ai/integrations/mcp/search-mcp
+#
 # 使用 SearXNG 开源搜索引擎聚合服务
 # 
 # SearXNG 特点：

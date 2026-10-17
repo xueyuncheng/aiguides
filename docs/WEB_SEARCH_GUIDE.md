@@ -2,15 +2,15 @@
 
 ## 功能概述
 
-AIGuides 现已集成 **Web Search** 功能，能够搜索互联网上的实时信息。该功能使用开源的 SearXNG 搜索引擎聚合服务，完全免费且无需 API Key。
+AIGuides 的 **Web Search** 功能支持默认的 SearXNG，也可选择 [Parallel Search MCP](https://docs.parallel.ai/integrations/mcp/search-mcp)，无需账号或 API Key 即可搜索实时信息。
 
 ## 主要特点
 
 - ✅ **完全免费** - 无需任何 API Key
 - ✅ **搜索全网** - 无域名限制
 - ✅ **聚合多引擎** - 结果来自 Google、Bing、DuckDuckGo 等
-- ✅ **自动故障转移** - 支持多个备用实例
-- ✅ **保护隐私** - 不追踪用户
+- ✅ **可选提供商** - 默认 SearXNG，可显式选择 Parallel
+- ✅ **来源可追溯** - 返回来源链接和内容摘录
 
 ## 快速开始
 
@@ -22,18 +22,23 @@ AIGuides 现已集成 **Web Search** 功能，能够搜索互联网上的实时�
 
 ### 2. 自定义配置（可选）
 
-如果想自定义 SearXNG 实例或添加备用实例，可以在 `cmd/aiguide/aiguide.local.yaml` 中添加：
+在 `cmd/aiguide/aiguide.yaml` 中选择 Parallel，可免去部署 SearXNG 实例：
 
 ```yaml
 web_search:
-  searxng:
-    instance_url: "https://searx.be"  # 主实例
-    fallback_instances:  # 备用实例（可选）
-      - "https://search.sapti.me"
-      - "https://searx.tiekoetter.com"
-  default_language: "zh-CN"  # 默认搜索语言
-  timeout_seconds: 30        # 请求超时时间
-  max_results: 10            # 最大返回结果数
+  provider: "parallel"
+```
+
+Parallel 使用 `https://search.parallel.ai/mcp` 的匿名 Streamable HTTP 接口，搜索运行于 Fast 模式，有免费额度限制。现有的 `web_search` 工具名、参数和结果格式保持一致，聊天、深度研究和语音工具调用均使用该配置。结果包含来源 URL 和内容摘录；`num_results` 在本地截取结果数量，`language` 作为来源语言偏好传递，不是严格语言过滤条件。
+
+Parallel 请求超时为一分钟，也会响应调用方的取消或更短超时。服务报错会返回给 Agent，不会自动切换提供商。`web_fetch` 仍使用现有本地抓取实现，Exa 的单独配置也保留。
+
+不设置 `provider` 或显式设置 `searxng`，仍使用原有 SearXNG 默认值和已配置的 `instance_url`。例如：
+
+```yaml
+web_search:
+  provider: "searxng"
+  instance_url: "http://localhost:8888"
 ```
 
 ### 3. 启动服务
