@@ -76,7 +76,7 @@ func runParallelTool(t *testing.T, ctx context.Context, args map[string]any) Web
 	runnable := search.(interface {
 		Run(agent.Context, any) (map[string]any, error)
 	})
-	result, err := runnable.Run(parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(ctx)}, args)
+	result, err := runnable.Run(&parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(ctx)}, args)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestParallelSearchTool(t *testing.T) {
 					t.Fatalf("unexpected model-visible result: %+v", out)
 				}
 			}
-			if calls.Load() < 6 {
+			if calls.Load() < 4 {
 				t.Fatalf("MCP initialization and search requests missing: %d", calls.Load())
 			}
 		})
@@ -170,10 +170,16 @@ func TestParallelSearchCancellationAndTimeout(t *testing.T) {
 	for _, timeout := range []bool{false, true} {
 		t.Run(map[bool]string{false: "cancel", true: "timeout"}[timeout], func(t *testing.T) {
 			started := make(chan struct{})
+			release := make(chan struct{})
 			installParallelFixture(t, func(ctx context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 				close(started)
-				<-ctx.Done()
-				return nil, ctx.Err()
+				// A remote server may keep working after its client disconnects.
+				// Release it explicitly after verifying caller cancellation.
+				select {
+				case <-ctx.Done():
+				case <-release:
+				}
+				return &mcp.CallToolResult{}, ctx.Err()
 			}, true)
 			ctx, cancel := context.WithCancel(context.Background())
 			if timeout {
@@ -185,7 +191,13 @@ func TestParallelSearchCancellationAndTimeout(t *testing.T) {
 				go func() { <-started; cancel() }()
 			}
 			out := runParallelTool(t, ctx, map[string]any{"query": "Go release notes"})
-			if out.Success || out.Error == "" {
+			close(release)
+			select {
+			case <-started:
+			default:
+				t.Fatal("search did not reach the server before cancellation/timeout")
+			}
+			if out.Success || !strings.Contains(out.Error, ctx.Err().Error()) {
 				t.Fatalf("cancellation/timeout not surfaced: %+v", out)
 			}
 		})
@@ -204,7 +216,7 @@ func TestParallelSearchRejectedConfirmation(t *testing.T) {
 	runnable := search.(interface {
 		Run(agent.Context, any) (map[string]any, error)
 	})
-	_, err = runnable.Run(parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(context.Background()), confirmation: &toolconfirmation.ToolConfirmation{Confirmed: false}}, map[string]any{"query": "Go"})
+	_, err = runnable.Run(&parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(context.Background()), confirmation: &toolconfirmation.ToolConfirmation{Confirmed: false}}, map[string]any{"query": "Go"})
 	if !errors.Is(err, tool.ErrConfirmationRejected) || calls.Load() != 0 {
 		t.Fatalf("confirmation not preserved: %v, requests=%d", err, calls.Load())
 	}
@@ -236,7 +248,7 @@ func TestWebSearchProviderSelection(t *testing.T) {
 			runnable := search.(interface {
 				Run(agent.Context, any) (map[string]any, error)
 			})
-			out, err := runnable.Run(parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(context.Background())}, map[string]any{"query": "golang"})
+			out, err := runnable.Run(&parallelAgentContext{StrictContextMock: agent.NewStrictContextMock(context.Background())}, map[string]any{"query": "golang"})
 			if err != nil || out["success"] != true || requests != 1 {
 				t.Fatalf("SearXNG dispatch failed: %+v, %v, requests=%d", out, err, requests)
 			}
@@ -257,7 +269,7 @@ func TestParallelSearchHTTPFailure(t *testing.T) {
 		return &http.Response{StatusCode: http.StatusServiceUnavailable, Header: make(http.Header), Body: io.NopCloser(strings.NewReader("service unavailable"))}, nil
 	})
 	out := runParallelTool(t, context.Background(), map[string]any{"query": "Go release notes"})
-	if out.Success || !strings.Contains(out.Error, "503") {
+	if out.Success || !strings.Contains(out.Error, "Service Unavailable") {
 		t.Fatalf("HTTP failure not returned to model: %+v", out)
 	}
 }

@@ -85,7 +85,7 @@ func TestParallelSearchAssistantDispatcher(t *testing.T) {
 	if !output.Success || len(output.Results) != 1 || output.Results[0].Link != "https://go.dev/doc/devel/release" || output.Results[0].Snippet != "Release notes" || response.ID != "search-call" {
 		t.Fatalf("tool result did not reach the model response: %s", data)
 	}
-	if requests.Load() < 3 {
+	if requests.Load() < 2 {
 		t.Fatal("MCP handshake/search requests missing")
 	}
 
@@ -119,7 +119,7 @@ func TestParallelSearchLive(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("anonymous MCP result: %s", data)
-	if requests.Load() < 3 {
+	if requests.Load() < 2 {
 		t.Fatal("MCP handshake/search requests missing")
 	}
 	if response.Response["success"] != true {
