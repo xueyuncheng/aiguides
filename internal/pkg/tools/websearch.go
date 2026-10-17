@@ -46,7 +46,8 @@ type SearXNGConfig struct {
 
 // WebSearchConfig 网页搜索配置
 type WebSearchConfig struct {
-	SearXNG SearXNGConfig
+	Provider string // 空值或 searxng 使用 SearXNG；parallel 使用 Parallel Search MCP
+	SearXNG  SearXNGConfig
 }
 
 // SearXNGResponse SearXNG API 响应结构
@@ -68,14 +69,13 @@ type SearXNGResult struct {
 
 // NewWebSearchTool 创建网页搜索工具
 //
-// 使用 SearXNG 开源搜索引擎聚合服务，支持：
-// - 完全免费，无需 API Key
-// - 搜索全网，无域名限制
-// - 聚合 Google、Bing、DuckDuckGo 等多个搜索引擎
-// - 自动故障转移到备用实例
+// 默认使用 SearXNG 聚合搜索，也可通过 Provider 选择匿名 Parallel Search MCP。
 func NewWebSearchTool(config WebSearchConfig) (tool.Tool, error) {
+	if config.Provider != "" && config.Provider != "searxng" && config.Provider != "parallel" {
+		return nil, fmt.Errorf("unsupported web search provider: %q", config.Provider)
+	}
 	// 设置默认值
-	if config.SearXNG.InstanceURL == "" {
+	if config.Provider != "parallel" && config.SearXNG.InstanceURL == "" {
 		config.SearXNG.InstanceURL = "https://searx.be" // 默认使用 searx.be 公共实例
 		slog.Info("使用默认 SearXNG 实例", "instance", config.SearXNG.InstanceURL)
 	}
@@ -118,6 +118,14 @@ func executeWebSearch(ctx context.Context, input WebSearchInput, config WebSearc
 	}
 
 	slog.Info("执行网页搜索", "query", input.Query, "num_results", numResults, "language", language)
+
+	if config.Provider == "parallel" {
+		result, err := searchParallel(ctx, input.Query, numResults, language)
+		if err != nil {
+			return &WebSearchOutput{Success: false, Error: fmt.Sprintf("搜索失败，请稍后重试。错误: %v", err)}, nil
+		}
+		return result, nil
+	}
 
 	// 直接使用配置的实例
 	result, err := searchSearXNG(ctx, config.SearXNG.InstanceURL, input.Query, numResults, language)
